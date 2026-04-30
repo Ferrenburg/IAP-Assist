@@ -1,0 +1,1856 @@
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { generateICS202, ICS202Data } from './generators/ics-202';
+import {
+  ICS_203_BLOCKS,
+  ICS_204_BLOCKS,
+  ICS_205_BLOCKS,
+  ICS_205A_BLOCKS,
+  ICS_206_BLOCKS,
+  ICS_207_BLOCKS,
+  ICS_208_BLOCKS,
+} from './field-mappings';
+import {
+  loadTemplateFirstPage,
+  createContinuationPage,
+  formatDate,
+  formatTime,
+  formatDateTime,
+  drawTableCell,
+  drawWrappedText,
+  drawBoundedText,
+  drawCheckbox,
+  drawPageNumber,
+  addOpPeriodFooter,
+  sanitizeText,
+} from './pdf-helpers';
+import { validateFormFields } from './field-validator';
+import { DEBUG_MODE, drawBlockBoundaries, drawCoordinateGrid } from './debug-mode';
+import { TEMPLATE_URLS } from './templates';
+
+export interface ICSFormData {
+  iapData: any;
+  periodData: any;
+  formData?: any;
+  organizationData?: any;
+  safetyData?: any;
+  safetyFormData?: any;
+  branchesData?: any;
+  commandEmphasis?: string;
+  situationConditions?: string;
+  operationsSectionChief?: string;
+  branchDirector?: string;
+  preparedBy?: string;
+  preparedByPosition?: string;
+  preparedDateTime?: string;
+}
+
+export class ICSFormGenerator {
+  async generateICS202(data: ICSFormData): Promise<Uint8Array> {
+    // Use IC name from iapData if available, otherwise extract from organization data
+    const icName = data.iapData?.incidentCommanderName ||
+      data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
+
+    // Extract  name from organization data
+    const pscName = data.organizationData?.find((item: any) => item.position === '')?.name || '';
+
+    const ics202Data: ICS202Data = {
+      incidentName: data.iapData?.name || '',
+      incidentNumber: data.iapData?.incidentNumber || '',
+      operationalPeriod: {
+        dateFrom: data.periodData?.fromDate || '',
+        timeFrom: data.periodData?.fromTime || '',
+        dateTo: data.periodData?.toDate || '',
+        timeTo: data.periodData?.toTime || '',
+      },
+      objectives: data.formData || [],
+      commandEmphasis: data.commandEmphasis || '',
+      situationalAwareness: data.situationConditions || '',
+      siteSafetyPlanRequired: data.safetyFormData?.siteSafetyPlanRequired,
+      siteSafetyPlanLocation: data.safetyFormData?.siteSafetyPlanLocation || '',
+      preparedBy: {
+        name: data.iapData?.preparedBy || pscName,
+        position: data.iapData?.preparedByPosition || '',
+        dateTime: data.iapData?.preparedDateTime,
+      },
+      approvedBy: icName ? {
+        name: icName,
+      } : undefined,
+      iapAttachments: {
+        ics203: true,
+        ics204: true,
+        ics205: true,
+        ics205a: true,
+        ics206: true,
+        ics207: true,
+        ics208: true,
+      },
+    };
+
+    return await generateICS202(ics202Data);
+  }
+
+  async generateICS203(data: ICSFormData): Promise<Uint8Array> {
+    // Validate required fields have proper anchors
+    const validation = validateFormFields('ICS 203', [
+      { blockNumber: '1', fieldLabel: 'incidentName', position: ICS_203_BLOCKS.incidentName },
+      { blockNumber: '2', fieldLabel: 'opPeriodFrom', position: ICS_203_BLOCKS.opPeriodFrom },
+      { blockNumber: '2', fieldLabel: 'opPeriodTo', position: ICS_203_BLOCKS.opPeriodTo },
+      { blockNumber: '9', fieldLabel: 'preparedByName', position: ICS_203_BLOCKS.preparedByName },
+    ]);
+
+    if (!validation.isValid) {
+      console.error('ICS 203 field validation failed:', validation.errors);
+      validation.errors.forEach(err => {
+        console.error(`  Block ${err.blockNumber} - ${err.fieldLabel}: ${err.issue}`);
+      });
+    }
+
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_203);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+
+    // Debug mode: draw field boundaries
+    if (DEBUG_MODE.enabled) {
+      if (DEBUG_MODE.options.showCoordinateGrid) {
+        drawCoordinateGrid(page, 50);
+      }
+      if (DEBUG_MODE.options.showFieldBoundaries) {
+        drawBlockBoundaries(page, ICS_203_BLOCKS);
+      }
+    }
+
+    // Block 1: Incident Name (bounded to header box)
+    drawBoundedText(
+      page,
+      data.iapData?.name || '',
+      ICS_203_BLOCKS.incidentName.x,
+      ICS_203_BLOCKS.incidentName.y,
+      font,
+      ICS_203_BLOCKS.incidentName.fontSize || 10,
+      ICS_203_BLOCKS.incidentName.maxWidth || 320
+    );
+
+    // Block 2: Operational Period (bounded to header fields)
+    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
+    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+
+    drawBoundedText(
+      page,
+      opFrom,
+      ICS_203_BLOCKS.opPeriodFrom.x,
+      ICS_203_BLOCKS.opPeriodFrom.y,
+      font,
+      ICS_203_BLOCKS.opPeriodFrom.fontSize || 9,
+      ICS_203_BLOCKS.opPeriodFrom.maxWidth || 180
+    );
+
+    drawBoundedText(
+      page,
+      opTo,
+      ICS_203_BLOCKS.opPeriodTo.x,
+      ICS_203_BLOCKS.opPeriodTo.y,
+      font,
+      ICS_203_BLOCKS.opPeriodTo.fontSize || 9,
+      ICS_203_BLOCKS.opPeriodTo.maxWidth || 180
+    );
+
+    // Block 3-8: Organization positions
+    const orgData = data.formData || [];
+
+    // Load branches and divisions for branch/division section
+    const branchesData = data.branchesData || [];
+    const divisionsData = data.divisionsData || [];
+
+    // Helper function to render organization positions
+    const renderOrganizationPositions = (targetPage: PDFPage) => {
+      const positionMap: { [key: string]: { x: number; y: number } } = {
+        'Incident Commander': ICS_203_BLOCKS.incidentCommanderName,
+        'Deputy Incident Commander': ICS_203_BLOCKS.deputyICName,
+        'Safety Officer': ICS_203_BLOCKS.safetyOfficerName,
+        'Public Information Officer': ICS_203_BLOCKS.publicInfoOfficerName,
+        'Liaison Officer': ICS_203_BLOCKS.liaisonOfficerName,
+        'Agency Representative': ICS_203_BLOCKS.agencyRep1Name,
+        'Planning Section Chief': ICS_203_BLOCKS.planningChiefName,
+        'Deputy Planning Section Chief': ICS_203_BLOCKS.planningDeputyName,
+        'Planning Deputy': ICS_203_BLOCKS.planningDeputyName,
+        'Resources Unit Leader': ICS_203_BLOCKS.resourcesUnitName,
+        'Resources Unit': ICS_203_BLOCKS.resourcesUnitName,
+        'Situation Unit Leader': ICS_203_BLOCKS.situationUnitName,
+        'Situation Unit': ICS_203_BLOCKS.situationUnitName,
+        'Documentation Unit Leader': ICS_203_BLOCKS.documentationUnitName,
+        'Documentation Unit': ICS_203_BLOCKS.documentationUnitName,
+        'Demobilization Unit Leader': ICS_203_BLOCKS.demobilizationUnitName,
+        'Demobilization Unit': ICS_203_BLOCKS.demobilizationUnitName,
+        'Technical Specialist': ICS_203_BLOCKS.technicalSpecialist1Name,
+        'Logistics Section Chief': ICS_203_BLOCKS.logisticsChiefName,
+        'Deputy Logistics Section Chief': ICS_203_BLOCKS.logisticsDeputyName,
+        'Logistics Deputy': ICS_203_BLOCKS.logisticsDeputyName,
+        'Support Branch Director': ICS_203_BLOCKS.supportBranchName,
+        'Support Branch': ICS_203_BLOCKS.supportBranchName,
+        'Supply Unit Leader': ICS_203_BLOCKS.supplyUnitName,
+        'Supply Unit': ICS_203_BLOCKS.supplyUnitName,
+        'Facilities Unit Leader': ICS_203_BLOCKS.facilitiesUnitName,
+        'Facilities Unit': ICS_203_BLOCKS.facilitiesUnitName,
+        'Ground Support Unit Leader': ICS_203_BLOCKS.groundSupportUnitName,
+        'Ground Support Unit': ICS_203_BLOCKS.groundSupportUnitName,
+        'Service Branch Director': ICS_203_BLOCKS.serviceBranchName,
+        'Service Branch': ICS_203_BLOCKS.serviceBranchName,
+        'Communications Unit Leader': ICS_203_BLOCKS.communicationsUnitName,
+        'Communications Unit': ICS_203_BLOCKS.communicationsUnitName,
+        'Medical Unit Leader': ICS_203_BLOCKS.medicalUnitName,
+        'Medical Unit': ICS_203_BLOCKS.medicalUnitName,
+        'Food Unit Leader': ICS_203_BLOCKS.foodUnitName,
+        'Food Unit': ICS_203_BLOCKS.foodUnitName,
+        'Operations Section Chief': ICS_203_BLOCKS.operationsChiefName,
+        'Deputy Operations Section Chief': ICS_203_BLOCKS.operationsDeputyName,
+        'Operations Deputy': ICS_203_BLOCKS.operationsDeputyName,
+        'Staging Area Manager': ICS_203_BLOCKS.stagingAreaName,
+        'Staging Area': ICS_203_BLOCKS.stagingAreaName,
+        'Air Operations Branch Director': ICS_203_BLOCKS.airOpsBranchDirectorName,
+        'Air Ops Branch Director': ICS_203_BLOCKS.airOpsBranchDirectorName,
+        'Finance/Administration Section Chief': ICS_203_BLOCKS.financeChiefName,
+        'Finance/Admin Section Chief': ICS_203_BLOCKS.financeChiefName,
+        'Deputy Finance/Administration Section Chief': ICS_203_BLOCKS.financeDeputyName,
+        'Finance Deputy': ICS_203_BLOCKS.financeDeputyName,
+        'Time Unit Leader': ICS_203_BLOCKS.timeUnitName,
+        'Time Unit': ICS_203_BLOCKS.timeUnitName,
+        'Procurement Unit Leader': ICS_203_BLOCKS.procurementUnitName,
+        'Procurement Unit': ICS_203_BLOCKS.procurementUnitName,
+        'Compensation/Claims Unit Leader': ICS_203_BLOCKS.compClaimsUnitName,
+        'Comp/Claims Unit': ICS_203_BLOCKS.compClaimsUnitName,
+        'Cost Unit Leader': ICS_203_BLOCKS.costUnitName,
+        'Cost Unit': ICS_203_BLOCKS.costUnitName,
+      };
+
+      // Handle multiple Incident Commanders for unified command (fill top-down)
+      const icPositions = [
+        ICS_203_BLOCKS.incidentCommanderName,
+        ICS_203_BLOCKS.incidentCommanderName2,
+        ICS_203_BLOCKS.incidentCommanderName3,
+      ];
+      const incidentCommanders = orgData.filter((item: any) => item.position === 'Incident Commander');
+      incidentCommanders.forEach((item: any, index: number) => {
+        if (index < icPositions.length && item.name) {
+          const position = icPositions[index];
+          if (position && position.x !== undefined) {
+            drawBoundedText(
+              targetPage,
+              item.name,
+              position.x,
+              position.y,
+              font,
+              position.fontSize || 8,
+              position.maxWidth || 240
+            );
+          }
+        }
+      });
+
+      // Handle multiple Agency Representatives (fill top-down)
+      const agencyRepPositions = [
+        { agency: ICS_203_BLOCKS.agencyRep1Agency, name: ICS_203_BLOCKS.agencyRep1Name },
+        { agency: ICS_203_BLOCKS.agencyRep2Agency, name: ICS_203_BLOCKS.agencyRep2Name },
+        { agency: ICS_203_BLOCKS.agencyRep3Agency, name: ICS_203_BLOCKS.agencyRep3Name },
+        { agency: ICS_203_BLOCKS.agencyRep4Agency, name: ICS_203_BLOCKS.agencyRep4Name },
+        { agency: ICS_203_BLOCKS.agencyRep5Agency, name: ICS_203_BLOCKS.agencyRep5Name },
+        { agency: ICS_203_BLOCKS.agencyRep6Agency, name: ICS_203_BLOCKS.agencyRep6Name },
+      ];
+      const agencyReps = orgData.filter((item: any) => item.position === 'Agency Representative');
+      agencyReps.forEach((item: any, index: number) => {
+        if (index < agencyRepPositions.length) {
+          const positions = agencyRepPositions[index];
+
+          // Draw agency in left field
+          if (item.agency && positions.agency && positions.agency.x !== undefined) {
+            drawBoundedText(
+              targetPage,
+              item.agency,
+              positions.agency.x,
+              positions.agency.y,
+              font,
+              positions.agency.fontSize || 8,
+              positions.agency.maxWidth || 60
+            );
+          }
+
+          // Draw name in right field
+          if (item.name && positions.name && positions.name.x !== undefined) {
+            drawBoundedText(
+              targetPage,
+              item.name,
+              positions.name.x,
+              positions.name.y,
+              font,
+              positions.name.fontSize || 8,
+              positions.name.maxWidth || 180
+            );
+          }
+        }
+      });
+
+      // Handle multiple Technical Specialists (fill top-down)
+      const techSpecPositions = [
+        ICS_203_BLOCKS.technicalSpecialist1Name,
+        ICS_203_BLOCKS.technicalSpecialist2Name,
+        ICS_203_BLOCKS.technicalSpecialist3Name,
+        ICS_203_BLOCKS.technicalSpecialist4Name,
+      ];
+      const techSpecs = orgData.filter((item: any) => item.position === 'Technical Specialist');
+      techSpecs.forEach((item: any, index: number) => {
+        if (index < techSpecPositions.length && item.name) {
+          const position = techSpecPositions[index];
+          if (position && position.x !== undefined) {
+            drawBoundedText(
+              targetPage,
+              item.name,
+              position.x,
+              position.y,
+              font,
+              position.fontSize || 8,
+              position.maxWidth || 240
+            );
+          }
+        }
+      });
+
+      // Handle all other single positions
+      orgData.forEach((item: any) => {
+        // Skip positions handled separately
+        if (item.position === 'Incident Commander' ||
+            item.position === 'Agency Representative' ||
+            item.position === 'Technical Specialist') {
+          return;
+        }
+
+        const position = positionMap[item.position];
+        if (position && position.x !== undefined && item.name) {
+          // Use bounded text to prevent drift into adjacent sections
+          drawBoundedText(
+            targetPage,
+            item.name,
+            position.x,
+            position.y,
+            font,
+            position.fontSize || 8,
+            position.maxWidth || 240
+          );
+        } else if (item.position && item.name && !position) {
+          console.warn(`ICS 203: No position mapping found for "${item.position}"`);
+        }
+      });
+    };
+
+    // Render organization positions on first page
+    renderOrganizationPositions(page);
+
+    // DYNAMIC Operations Section: Branches and Divisions/Groups
+    const tableConfig = ICS_203_BLOCKS.branchTableStart;
+    const divisionRowHeight = tableConfig.divisionRowHeight;
+
+    // Separate divisions by branch assignment
+    const divisionsWithoutBranch: any[] = [];
+    const divisionsByBranch: { [key: string]: any[] } = {};
+
+    divisionsData.forEach((div: any) => {
+      if (div.branch) {
+        if (!divisionsByBranch[div.branch]) {
+          divisionsByBranch[div.branch] = [];
+        }
+        divisionsByBranch[div.branch].push(div);
+      } else {
+        // No branch assigned = goes directly under Operations
+        divisionsWithoutBranch.push(div);
+      }
+    });
+
+    // Filter out Air Operations Branch for separate handling at bottom
+    const regularBranches = branchesData.filter((b: any) =>
+      b.name !== 'Air Operations Branch' && b.name !== 'Air Ops Branch'
+    );
+    const airOpsBranch = branchesData.find((b: any) =>
+      b.name === 'Air Operations Branch' || b.name === 'Air Ops Branch'
+    );
+
+    // Helper function to render branches on a page
+    const renderBranchesOnPage = (targetPage: PDFPage, branches: any[], startIndex: number) => {
+      const branchSlots = tableConfig.branches;
+      const branchesToRender = branches.slice(startIndex, startIndex + tableConfig.maxBranchesPerPage);
+
+      branchesToRender.forEach((branch: any, slotIndex: number) => {
+        const slot = branchSlots[slotIndex];
+        if (!slot) return;
+
+        // Branch name
+        drawBoundedText(
+          targetPage,
+          branch.name,
+          tableConfig.branchNameX,
+          slot.nameY,
+          font,
+          tableConfig.fontSize,
+          tableConfig.labelMaxWidth
+        );
+
+        // Branch director
+        if (branch.directorName) {
+          drawBoundedText(
+            targetPage,
+            branch.directorName,
+            tableConfig.branchDirectorX,
+            slot.directorY,
+            font,
+            tableConfig.fontSize,
+            tableConfig.supervisorMaxWidth
+          );
+        }
+
+        // Get divisions for this branch
+        const branchDivisions = divisionsByBranch[branch.name] || [];
+        let divisionY = slot.firstDivisionY;
+
+        // Render divisions/groups under this branch
+        branchDivisions.forEach((div: any) => {
+          // Division/Group label
+          let divLabel;
+          if (div.position.toLowerCase().includes('division')) {
+            divLabel = div.position.includes(':') ? div.position : `Division ${div.position.replace(/division\s*/i, '')}`;
+          } else if (div.position.toLowerCase().includes('group')) {
+            divLabel = div.position.includes(':') ? div.position : `Group ${div.position.replace(/group\s*/i, '')}`;
+          } else {
+            divLabel = div.position;
+          }
+
+          drawBoundedText(
+            targetPage,
+            divLabel,
+            tableConfig.divisionLabelX,
+            divisionY,
+            font,
+            tableConfig.fontSize,
+            tableConfig.labelMaxWidth
+          );
+
+          // Supervisor name in separate column
+          if (div.name) {
+            drawBoundedText(
+              targetPage,
+              div.name,
+              tableConfig.divisionSupervisorX,
+              divisionY,
+              font,
+              tableConfig.fontSize,
+              tableConfig.supervisorMaxWidth
+            );
+          }
+
+          divisionY -= divisionRowHeight;
+        });
+      });
+    };
+
+    // Helper function to add header, organization, and footer to a page
+    const addHeaderFooter = (targetPage: PDFPage) => {
+      // Block 1: Incident Name
+      drawBoundedText(
+        targetPage,
+        data.iapData?.name || '',
+        ICS_203_BLOCKS.incidentName.x,
+        ICS_203_BLOCKS.incidentName.y,
+        font,
+        ICS_203_BLOCKS.incidentName.fontSize || 10,
+        ICS_203_BLOCKS.incidentName.maxWidth || 320
+      );
+
+      // Block 2: Operational Period
+      const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
+      const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+
+      drawBoundedText(
+        targetPage,
+        opFrom,
+        ICS_203_BLOCKS.opPeriodFrom.x,
+        ICS_203_BLOCKS.opPeriodFrom.y,
+        font,
+        ICS_203_BLOCKS.opPeriodFrom.fontSize || 9,
+        ICS_203_BLOCKS.opPeriodFrom.maxWidth || 180
+      );
+
+      drawBoundedText(
+        targetPage,
+        opTo,
+        ICS_203_BLOCKS.opPeriodTo.x,
+        ICS_203_BLOCKS.opPeriodTo.y,
+        font,
+        ICS_203_BLOCKS.opPeriodTo.fontSize || 9,
+        ICS_203_BLOCKS.opPeriodTo.maxWidth || 180
+      );
+
+      // Block 3-8: Organization positions
+      renderOrganizationPositions(targetPage);
+
+      // Block 9: Prepared by
+      drawBoundedText(
+        targetPage,
+        data.iapData?.preparedBy || '',
+        ICS_203_BLOCKS.preparedByName.x,
+        ICS_203_BLOCKS.preparedByName.y,
+        font,
+        ICS_203_BLOCKS.preparedByName.fontSize || 9,
+        ICS_203_BLOCKS.preparedByName.maxWidth || 180
+      );
+
+      drawBoundedText(
+        targetPage,
+        data.iapData?.preparedByPosition || '',
+        ICS_203_BLOCKS.preparedByPosition.x,
+        ICS_203_BLOCKS.preparedByPosition.y,
+        font,
+        ICS_203_BLOCKS.preparedByPosition.fontSize || 9,
+        ICS_203_BLOCKS.preparedByPosition.maxWidth || 140
+      );
+
+      const preparedDateTime = data.iapData?.preparedDateTime
+        ? formatDateTime(
+            data.iapData.preparedDateTime.split('T')[0],
+            data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
+          )
+        : formatDateTime(
+            new Date().toISOString().split('T')[0],
+            new Date().toTimeString().split(' ')[0].substring(0, 5)
+          );
+
+      drawBoundedText(
+        targetPage,
+        preparedDateTime,
+        ICS_203_BLOCKS.preparedByDateTime.x,
+        ICS_203_BLOCKS.preparedByDateTime.y,
+        font,
+        ICS_203_BLOCKS.preparedByDateTime.fontSize || 9,
+        ICS_203_BLOCKS.preparedByDateTime.maxWidth || 120
+      );
+    };
+
+    // CASE 1: No branches - render divisions/groups directly under Operations
+    if (regularBranches.length === 0) {
+      let currentY = tableConfig.branches[0].firstDivisionY;
+      divisionsWithoutBranch.forEach((div: any) => {
+        // Division/Group label
+        let divLabel;
+        if (div.position.toLowerCase().includes('division')) {
+          divLabel = div.position.includes(':') ? div.position : `Division ${div.position.replace(/division\s*/i, '')}`;
+        } else if (div.position.toLowerCase().includes('group')) {
+          divLabel = div.position.includes(':') ? div.position : `Group ${div.position.replace(/group\s*/i, '')}`;
+        } else {
+          divLabel = div.position;
+        }
+
+        drawBoundedText(
+          page,
+          divLabel,
+          tableConfig.divisionLabelX,
+          currentY,
+          font,
+          tableConfig.fontSize,
+          tableConfig.labelMaxWidth
+        );
+
+        // Supervisor name in separate column
+        if (div.name) {
+          drawBoundedText(
+            page,
+            div.name,
+            tableConfig.divisionSupervisorX,
+            currentY,
+            font,
+            tableConfig.fontSize,
+            tableConfig.supervisorMaxWidth
+          );
+        }
+
+        currentY -= divisionRowHeight;
+      });
+    }
+    // CASE 2: One or more branches
+    else {
+      // Render first page branches (up to 3)
+      renderBranchesOnPage(page, regularBranches, 0);
+
+      // If more than 3 branches, create continuation pages
+      if (regularBranches.length > tableConfig.maxBranchesPerPage) {
+        let remainingBranches = regularBranches.length - tableConfig.maxBranchesPerPage;
+        let currentBranchIndex = tableConfig.maxBranchesPerPage;
+        let pageNumber = 2;
+
+        while (remainingBranches > 0) {
+          // Create continuation page
+          const continuationPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_203);
+
+          // Add header and footer to continuation page
+          addHeaderFooter(continuationPage);
+
+          // Add continuation page header
+          continuationPage.drawText(`Continuation Page ${pageNumber}`, {
+            x: 450,
+            y: 760,
+            size: 10,
+            font,
+            color: rgb(0, 0, 0),
+          });
+
+          // Render branches on continuation page
+          renderBranchesOnPage(continuationPage, regularBranches, currentBranchIndex);
+
+          currentBranchIndex += tableConfig.maxBranchesPerPage;
+          remainingBranches -= tableConfig.maxBranchesPerPage;
+          pageNumber++;
+        }
+      }
+    }
+
+    // Air Operations Branch (special case - always at bottom per ICS 203 template on first page only)
+    const airOpsBranchY = 236;
+    if (airOpsBranch && airOpsBranch.directorName) {
+      drawBoundedText(
+        page,
+        airOpsBranch.directorName,
+        tableConfig.branchDirectorX,
+        airOpsBranchY,
+        font,
+        tableConfig.fontSize,
+        tableConfig.supervisorMaxWidth
+      );
+    }
+
+    // Block 9: Prepared by (footer - bounded to footer lines)
+    drawBoundedText(
+      page,
+      data.iapData?.preparedBy || '',
+      ICS_203_BLOCKS.preparedByName.x,
+      ICS_203_BLOCKS.preparedByName.y,
+      font,
+      ICS_203_BLOCKS.preparedByName.fontSize || 9,
+      ICS_203_BLOCKS.preparedByName.maxWidth || 180
+    );
+
+    drawBoundedText(
+      page,
+      data.iapData?.preparedByPosition || '',
+      ICS_203_BLOCKS.preparedByPosition.x,
+      ICS_203_BLOCKS.preparedByPosition.y,
+      font,
+      ICS_203_BLOCKS.preparedByPosition.fontSize || 9,
+      ICS_203_BLOCKS.preparedByPosition.maxWidth || 140
+    );
+
+    // Use provided datetime if available, otherwise use current time
+    const preparedDateTime = data.iapData?.preparedDateTime
+      ? formatDateTime(
+          data.iapData.preparedDateTime.split('T')[0],
+          data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
+        )
+      : formatDateTime(
+          new Date().toISOString().split('T')[0],
+          new Date().toTimeString().split(' ')[0].substring(0, 5)
+        );
+
+    drawBoundedText(
+      page,
+      preparedDateTime,
+      ICS_203_BLOCKS.preparedByDateTime.x,
+      ICS_203_BLOCKS.preparedByDateTime.y,
+      font,
+      ICS_203_BLOCKS.preparedByDateTime.fontSize || 9,
+      ICS_203_BLOCKS.preparedByDateTime.maxWidth || 90
+    );
+
+    // Add page numbers if multiple pages
+    const allPages = pdfDoc.getPages();
+    if (allPages.length > 1) {
+      for (let i = 0; i < allPages.length; i++) {
+        drawPageNumber(allPages[i], i + 1, allPages.length, 'ICS 203');
+      }
+    }
+
+    // Add OpPeriod footer to all pages
+    for (const p of allPages) {
+      addOpPeriodFooter(p, font);
+    }
+
+    return await pdfDoc.save();
+  }
+
+  async generateICS204(data: ICSFormData): Promise<Uint8Array> {
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_204);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+
+    // Block 1: Incident Name
+    page.drawText(data.iapData?.name || '', {
+      x: ICS_204_BLOCKS.incidentName.x,
+      y: ICS_204_BLOCKS.incidentName.y,
+      size: ICS_204_BLOCKS.incidentName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 2: Operational Period
+    const opFromDate = formatDate(data.periodData?.fromDate);
+    const opFromTime = formatTime(data.periodData?.fromTime);
+    const opToDate = formatDate(data.periodData?.toDate);
+    const opToTime = formatTime(data.periodData?.toTime);
+
+    // Draw operational period dates
+    page.drawText(opFromDate, {
+      x: ICS_204_BLOCKS.opPeriodDateFrom.x,
+      y: ICS_204_BLOCKS.opPeriodDateFrom.y,
+      size: ICS_204_BLOCKS.opPeriodDateFrom.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opFromTime, {
+      x: ICS_204_BLOCKS.opPeriodTimeFrom.x,
+      y: ICS_204_BLOCKS.opPeriodTimeFrom.y,
+      size: ICS_204_BLOCKS.opPeriodTimeFrom.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opToDate, {
+      x: ICS_204_BLOCKS.opPeriodDateTo.x,
+      y: ICS_204_BLOCKS.opPeriodDateTo.y,
+      size: ICS_204_BLOCKS.opPeriodDateTo.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opToTime, {
+      x: ICS_204_BLOCKS.opPeriodTimeTo.x,
+      y: ICS_204_BLOCKS.opPeriodTimeTo.y,
+      size: ICS_204_BLOCKS.opPeriodTimeTo.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 3: Branch/Division/Group
+    const assignments = data.formData || [];
+    if (assignments.length > 0) {
+      const firstAssignment = assignments[0];
+      const assignmentType = firstAssignment.divisionGroupType || 'division';
+
+      // Use the correct field based on assignment type
+      let fieldConfig;
+      let personnelConfig;
+
+      if (assignmentType === 'branch') {
+        fieldConfig = ICS_204_BLOCKS.branch;
+        personnelConfig = ICS_204_BLOCKS.branchDirector;
+      } else if (assignmentType === 'group') {
+        fieldConfig = ICS_204_BLOCKS.group;
+        personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+      } else {
+        fieldConfig = ICS_204_BLOCKS.division;
+        personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+      }
+
+      // If this division/group belongs to a branch, draw the branch name
+      if (firstAssignment.branch && assignmentType !== 'branch') {
+        page.drawText(firstAssignment.branch, {
+          x: ICS_204_BLOCKS.branch.x,
+          y: ICS_204_BLOCKS.branch.y,
+          size: ICS_204_BLOCKS.branch.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          maxWidth: ICS_204_BLOCKS.branch.maxWidth,
+        });
+      }
+
+      // Draw the branch/division/group name
+      page.drawText(firstAssignment.division || '', {
+        x: fieldConfig.x,
+        y: fieldConfig.y,
+        size: fieldConfig.fontSize,
+        font,
+        color: rgb(0, 0, 0),
+        maxWidth: fieldConfig.maxWidth,
+      });
+
+      // Draw reporting location
+      if (firstAssignment.reportingLocation) {
+        page.drawText(firstAssignment.reportingLocation, {
+          x: ICS_204_BLOCKS.reportingLocation.x,
+          y: ICS_204_BLOCKS.reportingLocation.y,
+          size: ICS_204_BLOCKS.reportingLocation.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          maxWidth: ICS_204_BLOCKS.reportingLocation.maxWidth,
+        });
+      }
+
+      // Block 4: Operations Personnel
+      // Operations Section Chief
+      if (data.operationsSectionChief) {
+        page.drawText(data.operationsSectionChief, {
+          x: ICS_204_BLOCKS.opsSectionChief.x,
+          y: ICS_204_BLOCKS.opsSectionChief.y,
+          size: ICS_204_BLOCKS.opsSectionChief.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          maxWidth: ICS_204_BLOCKS.opsSectionChief.maxWidth,
+        });
+      }
+
+      // Branch Director (only for divisions/groups assigned to a branch)
+      if (data.branchDirector && assignmentType !== 'branch') {
+        page.drawText(data.branchDirector, {
+          x: ICS_204_BLOCKS.branchDirector.x,
+          y: ICS_204_BLOCKS.branchDirector.y,
+          size: ICS_204_BLOCKS.branchDirector.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          maxWidth: ICS_204_BLOCKS.branchDirector.maxWidth,
+        });
+      }
+
+      // Branch Director / Division Supervisor (the supervisor for this specific assignment)
+      page.drawText(firstAssignment.supervisor || '', {
+        x: personnelConfig.x,
+        y: personnelConfig.y,
+        size: personnelConfig.fontSize,
+        font,
+        color: rgb(0, 0, 0),
+        maxWidth: personnelConfig.maxWidth,
+      });
+    }
+
+    // Block 5: Resources Assigned table
+    let yPos = ICS_204_BLOCKS.resourcesTableStart.y;
+    const cols = ICS_204_BLOCKS.resourceColumns;
+
+    if (assignments.length > 0 && assignments[0].resources) {
+      const resources = Array.isArray(assignments[0].resources) ? assignments[0].resources : [];
+
+      resources.slice(0, 15).forEach((resource: any) => {
+        drawTableCell(page, resource.name || '', cols.identifier.x, yPos, font, ICS_204_BLOCKS.resourcesTableStart.fontSize || 7, cols.identifier.maxWidth || 75);
+        drawTableCell(page, resource.leaderName || '', cols.leader.x, yPos, font, ICS_204_BLOCKS.resourcesTableStart.fontSize || 7, cols.leader.maxWidth || 75);
+        drawTableCell(page, resource.numPersons || '', cols.numPersons.x, yPos, font, ICS_204_BLOCKS.resourcesTableStart.fontSize || 7, cols.numPersons.maxWidth || 30);
+        drawTableCell(page, resource.contact || '', cols.contact.x, yPos, font, ICS_204_BLOCKS.resourcesTableStart.fontSize || 7, cols.contact.maxWidth || 80);
+        drawTableCell(page, resource.notes || '', cols.notes.x, yPos, font, ICS_204_BLOCKS.resourcesTableStart.fontSize || 7, cols.notes.maxWidth || 230);
+
+        yPos -= ICS_204_BLOCKS.resourceRowHeight;
+      });
+    }
+
+    // Block 6: Work Assignments
+    if (assignments.length > 0 && assignments[0].workAssignment) {
+      drawWrappedText(
+        page,
+        assignments[0].workAssignment,
+        ICS_204_BLOCKS.workAssignmentsStart.x,
+        ICS_204_BLOCKS.workAssignmentsStart.y,
+        font,
+        ICS_204_BLOCKS.workAssignmentsStart.fontSize || 9,
+        ICS_204_BLOCKS.workAssignmentsStart.maxWidth || 520,
+        12
+      );
+    }
+
+    // Block 7: Special Instructions
+    if (assignments.length > 0 && assignments[0].specialInstructions) {
+      drawWrappedText(
+        page,
+        assignments[0].specialInstructions,
+        ICS_204_BLOCKS.specialInstructionsStart.x,
+        ICS_204_BLOCKS.specialInstructionsStart.y,
+        font,
+        ICS_204_BLOCKS.specialInstructionsStart.fontSize || 8,
+        ICS_204_BLOCKS.specialInstructionsStart.maxWidth || 520,
+        10
+      );
+    }
+
+    // Block 8: Communications/Contact Info
+    if (assignments.length > 0 && assignments[0].communications) {
+      const contacts = Array.isArray(assignments[0].communications) ? assignments[0].communications : [];
+      let commYPos = ICS_204_BLOCKS.communicationsStart.y;
+
+      contacts.forEach((contact: any) => {
+        const contactText = `${contact.function || ''}: ${contact.name || ''} - ${contact.contact || ''}`;
+        page.drawText(contactText, {
+          x: ICS_204_BLOCKS.communicationsStart.x,
+          y: commYPos,
+          size: ICS_204_BLOCKS.communicationsStart.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          maxWidth: ICS_204_BLOCKS.communicationsStart.maxWidth,
+        });
+        commYPos -= ICS_204_BLOCKS.commLineHeight;
+      });
+    }
+
+    // Block 9: Prepared by
+    page.drawText(data.preparedBy || '', {
+      x: ICS_204_BLOCKS.preparedByName.x,
+      y: ICS_204_BLOCKS.preparedByName.y,
+      size: ICS_204_BLOCKS.preparedByName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(data.preparedByPosition || '', {
+      x: ICS_204_BLOCKS.preparedByPosition.x,
+      y: ICS_204_BLOCKS.preparedByPosition.y,
+      size: ICS_204_BLOCKS.preparedByPosition.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(data.preparedDateTime || '', {
+      x: ICS_204_BLOCKS.preparedByDateTime.x,
+      y: ICS_204_BLOCKS.preparedByDateTime.y,
+      size: ICS_204_BLOCKS.preparedByDateTime.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    return await pdfDoc.save();
+  }
+
+  async generateICS205(data: ICSFormData): Promise<Uint8Array> {
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_205);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+
+    // Don't modify rotation - work with the template as-is
+
+    // Block 1: Incident Name
+    page.drawText(data.iapData?.name || '', {
+      x: ICS_205_BLOCKS.incidentName.x,
+      y: ICS_205_BLOCKS.incidentName.y,
+      size: ICS_205_BLOCKS.incidentName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    // Block 2: Date/Time Prepared (split into two lines)
+    const preparedDate = data.iapData?.preparedDateTime
+      ? data.iapData.preparedDateTime.split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    const preparedTime = data.iapData?.preparedDateTime
+      ? data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
+      : new Date().toTimeString().split(' ')[0].substring(0, 5);
+
+    page.drawText(preparedDate, {
+      x: ICS_205_BLOCKS.dateTimePrepared.date.x,
+      y: ICS_205_BLOCKS.dateTimePrepared.date.y,
+      size: ICS_205_BLOCKS.dateTimePrepared.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    page.drawText(preparedTime, {
+      x: ICS_205_BLOCKS.dateTimePrepared.time.x,
+      y: ICS_205_BLOCKS.dateTimePrepared.time.y,
+      size: ICS_205_BLOCKS.dateTimePrepared.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    // Block 3: Operational Period (split into two lines each)
+    const opFromDate = data.periodData?.fromDate || '';
+    const opFromTime = data.periodData?.fromTime || '';
+    const opToDate = data.periodData?.toDate || '';
+    const opToTime = data.periodData?.toTime || '';
+
+    page.drawText(opFromDate, {
+      x: ICS_205_BLOCKS.opPeriodFrom.date.x,
+      y: ICS_205_BLOCKS.opPeriodFrom.date.y,
+      size: ICS_205_BLOCKS.opPeriodFrom.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    page.drawText(opFromTime, {
+      x: ICS_205_BLOCKS.opPeriodFrom.time.x,
+      y: ICS_205_BLOCKS.opPeriodFrom.time.y,
+      size: ICS_205_BLOCKS.opPeriodFrom.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    page.drawText(opToDate, {
+      x: ICS_205_BLOCKS.opPeriodTo.date.x,
+      y: ICS_205_BLOCKS.opPeriodTo.date.y,
+      size: ICS_205_BLOCKS.opPeriodTo.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    page.drawText(opToTime, {
+      x: ICS_205_BLOCKS.opPeriodTo.time.x,
+      y: ICS_205_BLOCKS.opPeriodTo.time.y,
+      size: ICS_205_BLOCKS.opPeriodTo.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    // Prepare preparedBy date/time variables for use in main page and continuation pages
+    const preparedByDate = data.iapData?.preparedDateTime
+      ? data.iapData.preparedDateTime.split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    const preparedByTime = data.iapData?.preparedDateTime
+      ? data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
+      : new Date().toTimeString().split(' ')[0].substring(0, 5);
+
+    // Block 4: Radio Communications Table
+    const comms = data.formData || [];
+    const tableStart = ICS_205_BLOCKS.radioTableStart;
+    const rowHeight = ICS_205_BLOCKS.radioRowHeight;
+    const maxChannelsPerPage = 8;
+
+    // Helper function to render channels on a page
+    const renderChannelsOnPage = (targetPage: PDFPage, startIndex: number) => {
+      const channelsToRender = comms.slice(startIndex, startIndex + maxChannelsPerPage);
+
+      channelsToRender.forEach((item: any, index: number) => {
+        const cols = ICS_205_BLOCKS.radioColumns;
+        const xPos = tableStart.x + (index * rowHeight);
+
+        drawTableCell(targetPage, item.zoneGroup || item.zone || '', xPos, cols.zoneGroup.y, font, tableStart.fontSize || 7, cols.zoneGroup.maxWidth || 40, 90);
+        drawTableCell(targetPage, item.channelNumber || '', xPos, cols.channelNumber.y, font, tableStart.fontSize || 7, cols.channelNumber.maxWidth || 30, 90);
+        drawTableCell(targetPage, item.function || '', xPos, cols.function.y, font, tableStart.fontSize || 7, cols.function.maxWidth || 60, 90);
+        drawTableCell(targetPage, item.channelName || '', xPos, cols.channelName.y, font, tableStart.fontSize || 7, cols.channelName.maxWidth || 80, 90);
+        drawTableCell(targetPage, item.assignment || '', xPos, cols.assignment.y, font, tableStart.fontSize || 7, cols.assignment.maxWidth || 70, 90);
+        drawTableCell(targetPage, item.rxFreq || '', xPos, cols.rxFreq.y, font, tableStart.fontSize || 7, cols.rxFreq.maxWidth || 50, 90);
+        drawTableCell(targetPage, item.rxTone || '', xPos, cols.rxTone.y, font, tableStart.fontSize || 7, cols.rxTone.maxWidth || 40, 90);
+        drawTableCell(targetPage, item.txFreq || '', xPos, cols.txFreq.y, font, tableStart.fontSize || 7, cols.txFreq.maxWidth || 50, 90);
+        drawTableCell(targetPage, item.txTone || '', xPos, cols.txTone.y, font, tableStart.fontSize || 7, cols.txTone.maxWidth || 40, 90);
+        drawTableCell(targetPage, item.mode || '', xPos, cols.mode.y, font, tableStart.fontSize || 7, cols.mode.maxWidth || 30, 90);
+        drawTableCell(targetPage, item.remarks || '', xPos, cols.remarks.y, font, tableStart.fontSize || 7, cols.remarks.maxWidth || 150, 90);
+      });
+    };
+
+    // Render first page channels
+    renderChannelsOnPage(page, 0);
+
+    // Create continuation pages if needed
+    if (comms.length > maxChannelsPerPage) {
+      let remainingChannels = comms.length - maxChannelsPerPage;
+      let currentChannelIndex = maxChannelsPerPage;
+      let pageNumber = 2;
+
+      while (remainingChannels > 0) {
+        const continuationPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_205);
+
+        // Add continuation page header
+        continuationPage.drawText(`Continuation Page ${pageNumber}`, {
+          x: 30,
+          y: 740,
+          size: 10,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        // Block 1: Incident Name
+        continuationPage.drawText(data.iapData?.name || '', {
+          x: ICS_205_BLOCKS.incidentName.x,
+          y: ICS_205_BLOCKS.incidentName.y,
+          size: ICS_205_BLOCKS.incidentName.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        // Block 2: Date/Time Prepared
+        continuationPage.drawText(preparedDate, {
+          x: ICS_205_BLOCKS.dateTimePrepared.date.x,
+          y: ICS_205_BLOCKS.dateTimePrepared.date.y,
+          size: ICS_205_BLOCKS.dateTimePrepared.date.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        continuationPage.drawText(preparedTime, {
+          x: ICS_205_BLOCKS.dateTimePrepared.time.x,
+          y: ICS_205_BLOCKS.dateTimePrepared.time.y,
+          size: ICS_205_BLOCKS.dateTimePrepared.time.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        // Block 3: Operational Period
+        continuationPage.drawText(opFromDate, {
+          x: ICS_205_BLOCKS.opPeriodFrom.date.x,
+          y: ICS_205_BLOCKS.opPeriodFrom.date.y,
+          size: ICS_205_BLOCKS.opPeriodFrom.date.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        continuationPage.drawText(opFromTime, {
+          x: ICS_205_BLOCKS.opPeriodFrom.time.x,
+          y: ICS_205_BLOCKS.opPeriodFrom.time.y,
+          size: ICS_205_BLOCKS.opPeriodFrom.time.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        continuationPage.drawText(opToDate, {
+          x: ICS_205_BLOCKS.opPeriodTo.date.x,
+          y: ICS_205_BLOCKS.opPeriodTo.date.y,
+          size: ICS_205_BLOCKS.opPeriodTo.date.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        continuationPage.drawText(opToTime, {
+          x: ICS_205_BLOCKS.opPeriodTo.time.x,
+          y: ICS_205_BLOCKS.opPeriodTo.time.y,
+          size: ICS_205_BLOCKS.opPeriodTo.time.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        // Block 6: Prepared by
+        continuationPage.drawText(data.iapData?.preparedBy || '', {
+          x: ICS_205_BLOCKS.preparedByName.x,
+          y: ICS_205_BLOCKS.preparedByName.y,
+          size: ICS_205_BLOCKS.preparedByName.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        continuationPage.drawText(preparedByDate, {
+          x: ICS_205_BLOCKS.preparedByDateTime.date.x,
+          y: ICS_205_BLOCKS.preparedByDateTime.date.y,
+          size: ICS_205_BLOCKS.preparedByDateTime.date.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        continuationPage.drawText(preparedByTime, {
+          x: ICS_205_BLOCKS.preparedByDateTime.time.x,
+          y: ICS_205_BLOCKS.preparedByDateTime.time.y,
+          size: ICS_205_BLOCKS.preparedByDateTime.time.fontSize,
+          font,
+          color: rgb(0, 0, 0),
+          rotate: { type: 'degrees', angle: 90 },
+        });
+
+        // Render channels on continuation page
+        renderChannelsOnPage(continuationPage, currentChannelIndex);
+
+        currentChannelIndex += maxChannelsPerPage;
+        remainingChannels -= maxChannelsPerPage;
+        pageNumber++;
+      }
+    }
+
+    // Block 5: Special Instructions
+    if (data.specialInstructions) {
+      drawTableCell(
+        page,
+        data.specialInstructions,
+        ICS_205_BLOCKS.specialInstructionsStart.x,
+        ICS_205_BLOCKS.specialInstructionsStart.y,
+        font,
+        ICS_205_BLOCKS.specialInstructionsStart.fontSize,
+        ICS_205_BLOCKS.specialInstructionsStart.maxWidth,
+        90
+      );
+    }
+
+    // Block 6: Prepared by
+    page.drawText(data.iapData?.preparedBy || '', {
+      x: ICS_205_BLOCKS.preparedByName.x,
+      y: ICS_205_BLOCKS.preparedByName.y,
+      size: ICS_205_BLOCKS.preparedByName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    page.drawText(preparedByDate, {
+      x: ICS_205_BLOCKS.preparedByDateTime.date.x,
+      y: ICS_205_BLOCKS.preparedByDateTime.date.y,
+      size: ICS_205_BLOCKS.preparedByDateTime.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    page.drawText(preparedByTime, {
+      x: ICS_205_BLOCKS.preparedByDateTime.time.x,
+      y: ICS_205_BLOCKS.preparedByDateTime.time.y,
+      size: ICS_205_BLOCKS.preparedByDateTime.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: { type: 'degrees', angle: 90 },
+    });
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    return await pdfDoc.save();
+  }
+
+  async generateICS205A(data: ICSFormData): Promise<Uint8Array> {
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_205A);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+
+    // Block 1: Incident Name
+    page.drawText(data.iapData?.name || '', {
+      x: ICS_205A_BLOCKS.incidentName.x,
+      y: ICS_205A_BLOCKS.incidentName.y,
+      size: ICS_205A_BLOCKS.incidentName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 2: Operational Period
+    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
+    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+
+    page.drawText(opFrom, {
+      x: ICS_205A_BLOCKS.opPeriodFrom.x,
+      y: ICS_205A_BLOCKS.opPeriodFrom.y,
+      size: ICS_205A_BLOCKS.opPeriodFrom.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opTo, {
+      x: ICS_205A_BLOCKS.opPeriodTo.x,
+      y: ICS_205A_BLOCKS.opPeriodTo.y,
+      size: ICS_205A_BLOCKS.opPeriodTo.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 3: Communications Table
+    const comms = data.formData || [];
+    let yPos = ICS_205A_BLOCKS.commTableStart.y;
+
+    comms.slice(0, 20).forEach((item: any) => {
+      const cols = ICS_205A_BLOCKS.commColumns;
+
+      drawTableCell(page, item.role || item.position || '', cols.position.x, yPos, font, ICS_205A_BLOCKS.commTableStart.fontSize || 8, cols.position.maxWidth || 150);
+      drawTableCell(page, item.name || '', cols.name.x, yPos, font, ICS_205A_BLOCKS.commTableStart.fontSize || 8, cols.name.maxWidth || 150);
+      // Combine phone and radio into method/contact column
+      const contactMethod = [item.phone, item.radio].filter(Boolean).join(' / ');
+      drawTableCell(page, contactMethod, cols.method.x, yPos, font, ICS_205A_BLOCKS.commTableStart.fontSize || 8, cols.method.maxWidth || 200);
+
+      yPos -= ICS_205A_BLOCKS.commRowHeight;
+    });
+
+    // Block 4: Prepared by
+    page.drawText(data.iapData?.preparedBy || '', {
+      x: ICS_205A_BLOCKS.preparedByName.x,
+      y: ICS_205A_BLOCKS.preparedByName.y,
+      size: ICS_205A_BLOCKS.preparedByName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText('Communications Unit Leader', {
+      x: ICS_205A_BLOCKS.preparedByPosition.x,
+      y: ICS_205A_BLOCKS.preparedByPosition.y,
+      size: ICS_205A_BLOCKS.preparedByPosition.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(formatDateTime(
+      new Date().toISOString().split('T')[0],
+      new Date().toTimeString().split(' ')[0].substring(0, 5)
+    ), {
+      x: ICS_205A_BLOCKS.preparedByDateTime.x,
+      y: ICS_205A_BLOCKS.preparedByDateTime.y,
+      size: ICS_205A_BLOCKS.preparedByDateTime.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    return await pdfDoc.save();
+  }
+
+  async generateICS206(data: ICSFormData): Promise<Uint8Array> {
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_206);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+
+    // Block 1: Incident Name
+    page.drawText(data.iapData?.name || '', {
+      x: ICS_206_BLOCKS.incidentName.x,
+      y: ICS_206_BLOCKS.incidentName.y,
+      size: ICS_206_BLOCKS.incidentName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 2: Operational Period (split into two lines each)
+    const opFromDate = data.periodData?.fromDate || '';
+    const opFromTime = data.periodData?.fromTime || '';
+    const opToDate = data.periodData?.toDate || '';
+    const opToTime = data.periodData?.toTime || '';
+
+    page.drawText(opFromDate, {
+      x: ICS_206_BLOCKS.opPeriodFrom.date.x,
+      y: ICS_206_BLOCKS.opPeriodFrom.date.y,
+      size: ICS_206_BLOCKS.opPeriodFrom.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opFromTime, {
+      x: ICS_206_BLOCKS.opPeriodFrom.time.x,
+      y: ICS_206_BLOCKS.opPeriodFrom.time.y,
+      size: ICS_206_BLOCKS.opPeriodFrom.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opToDate, {
+      x: ICS_206_BLOCKS.opPeriodTo.date.x,
+      y: ICS_206_BLOCKS.opPeriodTo.date.y,
+      size: ICS_206_BLOCKS.opPeriodTo.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opToTime, {
+      x: ICS_206_BLOCKS.opPeriodTo.time.x,
+      y: ICS_206_BLOCKS.opPeriodTo.time.y,
+      size: ICS_206_BLOCKS.opPeriodTo.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 3: Medical Aid Stations
+    const medical = data.formData || [];
+    const medicalStations = medical.filter((item: any) => item.itemType === 'medicalStation');
+    let yPos = ICS_206_BLOCKS.aidStationsStart.y;
+
+    medicalStations.slice(0, 10).forEach((item: any) => {
+      const cols = ICS_206_BLOCKS.aidStationColumns;
+
+      drawTableCell(page, item.name || '', cols.name.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.name.maxWidth || 150);
+      drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.location.maxWidth || 200);
+      drawTableCell(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.contact.maxWidth || 150);
+
+      // Paramedics Yes/No checkboxes
+      if (cols.paramedicsYes && cols.paramedicsNo) {
+        const isYes = item.paramedic === 'Yes' || item.paramedic === true;
+        const isNo = item.paramedic === 'No' || item.paramedic === false;
+        drawCheckbox(page, cols.paramedicsYes.x, yPos + 2, 7, isYes);
+        drawCheckbox(page, cols.paramedicsNo.x, yPos + 2, 7, isNo);
+      }
+
+      yPos -= ICS_206_BLOCKS.aidStationRowHeight;
+    });
+
+    // Block 4: Transportation
+    const transportationItems = medical.filter((item: any) => item.itemType === 'transportation');
+    yPos = ICS_206_BLOCKS.transportationStart.y;
+
+    transportationItems.slice(0, 10).forEach((item: any) => {
+      const cols = ICS_206_BLOCKS.transportationColumns;
+
+      drawTableCell(page, item.service || '', cols.service.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.service.maxWidth || 140);
+      drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.location.maxWidth || 140);
+      drawTableCell(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.contact.maxWidth || 120);
+
+      // ALS/BLS checkboxes
+      if (cols.levelALS && cols.levelBLS) {
+        const isALS = item.level === 'ALS';
+        const isBLS = item.level === 'BLS';
+        drawCheckbox(page, cols.levelALS.x, yPos + 2, 7, isALS);
+        drawCheckbox(page, cols.levelBLS.x, yPos + 2, 7, isBLS);
+      }
+
+      yPos -= ICS_206_BLOCKS.transportationRowHeight;
+    });
+
+    // Block 5: Hospitals
+    const hospitalItems = medical.filter((item: any) => item.itemType === 'hospital');
+    yPos = ICS_206_BLOCKS.hospitalsStart.y;
+
+    hospitalItems.slice(0, 10).forEach((item: any) => {
+      const cols = ICS_206_BLOCKS.hospitalColumns;
+
+      // Use wrapped text for fields that might be long
+      drawWrappedText(page, item.name || '', cols.name.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.name.maxWidth || 110, 8);
+      drawWrappedText(page, item.address || '', cols.address.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.address.maxWidth || 130, 8);
+      drawWrappedText(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.contact.maxWidth || 95, 8);
+      drawTableCell(page, item.airTime || '', cols.airTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.airTime.maxWidth || 32);
+      drawTableCell(page, item.groundTime || '', cols.groundTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.groundTime.maxWidth || 32);
+
+      // Trauma center Yes checkbox and level
+      if (cols.traumaCenterYes) {
+        drawCheckbox(page, cols.traumaCenterYes.x, yPos + (cols.traumaCenterYes.yOffset || 0), 6, item.traumaCenter === true);
+        if (item.traumaCenter && item.traumaCenterLevel && cols.traumaCenterLevel) {
+          drawTableCell(page, item.traumaCenterLevel, cols.traumaCenterLevel.x, yPos + (cols.traumaCenterLevel.yOffset || 0), font, 12, cols.traumaCenterLevel.maxWidth || 20);
+        }
+      }
+
+      // Burn center Yes/No checkboxes
+      if (cols.burnCenterYes && cols.burnCenterNo) {
+        drawCheckbox(page, cols.burnCenterYes.x, yPos + (cols.burnCenterYes.yOffset || 0), 6, item.burnCenter === true);
+        drawCheckbox(page, cols.burnCenterNo.x, yPos + (cols.burnCenterNo.yOffset || 0), 6, item.burnCenter === false);
+      }
+
+      // Helipad Yes/No checkboxes
+      if (cols.helipadYes && cols.helipadNo) {
+        drawCheckbox(page, cols.helipadYes.x, yPos + (cols.helipadYes.yOffset || 0), 6, item.helipad === true);
+        drawCheckbox(page, cols.helipadNo.x, yPos + (cols.helipadNo.yOffset || 0), 6, item.helipad === false);
+      }
+
+      yPos -= ICS_206_BLOCKS.hospitalRowHeight;
+    });
+
+    // Block 6: Special Procedures
+    const proceduresItem = medical.find((item: any) => item.itemType === 'procedures');
+    if (proceduresItem && proceduresItem.content) {
+      drawWrappedText(
+        page,
+        proceduresItem.content,
+        ICS_206_BLOCKS.specialProceduresStart.x,
+        ICS_206_BLOCKS.specialProceduresStart.y,
+        font,
+        ICS_206_BLOCKS.specialProceduresStart.fontSize || 8,
+        ICS_206_BLOCKS.specialProceduresStart.maxWidth || 690,
+        12
+      );
+    }
+
+    // Block 7: Prepared by
+    page.drawText(data.iapData?.preparedBy || '', {
+      x: ICS_206_BLOCKS.preparedByName.x,
+      y: ICS_206_BLOCKS.preparedByName.y,
+      size: ICS_206_BLOCKS.preparedByName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 8: Approved by (Incident Commander)
+    const icName = data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
+    if (icName) {
+      page.drawText(icName, {
+        x: ICS_206_BLOCKS.approvedByName.x,
+        y: ICS_206_BLOCKS.approvedByName.y,
+        size: ICS_206_BLOCKS.approvedByName.fontSize || 9,
+        font,
+        color: rgb(0, 0, 0),
+        maxWidth: ICS_206_BLOCKS.approvedByName.maxWidth,
+      });
+    }
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    return await pdfDoc.save();
+  }
+
+  async generateICS207(data: ICSFormData): Promise<Uint8Array> {
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_207);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+
+    // Block 1: Incident Name
+    page.drawText(data.iapData?.name || '', {
+      x: ICS_207_BLOCKS.incidentName.x,
+      y: ICS_207_BLOCKS.incidentName.y,
+      size: ICS_207_BLOCKS.incidentName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 2: Operational Period
+    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
+    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+
+    page.drawText(opFrom, {
+      x: ICS_207_BLOCKS.opPeriodFrom.x,
+      y: ICS_207_BLOCKS.opPeriodFrom.y,
+      size: ICS_207_BLOCKS.opPeriodFrom.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opTo, {
+      x: ICS_207_BLOCKS.opPeriodTo.x,
+      y: ICS_207_BLOCKS.opPeriodTo.y,
+      size: ICS_207_BLOCKS.opPeriodTo.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 3: Organization Chart
+    const orgData = data.formData || [];
+    const chartPositions = ICS_207_BLOCKS.orgChart;
+
+    const positionMap: { [key: string]: any } = {
+      'Incident Commander': chartPositions.incidentCommander,
+      'Safety Officer': chartPositions.safetyOfficer,
+      'Public Information Officer': chartPositions.publicInfoOfficer,
+      'Liaison Officer': chartPositions.liaisonOfficer,
+      'Operations Section Chief': chartPositions.operationsChief,
+      '': chartPositions.planningChief,
+      'Logistics Section Chief': chartPositions.logisticsChief,
+      'Finance/Admin Section Chief': chartPositions.financeChief,
+    };
+
+    orgData.forEach((item: any) => {
+      const position = positionMap[item.position];
+      if (position && item.name) {
+        // Use bounded text to keep names INSIDE chart boxes
+        drawBoundedText(
+          page,
+          item.name,
+          position.x,
+          position.y,
+          font,
+          position.fontSize || 8,
+          position.maxWidth || 110
+        );
+      }
+    });
+
+    // Block 4: Prepared by
+    page.drawText(data.iapData?.preparedBy || '', {
+      x: ICS_207_BLOCKS.preparedByName.x,
+      y: ICS_207_BLOCKS.preparedByName.y,
+      size: ICS_207_BLOCKS.preparedByName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(formatDateTime(
+      new Date().toISOString().split('T')[0],
+      new Date().toTimeString().split(' ')[0].substring(0, 5)
+    ), {
+      x: ICS_207_BLOCKS.preparedByDateTime.x,
+      y: ICS_207_BLOCKS.preparedByDateTime.y,
+      size: ICS_207_BLOCKS.preparedByDateTime.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    return await pdfDoc.save();
+  }
+
+  async generateICS208(data: ICSFormData): Promise<Uint8Array> {
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_208);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+
+    // Block 1: Incident Name
+    page.drawText(sanitizeText(data.iapData?.name || ''), {
+      x: ICS_208_BLOCKS.incidentName.x,
+      y: ICS_208_BLOCKS.incidentName.y,
+      size: ICS_208_BLOCKS.incidentName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 2: Operational Period (split into two lines each)
+    const opFromDate = sanitizeText(data.periodData?.fromDate || '');
+    const opFromTime = sanitizeText(data.periodData?.fromTime || '');
+    const opToDate = sanitizeText(data.periodData?.toDate || '');
+    const opToTime = sanitizeText(data.periodData?.toTime || '');
+
+    page.drawText(opFromDate, {
+      x: ICS_208_BLOCKS.opPeriodFrom.date.x,
+      y: ICS_208_BLOCKS.opPeriodFrom.date.y,
+      size: ICS_208_BLOCKS.opPeriodFrom.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opFromTime, {
+      x: ICS_208_BLOCKS.opPeriodFrom.time.x,
+      y: ICS_208_BLOCKS.opPeriodFrom.time.y,
+      size: ICS_208_BLOCKS.opPeriodFrom.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opToDate, {
+      x: ICS_208_BLOCKS.opPeriodTo.date.x,
+      y: ICS_208_BLOCKS.opPeriodTo.date.y,
+      size: ICS_208_BLOCKS.opPeriodTo.date.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(opToTime, {
+      x: ICS_208_BLOCKS.opPeriodTo.time.x,
+      y: ICS_208_BLOCKS.opPeriodTo.time.y,
+      size: ICS_208_BLOCKS.opPeriodTo.time.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 3: Safety Messages
+    const safety = data.formData || [];
+    let yPos = ICS_208_BLOCKS.safetyMessageStart.y;
+
+    // Get safety message first
+    const safetyMessageItem = safety.find((item: any) => item.itemType === 'message');
+    if (safetyMessageItem && safetyMessageItem.content) {
+      yPos = drawWrappedText(
+        page,
+        safetyMessageItem.content,
+        ICS_208_BLOCKS.safetyMessageStart.x,
+        yPos,
+        font,
+        ICS_208_BLOCKS.safetyMessageStart.fontSize || 9,
+        ICS_208_BLOCKS.safetyMessageStart.maxWidth || 520,
+        ICS_208_BLOCKS.safetyLineHeight
+      );
+      yPos -= 15;
+    }
+
+    // Add hazards
+    const hazards = safety.filter((item: any) => item.itemType === 'hazard');
+    hazards.slice(0, 8).forEach((item: any, idx: number) => {
+      const hazardText = item.title ? `${idx + 1}. ${item.title}: ${item.description || ''}` : `${idx + 1}. ${item.description || ''}`;
+
+      yPos = drawWrappedText(
+        page,
+        hazardText,
+        ICS_208_BLOCKS.safetyMessageStart.x,
+        yPos,
+        font,
+        ICS_208_BLOCKS.safetyMessageStart.fontSize || 9,
+        ICS_208_BLOCKS.safetyMessageStart.maxWidth || 520,
+        ICS_208_BLOCKS.safetyLineHeight
+      );
+
+      yPos -= 10;
+    });
+
+    // Block 4: Site Safety Plan
+    const siteSafetyPlanItem = safety.find((item: any) => item.itemType === 'siteSafetyPlan');
+    if (siteSafetyPlanItem) {
+      const yesX = ICS_208_BLOCKS.siteSafetyPlanRequired.x;
+      const noX = yesX + 30;
+      const checkY = ICS_208_BLOCKS.siteSafetyPlanRequired.y;
+
+      drawCheckbox(page, yesX, checkY, 8, siteSafetyPlanItem.required === true);
+      drawCheckbox(page, noX, checkY, 8, siteSafetyPlanItem.required === false);
+
+      if (siteSafetyPlanItem.required === true && siteSafetyPlanItem.location) {
+        drawTableCell(
+          page,
+          siteSafetyPlanItem.location,
+          ICS_208_BLOCKS.siteSafetyPlanLocation.x,
+          ICS_208_BLOCKS.siteSafetyPlanLocation.y,
+          font,
+          ICS_208_BLOCKS.siteSafetyPlanLocation.fontSize || 9,
+          ICS_208_BLOCKS.siteSafetyPlanLocation.maxWidth || 450
+        );
+      }
+    }
+
+    // Block 5: Prepared by
+    page.drawText(sanitizeText(data.iapData?.preparedBy || ''), {
+      x: ICS_208_BLOCKS.preparedByName.x,
+      y: ICS_208_BLOCKS.preparedByName.y,
+      size: ICS_208_BLOCKS.preparedByName.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    page.drawText(sanitizeText(data.iapData?.preparedByPosition || ''), {
+      x: ICS_208_BLOCKS.preparedByPosition.x,
+      y: ICS_208_BLOCKS.preparedByPosition.y,
+      size: ICS_208_BLOCKS.preparedByPosition.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    const preparedDateTime = data.iapData?.preparedDateTime
+      ? formatDateTime(
+          data.iapData.preparedDateTime.split('T')[0],
+          data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
+        )
+      : formatDateTime(
+          new Date().toISOString().split('T')[0],
+          new Date().toTimeString().split(' ')[0].substring(0, 5)
+        );
+
+    page.drawText(sanitizeText(preparedDateTime), {
+      x: ICS_208_BLOCKS.preparedByDateTime.x,
+      y: ICS_208_BLOCKS.preparedByDateTime.y,
+      size: ICS_208_BLOCKS.preparedByDateTime.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Block 6: Approved by (Incident Commander)
+    const icName = data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
+    if (icName) {
+      page.drawText(sanitizeText(icName), {
+        x: ICS_208_BLOCKS.approvedByName.x,
+        y: ICS_208_BLOCKS.approvedByName.y,
+        size: ICS_208_BLOCKS.approvedByName.fontSize || 9,
+        font,
+        color: rgb(0, 0, 0),
+        maxWidth: ICS_208_BLOCKS.approvedByName.maxWidth,
+      });
+    }
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    return await pdfDoc.save();
+  }
+
+  async generateICS233(data: ICSFormData): Promise<Uint8Array> {
+    const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_233);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
+    const { height } = page.getSize();
+
+    // Header - Incident Name
+    drawBoundedText(
+      page,
+      data.iapData?.name || '',
+      80,
+      height - 65,
+      font,
+      10,
+      300
+    );
+
+    // Operational Period
+    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
+    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+
+    drawBoundedText(
+      page,
+      opFrom,
+      420,
+      height - 65,
+      font,
+      9,
+      180
+    );
+
+    drawBoundedText(
+      page,
+      opTo,
+      420,
+      height - 80,
+      font,
+      9,
+      180
+    );
+
+    // Action Items Table
+    const actionItems = data.formData || [];
+    const filteredItems = actionItems.filter((item: any) =>
+      item.includedInPrint &&
+      item.status !== 'Cancelled' &&
+      item.status !== 'Closed'
+    );
+
+    let yPos = height - 130;
+    const rowHeight = 20;
+
+    filteredItems.slice(0, 25).forEach((item: any) => {
+      // Number
+      drawBoundedText(page, item.number?.toString() || '', 40, yPos, font, 8, 30);
+
+      // Item description
+      drawBoundedText(page, item.item || '', 75, yPos, font, 8, 180);
+
+      // For/POC
+      drawBoundedText(page, item.forPoc || '', 260, yPos, font, 8, 100);
+
+      // Briefed POC
+      drawCheckbox(page, 365, yPos - 3, 8, item.briefedPoc);
+
+      // Start Date
+      const startDate = item.startDate ? formatDate(item.startDate) : '';
+      drawBoundedText(page, startDate, 385, yPos, font, 8, 60);
+
+      // Status
+      drawBoundedText(page, item.status || '', 450, yPos, font, 8, 60);
+
+      // Target Date
+      const targetDate = item.targetDate ? formatDate(item.targetDate) : '';
+      drawBoundedText(page, targetDate, 515, yPos, font, 8, 60);
+
+      yPos -= rowHeight;
+    });
+
+    // Prepared by footer
+    drawBoundedText(
+      page,
+      data.iapData?.preparedBy || '',
+      80,
+      60,
+      font,
+      9,
+      180
+    );
+
+    const preparedDateTime = data.iapData?.preparedDateTime
+      ? formatDateTime(
+          data.iapData.preparedDateTime.split('T')[0],
+          data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
+        )
+      : formatDateTime(
+          new Date().toISOString().split('T')[0],
+          new Date().toTimeString().split(' ')[0].substring(0, 5)
+        );
+
+    drawBoundedText(
+      page,
+      preparedDateTime,
+      350,
+      60,
+      font,
+      9,
+      120
+    );
+
+    // Add OpPeriod footer
+    addOpPeriodFooter(page, font);
+
+    return await pdfDoc.save();
+  }
+}
+
+export const icsFormGenerator = new ICSFormGenerator();

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm add *)",
+      "Bash(pnpm list *)",
+      "Bash(awk '{print $5, $NF}')",
+      "Bash(md5 -q \"src/imports/ics_form_202,_incident_objectives_\\(v3.1\\).pdf\" src/assets/pdfs/ICS202.pdf)",
+      "Bash(perl -i -pe ' *)",
+      "Bash(pnpm remove *)",
+      "Bash(pnpm build *)"
+    ]
+  }
+}
