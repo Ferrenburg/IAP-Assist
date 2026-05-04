@@ -7,7 +7,14 @@
       "Bash(md5 -q \"src/imports/ics_form_202,_incident_objectives_\\(v3.1\\).pdf\" src/assets/pdfs/ICS202.pdf)",
       "Bash(perl -i -pe ' *)",
       "Bash(pnpm remove *)",
-      "Bash(pnpm build *)"
+      "Bash(pnpm build *)",
+      "WebFetch(domain:supabase.com)",
+      "Bash(curl -X OPTIONS -i -s https://tkdxkpzpkhhhlyfdtjde.supabase.co/functions/v1/make-server-897e0759/auth/login -H 'Origin: http://localhost:3001' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,apikey')",
+      "Bash(perl -i -pe 's|/make-server-897e0759/|/|g' supabase/functions/server/index.ts)",
+      "Bash(perl -i -pe 's|/functions/v1/make-server-897e0759|/functions/v1/server|g' src/utils/api-client.ts)",
+      "Bash(curl -i -s 'https://tkdxkpzpkhhhlyfdtjde.supabase.co/functions/v1/server/make-server-897e0759/health' -H 'apikey: x')",
+      "Bash(curl -i -s 'https://tkdxkpzpkhhhlyfdtjde.supabase.co/functions/v1/server' -H 'apikey: x')",
+      "Bash(perl -i -pe 's|^\\(app\\\\.\\\\w+\\)\\\\\\(\"/\\(health|auth|iaps|account-requests|admin\\)|$1\\(\"/server/$2|' supabase/functions/server/index.ts)"
     ]
   }
 }

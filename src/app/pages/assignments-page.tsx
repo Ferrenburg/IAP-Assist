@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, Trash2, X, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
+import { useOpPeriod } from '../../contexts/op-period-context';
 import { toast } from 'sonner';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
 import { pdfCombiner } from '../../utils/pdf-combiner';
@@ -47,6 +48,7 @@ interface FormPreparation {
 
 export function AssignmentsPage() {
   const { iapId, periodId } = useParams();
+  const { data: shared, update: updateShared } = useOpPeriod();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [formPrep, setFormPrep] = useState<FormPreparation>({
     id: '',
@@ -781,9 +783,11 @@ export function AssignmentsPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Prepared by Name</label>
             <input
               type="text"
-              value={formPrep.preparedByName}
-              onChange={(e) => setFormPrep({ ...formPrep, preparedByName: e.target.value })}
-              onBlur={saveFormPrep}
+              value={shared?.preparedByName ?? ''}
+              onChange={(e) => {
+                setFormPrep({ ...formPrep, preparedByName: e.target.value });
+                void updateShared({ preparedByName: e.target.value });
+              }}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -791,9 +795,11 @@ export function AssignmentsPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
             <input
               type="text"
-              value={formPrep.positionTitle}
-              onChange={(e) => setFormPrep({ ...formPrep, positionTitle: e.target.value })}
-              onBlur={saveFormPrep}
+              value={shared?.preparedByTitle ?? ''}
+              onChange={(e) => {
+                setFormPrep({ ...formPrep, positionTitle: e.target.value });
+                void updateShared({ preparedByTitle: e.target.value });
+              }}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

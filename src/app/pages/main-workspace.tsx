@@ -130,7 +130,7 @@ export function MainWorkspace() {
       {/* Sidebar */}
       <div className="w-72 bg-slate-900 text-white flex flex-col">
         <div className="p-6 border-b border-slate-700 bg-[#000000]">
-          <img src={opLogo} alt="OpPeriod" className="h-8 mb-3" />
+          <img src={opLogo.src} alt="OpPeriod" className="h-8 mb-3" />
           <p className="text-sm text-slate-400">{user?.email}</p>
         </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Plus, Trash2, HelpCircle, History, FileText, BookOpen, CircleHelp, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
+import { useOpPeriod } from '../../contexts/op-period-context';
 import { toast } from 'sonner';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
 import { pdfCombiner } from '../../utils/pdf-combiner';
@@ -16,6 +17,7 @@ interface Objective {
 
 export function ObjectivesPage() {
   const { iapId, periodId } = useParams();
+  const { data: shared, update: updateShared } = useOpPeriod();
   const [objectives, setObjectives] = useState<Objective[]>([]);
   const [commandEmphasis, setCommandEmphasis] = useState('');
   const [situationConditions, setSituationConditions] = useState('');
@@ -493,9 +495,11 @@ export function ObjectivesPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
             <input
               type="text"
-              value={preparedByName}
-              onChange={(e) => setPreparedByName(e.target.value)}
-              onBlur={() => savePreparedByData()}
+              value={shared?.preparedByName ?? ''}
+              onChange={(e) => {
+                setPreparedByName(e.target.value);
+                void updateShared({ preparedByName: e.target.value });
+              }}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -503,9 +507,11 @@ export function ObjectivesPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
             <input
               type="text"
-              value={preparedByPosition}
-              onChange={(e) => setPreparedByPosition(e.target.value)}
-              onBlur={() => savePreparedByData()}
+              value={shared?.preparedByTitle ?? ''}
+              onChange={(e) => {
+                setPreparedByPosition(e.target.value);
+                void updateShared({ preparedByTitle: e.target.value });
+              }}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

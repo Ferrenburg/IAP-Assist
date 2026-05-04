@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, X, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
+import { useOpPeriod } from '../../contexts/op-period-context';
 import { toast } from 'sonner';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
 import { pdfCombiner } from '../../utils/pdf-combiner';
@@ -93,6 +94,7 @@ interface PersonnelData {
 
 export function PersonnelPage() {
   const { iapId, periodId } = useParams();
+  const { data: shared, update: updateShared } = useOpPeriod();
   const [personnelData, setPersonnelData] = useState<PersonnelData>({
     id: '',
     commandStructure: 'single',
@@ -1338,9 +1340,11 @@ export function PersonnelPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
             <input
               type="text"
-              value={personnelData.preparedByName || ''}
-              onChange={(e) => updateField('preparedByName', e.target.value)}
-              onBlur={() => saveData()}
+              value={shared?.preparedByName ?? ''}
+              onChange={(e) => {
+                updateField('preparedByName', e.target.value);
+                void updateShared({ preparedByName: e.target.value });
+              }}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -1348,9 +1352,11 @@ export function PersonnelPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
             <input
               type="text"
-              value={personnelData.preparedByPosition || ''}
-              onChange={(e) => updateField('preparedByPosition', e.target.value)}
-              onBlur={() => saveData()}
+              value={shared?.preparedByTitle ?? ''}
+              onChange={(e) => {
+                updateField('preparedByPosition', e.target.value);
+                void updateShared({ preparedByTitle: e.target.value });
+              }}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

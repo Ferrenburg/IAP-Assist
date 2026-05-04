@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, Trash2, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
+import { useOpPeriod } from '../../contexts/op-period-context';
 import { toast } from 'sonner';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
 import { pdfCombiner } from '../../utils/pdf-combiner';
@@ -33,6 +34,7 @@ interface CommunicationsData {
 
 export function CommunicationsPage() {
   const { iapId, periodId } = useParams();
+  const { data: shared, update: updateShared } = useOpPeriod();
   const [channels, setChannels] = useState<RadioChannel[]>([]);
   const [commData, setCommData] = useState<CommunicationsData>({
     id: '',
@@ -491,9 +493,11 @@ export function CommunicationsPage() {
             <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
             <input
               type="text"
-              value={commData.preparedByName}
-              onChange={(e) => setCommData({ ...commData, preparedByName: e.target.value })}
-              onBlur={() => saveCommData(false)}
+              value={shared?.preparedByName ?? ''}
+              onChange={(e) => {
+                setCommData({ ...commData, preparedByName: e.target.value });
+                void updateShared({ preparedByName: e.target.value });
+              }}
               placeholder="Preparer name"
               className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -502,9 +506,11 @@ export function CommunicationsPage() {
             <label className="block text-sm font-medium text-slate-700 mb-2">Position/Title</label>
             <input
               type="text"
-              value={commData.positionTitle}
-              onChange={(e) => setCommData({ ...commData, positionTitle: e.target.value })}
-              onBlur={() => saveCommData(false)}
+              value={shared?.preparedByTitle ?? ''}
+              onChange={(e) => {
+                setCommData({ ...commData, positionTitle: e.target.value });
+                void updateShared({ preparedByTitle: e.target.value });
+              }}
               placeholder="Position or title"
               className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

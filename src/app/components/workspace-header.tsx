@@ -1,14 +1,15 @@
 'use client';
 
-import { Target, Users, ClipboardList, Radio, Heart, Cloud, ListChecks, FileStack, User, Settings, LogOut, ChevronDown } from 'lucide-react';
+import { Info, Target, Users, ClipboardList, Radio, Heart, Cloud, ListChecks, FileStack, User, Settings, LogOut, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { apiClient } from '../../utils/api-client';
 import { useAuth } from '../../contexts/auth-context';
+import { useOpPeriodOptional } from '../../contexts/op-period-context';
 import opLogo from '../../imports/OP_Logo.png';
 
 const tabs = [
+  { id: 'incident-info', label: 'Incident Info', icon: Info, path: '/incident-info' },
   { id: 'objectives', label: 'Objectives', icon: Target, path: '/objectives' },
   { id: 'personnel', label: 'Personnel', icon: Users, path: '/personnel' },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList, path: '/assignments' },
@@ -24,13 +25,10 @@ export function WorkspaceHeader() {
   const router = useRouter();
   const { iapId, periodId } = useParams();
   const { user, logout } = useAuth();
-  const [currentPeriod, setCurrentPeriod] = useState<any>(null);
+  const opPeriod = useOpPeriodOptional();
+  const sharedData = opPeriod?.data ?? null;
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    loadPeriodInfo();
-  }, [iapId, periodId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -45,32 +43,20 @@ export function WorkspaceHeader() {
     }
   }, [showAccountMenu]);
 
-  const loadPeriodInfo = async () => {
-    if (!iapId || !periodId) return;
-
-    try {
-      const periodsData = await apiClient.getData(iapId, 'periods');
-      const period = periodsData?.data?.find((p: any) => p.id === periodId);
-      setCurrentPeriod(period);
-    } catch (err) {
-      console.error('Failed to load period info:', err);
-    }
-  };
-
   const handleSignOut = async () => {
     await logout();
     router.push('/');
   };
 
-  const formatDateTime = (date: string, time: string) => {
-    const dateObj = new Date(`${date}T${time}`);
-    return dateObj.toLocaleString('en-US', {
+  const formatDateTime = (iso: string | null) => {
+    if (!iso) return '';
+    return new Date(iso).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false,
     });
   };
 
@@ -79,7 +65,7 @@ export function WorkspaceHeader() {
       {/* Top banner with logo and account */}
       <div className="px-6 py-3 border-b border-slate-700 flex items-center justify-between bg-[#000000]">
         <div className="flex items-center gap-3">
-          <img src={opLogo} alt="OpPeriod" className="h-6" />
+          <img src={opLogo.src} alt="OpPeriod" className="h-6" />
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -152,16 +138,29 @@ export function WorkspaceHeader() {
         </div>
       </div>
 
-      {/* Period info banner */}
-      {currentPeriod && (
+      {/* Period info banner — driven by OpPeriodContext shared data */}
+      {sharedData && (
         <div className="px-6 py-2 border-b border-slate-700 bg-slate-900/50">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Current Period:</span>
-            <span className="text-yellow-400 font-medium">Period {currentPeriod.periodNumber}</span>
-            <span className="text-slate-500">•</span>
-            <span className="text-slate-400">
-              {formatDateTime(currentPeriod.fromDate, currentPeriod.fromTime)} - {formatDateTime(currentPeriod.toDate, currentPeriod.toTime)}
-            </span>
+          <div className="flex items-center gap-2 text-xs flex-wrap">
+            {sharedData.incidentName && (
+              <>
+                <span className="text-slate-400">{sharedData.incidentName}</span>
+                {sharedData.incidentNumber && (
+                  <span className="text-slate-500">#{sharedData.incidentNumber}</span>
+                )}
+                <span className="text-slate-500">•</span>
+              </>
+            )}
+            <span className="text-slate-400">Period</span>
+            <span className="text-yellow-400 font-medium">{sharedData.periodNumber}</span>
+            {(sharedData.startAt || sharedData.endAt) && (
+              <>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-400">
+                  {formatDateTime(sharedData.startAt)} – {formatDateTime(sharedData.endAt)}
+                </span>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -176,7 +175,7 @@ export function WorkspaceHeader() {
           return (
             <Link
               key={tab.id}
-              to={fullPath}
+              href={fullPath}
               className={`px-4 py-3 text-sm font-medium whitespace-nowrap flex items-center gap-2 border-b-2 transition-colors ${
                 isActive
                   ? 'text-white border-yellow-500'

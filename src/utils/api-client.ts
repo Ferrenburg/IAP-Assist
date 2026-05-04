@@ -1,21 +1,42 @@
-import { projectId, publicAnonKey } from './supabase-info';
+import { projectId, publishableKey } from './supabase-info';
 
-const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-897e0759`;
+const API_BASE_URL = `https://${projectId}.supabase.co/functions/v1/server`;
+
+// Merged shape returned by GET/PUT /iaps/:iapId/periods/:periodId/shared.
+// Mirrors the Sprint 1 shared-data record (incident-level + period-level + per-period overlay).
+export interface SharedOpPeriodData {
+  iapId: string;
+  periodId: string;
+  incidentName: string;
+  incidentNumber: string;
+  periodNumber: number;
+  startAt: string | null;
+  endAt: string | null;
+  status: string;
+  incidentCommander: string;
+  preparedByName: string;
+  preparedByTitle: string;
+  approvedByName: string;
+  agencyName: string;
+  agencyLogoUrl: string;
+  updatedAt: string | null;
+}
 
 class APIClient {
+  // The publishable key (sb_publishable_...) goes in the `apikey` header — Supabase's
+  // new API keys cannot be sent via `Authorization: Bearer` the way legacy anon JWTs
+  // were. The user's session JWT, when present, still goes in `Authorization`.
   private getAuthHeader(): Record<string, string> {
-    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {
+      apikey: publishableKey,
+    };
 
+    const token = localStorage.getItem('access_token');
     if (token) {
-      return {
-        Authorization: `Bearer ${token}`
-      };
+      headers.Authorization = `Bearer ${token}`;
     }
 
-    // Fallback to anon key if no user token
-    return {
-      Authorization: `Bearer ${publicAnonKey}`
-    };
+    return headers;
   }
 
   private async request<T>(
@@ -71,10 +92,10 @@ class APIClient {
   }
 
   // Auth
-  async signup(email: string, password: string, name?: string) {
+  async signup(email: string, password: string, name: string, organizationName: string) {
     return this.request<{ user: any }>('/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, organizationName }),
     });
   }
 
@@ -156,6 +177,28 @@ class APIClient {
     return this.request<{ success: boolean }>(`/iaps/${iapId}/periods/${periodId}`, {
       method: 'DELETE',
     });
+  }
+
+  // Shared op-period data — the merged view across incidents + operational_periods
+  // + op_period_shared_data. Consumed by OpPeriodContext.
+  async getSharedData(iapId: string, periodId: string) {
+    return this.request<{ shared: SharedOpPeriodData }>(
+      `/iaps/${iapId}/periods/${periodId}/shared`,
+    );
+  }
+
+  async updateSharedData(
+    iapId: string,
+    periodId: string,
+    patch: Partial<SharedOpPeriodData>,
+  ) {
+    return this.request<{ shared: SharedOpPeriodData }>(
+      `/iaps/${iapId}/periods/${periodId}/shared`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(patch),
+      },
+    );
   }
 
   // Objectives

@@ -38,7 +38,7 @@ export function AccountSettings() {
       <header className="border-b border-slate-700 bg-slate-900">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <img src={opLogo} alt="OpPeriod" className="h-8" />
+            <img src={opLogo.src} alt="OpPeriod" className="h-8" />
           </div>
           <button
             onClick={() => router.push('/')}
