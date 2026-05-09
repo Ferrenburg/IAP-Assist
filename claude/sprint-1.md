@@ -2,7 +2,7 @@
 
 **Week:** 1
 **Payment:** $250
-**Status:** Code complete; pending Vercel deploy + end-to-end smoke
+**Status:** Complete — bugs fixed in Sprint 2 session (2026-05-07)
 
 ---
 
@@ -128,10 +128,8 @@ Migrated the entire repo from Vite + React Router to Next.js 15 App Router. 6 ph
 
 ## Open Items
 
-- **Vercel deploy + smoke test** — not blocked by code; needs a click-through of the Vercel project import + env vars (Preview + Production scopes), then end-to-end verification on the preview URL.
-- **Branching flow** — `dev` integration branch already exists. Sprint 2 PRs target `dev`; merge `dev → main` at sprint completion after client approval.
-- **Form-data tables** — `form_objectives`, `form_assignments`, etc. exist but their endpoints still hit KV. Sprint 2 (objectives, personnel, ICS 202/203) will start normalizing.
-- **Per-page form state stored alongside shared data** — the form pages still maintain their own `preparedByName` / `positionTitle` in their per-page data blobs (left in place to avoid touching save logic). The displayed input value comes from the shared context, but the legacy KV blob fields are now stale. Cleanup is fine to do incrementally as each form normalizes.
+- **Vercel deploy + smoke test** — not blocked by code; needs a click-through of the Vercel project import + env vars (Preview + Production scopes), then end-to-end verification on the preview URL. Also: create the `agency-logos` Supabase Storage bucket manually in Studio.
+- **Form-data tables** — `form_objectives`, `form_assignments`, etc. exist but their endpoints still hit KV. Sprint 3 (ICS 204/205/205A/206) will normalize these.
 - **`next.config.mjs` build-error suppression** — `typescript.ignoreBuildErrors: true` and `eslint.ignoreDuringBuilds: true` are still on. Re-enable once type/lint issues are addressed.
 
 ---

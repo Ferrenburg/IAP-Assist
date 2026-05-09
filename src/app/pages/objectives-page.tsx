@@ -85,11 +85,15 @@ export function ObjectivesPage() {
       description: '',
     };
 
+    // Optimistically add to UI so the user gets instant feedback.
+    setObjectives((prev) => [...prev, newObjective]);
+
     try {
-      await apiClient.createData(iapId, `period-${periodId}-objectives`, newObjective);
-      setObjectives([...objectives, newObjective]);
-    } catch (err) {
-      toast.error('Failed to add objective');
+      await apiClient.createData(iapId as string, `period-${periodId}-objectives`, newObjective);
+    } catch (err: any) {
+      // Roll back optimistic update on failure.
+      setObjectives((prev) => prev.filter((o) => o.id !== newObjective.id));
+      toast.error(`Failed to add objective: ${err?.message ?? 'unknown error'}`);
       console.error('Failed to add objective:', err);
     }
   };
@@ -244,87 +248,64 @@ export function ObjectivesPage() {
   const handleGenerateICS202 = async () => {
     if (!iapId || !periodId) return;
 
+    // Pre-export validation
+    if (!shared?.incidentName) {
+      toast.error('Incident name is required. Fill it in on the Incident Info page.');
+      return;
+    }
+    if (objectives.length === 0) {
+      toast.error('Add at least one objective before exporting.');
+      return;
+    }
+
     try {
       setGenerating(true);
       toast.info('Generating ICS 202...');
 
-      // Fetch all required data
-      const [iapRes, periodsData, organizationRes, safetyRes, safetyDataRes, commandData, situationData, personnelData, assignmentsData] = await Promise.all([
-        apiClient.getIAP(iapId),
-        apiClient.getData(iapId, 'periods'),
-        apiClient.getData(iapId, `period-${periodId}-organization`),
+      // Only fetch form-specific data; shared fields come from context.
+      const [safetyRes, safetyDataRes, commandData, situationData, assignmentsData] = await Promise.all([
         apiClient.getData(iapId, `period-${periodId}-safety`),
         apiClient.getData(iapId, `period-${periodId}-safety-data`),
         apiClient.getData(iapId, `period-${periodId}-command-emphasis`),
         apiClient.getData(iapId, `period-${periodId}-situation`),
-        apiClient.getData(iapId, `period-${periodId}-personnel`),
         apiClient.getData(iapId, `period-${periodId}-assignments`),
       ]);
 
-      const period = periodsData?.data?.find((p: any) => p.id === periodId);
-      if (!period) {
-        toast.error('Operational period not found');
-        setGenerating(false);
-        return;
-      }
-
-      // Get IC name from personnel data
-      const personnel = personnelData?.data?.[0];
-      let icName = '';
-      if (personnel) {
-        if (personnel.commandStructure === 'single' && personnel.incidentCommanderName) {
-          icName = personnel.incidentCommanderName;
-        } else if (personnel.commandStructure === 'unified' && personnel.commanders?.length > 0) {
-          // For unified command, use the first commander's name
-          icName = personnel.commanders[0].name || '';
-        }
-      }
-
-      // Transform assignments data into organization data format
+      // Build org array from assignments for the organization section.
       const assignments = assignmentsData?.data || [];
-      const assignmentOrganizationData = [];
-
-      // Add branches with their directors
+      const organizationData: { position: string; name: string }[] = [];
       assignments
         .filter((a: any) => a.divisionGroupType === 'branch')
         .forEach((branch: any) => {
           if (branch.name && branch.supervisorName) {
-            assignmentOrganizationData.push({
-              position: `${branch.name} Director`,
-              name: branch.supervisorName,
-            });
+            organizationData.push({ position: `${branch.name} Director`, name: branch.supervisorName });
           }
         });
-
-      // Add divisions and groups with their supervisors
       assignments
         .filter((a: any) => a.divisionGroupType === 'division' || a.divisionGroupType === 'group')
-        .forEach((assignment: any) => {
-          if (assignment.name && assignment.supervisorName) {
-            const label = assignment.divisionGroupType === 'division' ? 'Division' : 'Group';
-            assignmentOrganizationData.push({
-              position: `${label} ${assignment.name} Supervisor`,
-              name: assignment.supervisorName,
-            });
+        .forEach((a: any) => {
+          if (a.name && a.supervisorName) {
+            const label = a.divisionGroupType === 'division' ? 'Division' : 'Group';
+            organizationData.push({ position: `${label} ${a.name} Supervisor`, name: a.supervisorName });
           }
         });
-
-      // Combine old organization data with assignments organization data
-      const combinedOrganizationData = [
-        ...(organizationRes?.data || []),
-        ...assignmentOrganizationData,
-      ];
 
       const baseData = {
         iapData: {
-          ...iapRes.iap,
-          preparedBy: personnel?.preparedByName || preparedByName,
-          preparedByPosition: personnel?.preparedByPosition || preparedByPosition,
-          preparedDateTime: personnel?.preparedDateTime || preparedDateTime,
-          incidentCommanderName: icName,
+          incidentName: shared.incidentName,
+          incidentNumber: shared.incidentNumber,
+          preparedBy: shared.preparedByName,
+          preparedByPosition: shared.preparedByTitle,
+          preparedDateTime: preparedDateTime,
+          incidentCommanderName: shared.incidentCommander,
+          agencyName: shared.agencyName,
         },
-        periodData: period,
-        organizationData: combinedOrganizationData,
+        periodData: {
+          periodNumber: shared.periodNumber,
+          startAt: shared.startAt,
+          endAt: shared.endAt,
+        },
+        organizationData,
         safetyData: safetyRes?.data || [],
         safetyFormData: safetyDataRes?.data?.[0] || null,
         formData: objectives,
@@ -332,11 +313,8 @@ export function ObjectivesPage() {
         situationConditions: situationData?.data?.[0]?.content || '',
       };
 
-      // Generate the PDF
       const pdfBytes = await icsFormGenerator.generateICS202(baseData);
-
-      // Download the PDF
-      const filename = `ICS_202_${iapRes.iap?.name || 'Incident'}_Period_${period.periodNumber}.pdf`;
+      const filename = `ICS_202_${shared.incidentName || 'Incident'}_Period_${shared.periodNumber}.pdf`;
       await pdfCombiner.downloadPDF(pdfBytes, filename);
 
       toast.success('ICS 202 downloaded successfully!');
@@ -359,6 +337,21 @@ export function ObjectivesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
+      {/* Incident info banner — read-only, populated from shared context */}
+      {shared && (
+        <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 flex items-center gap-4 text-sm text-slate-300 flex-wrap">
+          <span><span className="text-slate-500">Incident:</span> <span className="text-white font-medium">{shared.incidentName || '—'}</span></span>
+          <span className="text-slate-600">|</span>
+          <span><span className="text-slate-500">Period:</span> <span className="text-white font-medium">{shared.periodNumber}</span></span>
+          {shared.startAt && (
+            <>
+              <span className="text-slate-600">|</span>
+              <span className="text-slate-400">{new Date(shared.startAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} – {shared.endAt ? new Date(shared.endAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}</span>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">ICS 202 - Incident Objectives</h1>
         <div className="flex items-center gap-2">

@@ -156,11 +156,11 @@ class APIClient {
 
   // Operational Periods
   async getPeriods(iapId: string) {
-    return this.request<{ periods: any[] }>(`/iaps/${iapId}/periods`);
+    return this.request<{ data: any[] }>(`/iaps/${iapId}/periods`);
   }
 
   async createPeriod(iapId: string, data: any) {
-    return this.request<{ period: any }>(`/iaps/${iapId}/periods`, {
+    return this.request<{ item: any }>(`/iaps/${iapId}/periods`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -274,6 +274,47 @@ class APIClient {
     return this.request<{ success: boolean }>(`/iaps/${iapId}/${dataType}/${itemId}`, {
       method: 'DELETE',
     });
+  }
+
+  // Profile
+  async getProfile() {
+    return this.request<{ profile: { name: string; title: string; email: string } }>('/profile');
+  }
+
+  async updateProfile(data: { name?: string; title?: string }) {
+    return this.request<{ success: boolean }>('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Organization
+  async getOrg() {
+    return this.request<{ org: { id: string; name: string; logo_url: string | null } }>('/org');
+  }
+
+  async updateOrg(data: { name?: string; logoUrl?: string | null }) {
+    return this.request<{ org: { id: string; name: string; logo_url: string | null } }>('/org', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async uploadOrgLogo(file: File) {
+    const headers = this.getAuthHeader();
+    const response = await fetch(`${API_BASE_URL}/org/logo`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(err.error ?? `HTTP ${response.status}`);
+    }
+    return response.json() as Promise<{ logoUrl: string }>;
   }
 }
 

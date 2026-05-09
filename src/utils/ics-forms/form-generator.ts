@@ -45,6 +45,21 @@ export interface ICSFormData {
 }
 
 export class ICSFormGenerator {
+  // Splits an ISO timestamp ("2025-05-01T06:00:00") into date and time parts
+  // for use with formatDate / formatTime in pdf-helpers. Falls back to the
+  // legacy separate-field shape that the old KV data used.
+  private isoDate(iso: string | null | undefined, legacy?: string): string {
+    if (legacy) return legacy;
+    if (!iso) return '';
+    return iso.split('T')[0]; // "2025-05-01"
+  }
+
+  private isoTime(iso: string | null | undefined, legacy?: string): string {
+    if (legacy) return legacy;
+    if (!iso) return '';
+    return iso.split('T')[1]?.substring(0, 5) || ''; // "06:00"
+  }
+
   async generateICS202(data: ICSFormData): Promise<Uint8Array> {
     // Use IC name from iapData if available, otherwise extract from organization data
     const icName = data.iapData?.incidentCommanderName ||
@@ -54,13 +69,13 @@ export class ICSFormGenerator {
     const pscName = data.organizationData?.find((item: any) => item.position === '')?.name || '';
 
     const ics202Data: ICS202Data = {
-      incidentName: data.iapData?.name || '',
+      incidentName: data.iapData?.incidentName || data.iapData?.name || '',
       incidentNumber: data.iapData?.incidentNumber || '',
       operationalPeriod: {
-        dateFrom: data.periodData?.fromDate || '',
-        timeFrom: data.periodData?.fromTime || '',
-        dateTo: data.periodData?.toDate || '',
-        timeTo: data.periodData?.toTime || '',
+        dateFrom: this.isoDate(data.periodData?.startAt, data.periodData?.fromDate),
+        timeFrom: this.isoTime(data.periodData?.startAt, data.periodData?.fromTime),
+        dateTo: this.isoDate(data.periodData?.endAt, data.periodData?.toDate),
+        timeTo: this.isoTime(data.periodData?.endAt, data.periodData?.toTime),
       },
       objectives: data.formData || [],
       commandEmphasis: data.commandEmphasis || '',
@@ -122,7 +137,7 @@ export class ICSFormGenerator {
     // Block 1: Incident Name (bounded to header box)
     drawBoundedText(
       page,
-      data.iapData?.name || '',
+      data.iapData?.incidentName || data.iapData?.incidentName || data.iapData?.name || '',
       ICS_203_BLOCKS.incidentName.x,
       ICS_203_BLOCKS.incidentName.y,
       font,
@@ -130,29 +145,18 @@ export class ICSFormGenerator {
       ICS_203_BLOCKS.incidentName.maxWidth || 320
     );
 
-    // Block 2: Operational Period (bounded to header fields)
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    // Block 2: Operational Period — write date and time into separate rows so
+    // they align with the "Date From / Time From" and "Date To / Time To" printed
+    // labels on the form template (combined strings land between the two rows).
+    const fromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
+    const fromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
+    const toDate   = this.isoDate(data.periodData?.endAt, data.periodData?.toDate);
+    const toTime   = this.isoTime(data.periodData?.endAt, data.periodData?.toTime);
 
-    drawBoundedText(
-      page,
-      opFrom,
-      ICS_203_BLOCKS.opPeriodFrom.x,
-      ICS_203_BLOCKS.opPeriodFrom.y,
-      font,
-      ICS_203_BLOCKS.opPeriodFrom.fontSize || 9,
-      ICS_203_BLOCKS.opPeriodFrom.maxWidth || 180
-    );
-
-    drawBoundedText(
-      page,
-      opTo,
-      ICS_203_BLOCKS.opPeriodTo.x,
-      ICS_203_BLOCKS.opPeriodTo.y,
-      font,
-      ICS_203_BLOCKS.opPeriodTo.fontSize || 9,
-      ICS_203_BLOCKS.opPeriodTo.maxWidth || 180
-    );
+    drawBoundedText(page, formatDate(fromDate), ICS_203_BLOCKS.opPeriodDateFrom.x, ICS_203_BLOCKS.opPeriodDateFrom.y, font, ICS_203_BLOCKS.opPeriodDateFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodDateFrom.maxWidth || 80);
+    drawBoundedText(page, formatTime(fromTime), ICS_203_BLOCKS.opPeriodTimeFrom.x, ICS_203_BLOCKS.opPeriodTimeFrom.y, font, ICS_203_BLOCKS.opPeriodTimeFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodTimeFrom.maxWidth || 60);
+    drawBoundedText(page, formatDate(toDate),   ICS_203_BLOCKS.opPeriodDateTo.x,   ICS_203_BLOCKS.opPeriodDateTo.y,   font, ICS_203_BLOCKS.opPeriodDateTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodDateTo.maxWidth   || 70);
+    drawBoundedText(page, formatTime(toTime),   ICS_203_BLOCKS.opPeriodTimeTo.x,   ICS_203_BLOCKS.opPeriodTimeTo.y,   font, ICS_203_BLOCKS.opPeriodTimeTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodTimeTo.maxWidth   || 70);
 
     // Block 3-8: Organization positions
     const orgData = data.formData || [];
@@ -453,7 +457,7 @@ export class ICSFormGenerator {
       // Block 1: Incident Name
       drawBoundedText(
         targetPage,
-        data.iapData?.name || '',
+        data.iapData?.incidentName || data.iapData?.name || '',
         ICS_203_BLOCKS.incidentName.x,
         ICS_203_BLOCKS.incidentName.y,
         font,
@@ -462,8 +466,8 @@ export class ICSFormGenerator {
       );
 
       // Block 2: Operational Period
-      const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-      const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+      const opFrom = formatDateTime(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate), this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+      const opTo = formatDateTime(this.isoDate(data.periodData?.endAt, data.periodData?.toDate), this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
       drawBoundedText(
         targetPage,
@@ -685,7 +689,7 @@ export class ICSFormGenerator {
     const page = pdfDoc.getPages()[0];
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
       x: ICS_204_BLOCKS.incidentName.x,
       y: ICS_204_BLOCKS.incidentName.y,
       size: ICS_204_BLOCKS.incidentName.fontSize,
@@ -694,10 +698,10 @@ export class ICSFormGenerator {
     });
 
     // Block 2: Operational Period
-    const opFromDate = formatDate(data.periodData?.fromDate);
-    const opFromTime = formatTime(data.periodData?.fromTime);
-    const opToDate = formatDate(data.periodData?.toDate);
-    const opToTime = formatTime(data.periodData?.toTime);
+    const opFromDate = formatDate(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate));
+    const opFromTime = formatTime(this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opToDate = formatDate(this.isoDate(data.periodData?.endAt, data.periodData?.toDate));
+    const opToTime = formatTime(this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     // Draw operational period dates
     page.drawText(opFromDate, {
@@ -930,7 +934,7 @@ export class ICSFormGenerator {
     // Don't modify rotation - work with the template as-is
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
       x: ICS_205_BLOCKS.incidentName.x,
       y: ICS_205_BLOCKS.incidentName.y,
       size: ICS_205_BLOCKS.incidentName.fontSize,
@@ -966,10 +970,10 @@ export class ICSFormGenerator {
     });
 
     // Block 3: Operational Period (split into two lines each)
-    const opFromDate = data.periodData?.fromDate || '';
-    const opFromTime = data.periodData?.fromTime || '';
-    const opToDate = data.periodData?.toDate || '';
-    const opToTime = data.periodData?.toTime || '';
+    const opFromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
+    const opFromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
+    const opToDate = this.isoDate(data.periodData?.endAt, data.periodData?.toDate);
+    const opToTime = this.isoTime(data.periodData?.endAt, data.periodData?.toTime);
 
     page.drawText(opFromDate, {
       x: ICS_205_BLOCKS.opPeriodFrom.date.x,
@@ -1066,7 +1070,7 @@ export class ICSFormGenerator {
         });
 
         // Block 1: Incident Name
-        continuationPage.drawText(data.iapData?.name || '', {
+        continuationPage.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
           x: ICS_205_BLOCKS.incidentName.x,
           y: ICS_205_BLOCKS.incidentName.y,
           size: ICS_205_BLOCKS.incidentName.fontSize,
@@ -1222,7 +1226,7 @@ export class ICSFormGenerator {
     const page = pdfDoc.getPages()[0];
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
       x: ICS_205A_BLOCKS.incidentName.x,
       y: ICS_205A_BLOCKS.incidentName.y,
       size: ICS_205A_BLOCKS.incidentName.fontSize,
@@ -1231,8 +1235,8 @@ export class ICSFormGenerator {
     });
 
     // Block 2: Operational Period
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    const opFrom = formatDateTime(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate), this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opTo = formatDateTime(this.isoDate(data.periodData?.endAt, data.periodData?.toDate), this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     page.drawText(opFrom, {
       x: ICS_205A_BLOCKS.opPeriodFrom.x,
@@ -1306,7 +1310,7 @@ export class ICSFormGenerator {
     const page = pdfDoc.getPages()[0];
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
       x: ICS_206_BLOCKS.incidentName.x,
       y: ICS_206_BLOCKS.incidentName.y,
       size: ICS_206_BLOCKS.incidentName.fontSize,
@@ -1315,10 +1319,10 @@ export class ICSFormGenerator {
     });
 
     // Block 2: Operational Period (split into two lines each)
-    const opFromDate = data.periodData?.fromDate || '';
-    const opFromTime = data.periodData?.fromTime || '';
-    const opToDate = data.periodData?.toDate || '';
-    const opToTime = data.periodData?.toTime || '';
+    const opFromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
+    const opFromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
+    const opToDate = this.isoDate(data.periodData?.endAt, data.periodData?.toDate);
+    const opToTime = this.isoTime(data.periodData?.endAt, data.periodData?.toTime);
 
     page.drawText(opFromDate, {
       x: ICS_206_BLOCKS.opPeriodFrom.date.x,
@@ -1483,7 +1487,7 @@ export class ICSFormGenerator {
     const page = pdfDoc.getPages()[0];
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
       x: ICS_207_BLOCKS.incidentName.x,
       y: ICS_207_BLOCKS.incidentName.y,
       size: ICS_207_BLOCKS.incidentName.fontSize,
@@ -1492,8 +1496,8 @@ export class ICSFormGenerator {
     });
 
     // Block 2: Operational Period
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    const opFrom = formatDateTime(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate), this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opTo = formatDateTime(this.isoDate(data.periodData?.endAt, data.periodData?.toDate), this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     page.drawText(opFrom, {
       x: ICS_207_BLOCKS.opPeriodFrom.x,
@@ -1574,7 +1578,7 @@ export class ICSFormGenerator {
     const page = pdfDoc.getPages()[0];
 
     // Block 1: Incident Name
-    page.drawText(sanitizeText(data.iapData?.name || ''), {
+    page.drawText(sanitizeText(data.iapData?.incidentName || data.iapData?.name || ''), {
       x: ICS_208_BLOCKS.incidentName.x,
       y: ICS_208_BLOCKS.incidentName.y,
       size: ICS_208_BLOCKS.incidentName.fontSize,
@@ -1583,10 +1587,10 @@ export class ICSFormGenerator {
     });
 
     // Block 2: Operational Period (split into two lines each)
-    const opFromDate = sanitizeText(data.periodData?.fromDate || '');
-    const opFromTime = sanitizeText(data.periodData?.fromTime || '');
-    const opToDate = sanitizeText(data.periodData?.toDate || '');
-    const opToTime = sanitizeText(data.periodData?.toTime || '');
+    const opFromDate = sanitizeText(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate));
+    const opFromTime = sanitizeText(this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opToDate = sanitizeText(this.isoDate(data.periodData?.endAt, data.periodData?.toDate));
+    const opToTime = sanitizeText(this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     page.drawText(opFromDate, {
       x: ICS_208_BLOCKS.opPeriodFrom.date.x,
@@ -1745,7 +1749,7 @@ export class ICSFormGenerator {
     // Header - Incident Name
     drawBoundedText(
       page,
-      data.iapData?.name || '',
+      data.iapData?.incidentName || data.iapData?.name || '',
       80,
       height - 65,
       font,
@@ -1754,8 +1758,8 @@ export class ICSFormGenerator {
     );
 
     // Operational Period
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    const opFrom = formatDateTime(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate), this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opTo = formatDateTime(this.isoDate(data.periodData?.endAt, data.periodData?.toDate), this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     drawBoundedText(
       page,

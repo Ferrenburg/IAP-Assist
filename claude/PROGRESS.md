@@ -8,16 +8,51 @@ A running log of work done across all sessions. Most recent entry at the top.
 
 ## Status Snapshot
 
-- **Current sprint:** Sprint 1 — code complete; pending Vercel deploy + smoke test
-- **Sprint started:** 2026-05-01
-- **Last session:** 2026-05-01 — full Sprint 1 implementation in one session
-- **Next session focus:** Vercel deploy click-through + end-to-end smoke; then Sprint 2 kickoff (Profile, Logo, Workspace Nav, ICS 202 & 203)
+- **Current sprint:** Sprint 2 — code complete; pending Vercel deploy + Supabase Storage bucket setup
+- **Sprint started:** 2026-05-07
+- **Last session:** 2026-05-07 — Sprint 1 bug fixes + full Sprint 2 implementation
+- **Next session focus:** Vercel deploy (env vars + `agency-logos` bucket) + end-to-end smoke test; then Sprint 3 kickoff (ICS 204, 205, 205A, 206)
 
 ---
 
 ## Session Log
 
 <!-- Newest entries go here, at the top of the log. -->
+
+### 2026-05-07 — Sprint 2, Session 1
+
+**Worked on:** Sprint 1 close-out bug fixes (5 bugs) + full Sprint 2 implementation (grouped nav, profile/logo, ICS 202/203 completion).
+
+**Completed:**
+- Fix A — IAP Assembly now seeds Prepared By/Approved By from OpPeriodContext, not localStorage
+- Fix B — IAP Assembly cover page crash fixed: `fromDate/fromTime` → `startAt`/`endAt` ISO parse
+- Fix C — Weather checkbox in IAP Assembly shows Sprint 5 toast instead of silently skipping
+- Fix D — Confirmed assignments, comms, safety-medical pages were already wired; sidebar period dates fixed too
+- Fix E — Deleted 6 dead legacy files (pdf-generator.ts, field-mappings-old.ts, 4 old page components)
+- S2.1 — DB migration `0003_org_logo.sql` adds `organizations.logo_url`
+- S2.2 — 5 new edge function routes (GET/PUT /profile, GET/PUT /org, POST /org/logo) + 5 api-client methods
+- S2.3 — Supabase Storage bucket setup documented in sprint-2.md Open Items
+- S2.4 — Account Settings page rewritten: Personal Details (name/title → user_metadata) + Agency (name + logo upload)
+- S2.5 — `loadSharedData()` falls back to `organizations.logo_url` when period has no explicit logo
+- S2.6 — Sidebar: grouped workspace nav (Command / Operations / Safety / Export) with Link + active highlighting
+- S2.7 — ICS 202: incident info banner, PDF generator uses context (no period refetch), validation added
+- S2.8 — ICS 203: incident info banner, PDF generator uses context, IC field syncs to shared context on change
+
+**In progress:**
+- Nothing in flight. Code is at a clean stopping point.
+
+**Decisions made:**
+- Logo is org-level (not per-period) — uploaded once in Account Settings, auto-populates all future exports.
+- Sidebar groups match client's Sprint 2 spec: Command / Operations / Safety / Export.
+- IC name on Personnel page now writes to both local KV state AND `op_period_shared_data` via `updateShared()`.
+
+**Blockers / open questions:**
+- **Supabase Storage bucket `agency-logos`** — must be created manually in Supabase Studio before logo upload works. No API to create buckets programmatically in self-hosted Supabase.
+- **Vercel deploy** — still needs click-through with env vars. Same two vars as Sprint 1.
+
+**Next session should start with:**
+- Vercel deploy + `agency-logos` bucket creation + 11-step smoke test from the Sprint 2 verification list.
+- If green, close Sprint 2, request client approval/payment, then start Sprint 3 (ICS 204, 205, 205A, 206).
 
 ### 2026-05-01 — Sprint 1, Session 1
 

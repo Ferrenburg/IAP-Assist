@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { FileText, Upload, QrCode, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
+import { useOpPeriod } from '../../contexts/op-period-context';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
 import { PDFDocument } from 'pdf-lib';
 import { toast } from 'sonner';
@@ -18,13 +19,14 @@ interface FormSelection {
 
 export function IAPAssemblyPage() {
   const { iapId, periodId } = useParams();
+  const { data: shared } = useOpPeriod();
   const [iapData, setIAPData] = useState<any>(null);
   const [periodData, setPeriodData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState('');
 
-  // Form metadata
+  // Form metadata — seeded from shared context, user-editable before export
   const [preparedByName, setPreparedByName] = useState('');
   const [preparedByPosition, setPreparedByPosition] = useState('');
   const [preparedDate, setPreparedDate] = useState('');
@@ -107,8 +109,8 @@ export function IAPAssemblyPage() {
     {
       id: 'weather',
       title: 'Weather Forecast',
-      description: 'Weather forecast for the operational period',
-      checked: true,
+      description: 'Weather forecast for the operational period (available in Sprint 5)',
+      checked: false,
       requiresData: false,
     },
   ]);
@@ -119,16 +121,16 @@ export function IAPAssemblyPage() {
     const now = new Date();
     setPreparedDate(now.toISOString().split('T')[0]);
     setPreparedTime(now.toTimeString().slice(0, 5));
-
-    // Load saved preferences from localStorage
-    const savedPrepName = localStorage.getItem('iap_prepared_by_name');
-    const savedPrepPosition = localStorage.getItem('iap_prepared_by_position');
-    const savedApprovedBy = localStorage.getItem('iap_approved_by_name');
-
-    if (savedPrepName) setPreparedByName(savedPrepName);
-    if (savedPrepPosition) setPreparedByPosition(savedPrepPosition);
-    if (savedApprovedBy) setApprovedByName(savedApprovedBy);
   }, [iapId, periodId]);
+
+  // Seed shared fields from context when context data arrives.
+  // These stay editable so the user can override before generating.
+  useEffect(() => {
+    if (!shared) return;
+    if (shared.preparedByName) setPreparedByName(shared.preparedByName);
+    if (shared.preparedByTitle) setPreparedByPosition(shared.preparedByTitle);
+    if (shared.approvedByName) setApprovedByName(shared.approvedByName);
+  }, [shared]);
 
   // Transform personnel data to organization format expected by ICS forms
   const transformPersonnelToOrganization = (personnelData: any) => {
@@ -298,19 +300,19 @@ export function IAPAssemblyPage() {
     yPosition -= 50;
 
     // Operational Period
-    const formatDateTime = (date: string, time: string) => {
-      const d = new Date(`${date}T${time}`);
-      return d.toLocaleString('en-US', {
+    const formatISODate = (iso: string | null | undefined) => {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: false
+        hour12: false,
       });
     };
 
-    const opPeriodText = `Operational Period: ${formatDateTime(periodData.fromDate, periodData.fromTime)} - ${formatDateTime(periodData.toDate, periodData.toTime)}`;
+    const opPeriodText = `Operational Period: ${formatISODate(periodData?.startAt)} - ${formatISODate(periodData?.endAt)}`;
     page.drawText(opPeriodText, {
       x: (width - helvetica.widthOfTextAtSize(opPeriodText, 12)) / 2,
       y: yPosition,
@@ -371,11 +373,6 @@ export function IAPAssemblyPage() {
       toast.error('Please select at least one form to include');
       return;
     }
-
-    // Save preferences
-    localStorage.setItem('iap_prepared_by_name', preparedByName);
-    localStorage.setItem('iap_prepared_by_position', preparedByPosition);
-    localStorage.setItem('iap_approved_by_name', approvedByName);
 
     setGenerating(true);
     setProgress('Gathering form data...');
@@ -543,6 +540,8 @@ export function IAPAssemblyPage() {
               organizationData: organizationData,
             });
             pdfDocs.push(pdf);
+          } else if (form.id === 'weather') {
+            toast.info('Weather PDF attachment will be available in Sprint 5');
           }
         } catch (err) {
           console.error(`Failed to generate ${form.title}:`, err);
@@ -612,15 +611,15 @@ export function IAPAssemblyPage() {
     );
   }
 
-  const formatDateTime = (date: string, time: string) => {
-    const d = new Date(`${date}T${time}`);
-    return d.toLocaleString('en-US', {
+  const formatISODate = (iso: string | null | undefined) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false,
     });
   };
 
@@ -650,7 +649,7 @@ export function IAPAssemblyPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Operational Period</label>
               <input
                 type="text"
-                value={periodData ? `${formatDateTime(periodData.fromDate, periodData.fromTime)} - ${formatDateTime(periodData.toDate, periodData.toTime)}` : ''}
+                value={periodData ? `${formatISODate(periodData.startAt)} - ${formatISODate(periodData.endAt)}` : ''}
                 disabled
                 className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-900"
               />

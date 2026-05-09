@@ -1,7 +1,8 @@
 'use client';
 
-import { Plus, ArrowLeft, Clock, X, Pencil, Trash2 } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
+import { Plus, ArrowLeft, Clock, X, Pencil, Trash2, Info, Target, Users, List, Radio, ShieldAlert, Cloud, Package } from 'lucide-react';
+import { useParams, useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../utils/api-client';
 import { toast } from 'sonner';
@@ -19,17 +20,52 @@ interface OperationalPeriod {
   iapId?: string;
   periodNumber: string;
   periodName?: string;
-  fromDate: string;
-  fromTime: string;
-  toDate: string;
-  toTime: string;
+  // SQL-backed periods use ISO timestamps; legacy KV periods use separate fields.
+  startAt?: string;
+  endAt?: string;
+  fromDate?: string;
+  fromTime?: string;
+  toDate?: string;
+  toTime?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
+const WORKSPACE_GROUPS = [
+  {
+    label: 'Command',
+    items: [
+      { label: 'Incident Info', path: 'incident-info', icon: Info },
+      { label: 'ICS 202 — Objectives', path: 'objectives', icon: Target },
+      { label: 'ICS 203 — Personnel', path: 'personnel', icon: Users },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { label: 'ICS 204 — Assignments', path: 'assignments', icon: List },
+      { label: 'ICS 205/205A — Comms', path: 'communications', icon: Radio },
+    ],
+  },
+  {
+    label: 'Safety',
+    items: [
+      { label: 'ICS 206 — Safety/Medical', path: 'safety-medical', icon: ShieldAlert },
+      { label: 'Weather', path: 'weather', icon: Cloud },
+    ],
+  },
+  {
+    label: 'Export',
+    items: [
+      { label: 'IAP Assembly', path: 'iap-assembly', icon: Package },
+    ],
+  },
+];
+
 export function Sidebar() {
   const { iapId, periodId } = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { resolvedTheme } = useTheme();
   const [currentIAP, setCurrentIAP] = useState<IAP | null>(null);
   const [operationalPeriods, setOperationalPeriods] = useState<OperationalPeriod[]>([]);
@@ -137,20 +173,15 @@ export function Sidebar() {
             </div>
             <div className="space-y-2">
               {operationalPeriods.map((period) => {
-                const formatDateTime = (date: string, time: string) => {
-                  const dateObj = new Date(`${date}T${time}`);
-                  return dateObj.toLocaleString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
+                const fmtISO = (iso: string | undefined | null) => {
+                  if (!iso) return '—';
+                  return new Date(iso).toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', hour12: false,
                   });
                 };
-
-                const fromDateTime = formatDateTime(period.fromDate, period.fromTime);
-                const toDateTime = formatDateTime(period.toDate, period.toTime);
+                const fromDateTime = fmtISO((period as any).startAt ?? (period as any).fromDate);
+                const toDateTime = fmtISO((period as any).endAt ?? (period as any).toDate);
 
                 return (
                   <div
@@ -237,6 +268,39 @@ export function Sidebar() {
               )}
             </div>
           </div>
+
+          {/* Workspace navigation — shown when inside a period */}
+          {iapId && periodId && WORKSPACE_GROUPS.map((group) => (
+            <div key={group.label} className="mb-4">
+              <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${
+                lightMode ? 'text-slate-600' : 'text-slate-400'
+              }`}>
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map(({ label, path, icon: Icon }) => {
+                  const href = `/iap/${iapId}/period/${periodId}/${path}`;
+                  const isActive = pathname === href || pathname?.endsWith(`/${path}`);
+                  return (
+                    <Link
+                      key={path}
+                      href={href}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        isActive
+                          ? 'bg-yellow-600 text-white font-medium'
+                          : lightMode
+                          ? 'text-slate-700 hover:bg-slate-100'
+                          : 'text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </aside>
@@ -317,12 +381,14 @@ function CreatePeriodModal({
         return;
       }
 
-      // Create new period
-      const newPeriodId = crypto.randomUUID();
-      const newPeriod = { ...formData, id: newPeriodId };
-      console.log('Creating new period:', newPeriod);
-      const result = await apiClient.createData(iapId, 'periods', newPeriod);
-      console.log('Period created, result:', result);
+      // Create period via the SQL route; use the server-returned ID for copy logic.
+      const { item: createdPeriod } = await apiClient.createPeriod(iapId, {
+        periodNumber: parseInt(formData.periodNumber, 10) || (existingPeriods.length + 1),
+        startAt: `${formData.fromDate}T${formData.fromTime}:00`,
+        endAt: `${formData.toDate}T${formData.toTime}:00`,
+        status: 'planned',
+      });
+      const newPeriodId = createdPeriod.id;
 
       // If copy from previous is enabled, copy selected page data
       if (copyFromPrevious && existingPeriods.length > 0 && selectedPages.length > 0) {
@@ -568,13 +634,27 @@ function EditPeriodModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  // Pre-populate from ISO timestamps (SQL) or legacy separate fields (KV metadata).
+  const initFromDate = period.startAt
+    ? period.startAt.split('T')[0]
+    : (period.fromDate ?? '');
+  const initFromTime = period.startAt
+    ? period.startAt.substring(11, 16)
+    : (period.fromTime ?? '06:00');
+  const initToDate = period.endAt
+    ? period.endAt.split('T')[0]
+    : (period.toDate ?? '');
+  const initToTime = period.endAt
+    ? period.endAt.substring(11, 16)
+    : (period.toTime ?? '06:00');
+
   const [formData, setFormData] = useState({
     periodNumber: period.periodNumber,
     periodName: period.periodName || '',
-    fromDate: period.fromDate,
-    fromTime: period.fromTime,
-    toDate: period.toDate,
-    toTime: period.toTime,
+    fromDate: initFromDate,
+    fromTime: initFromTime,
+    toDate: initToDate,
+    toTime: initToTime,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -593,14 +673,10 @@ function EditPeriodModal({
 
       const updatedPeriod = {
         periodNumber: formData.periodNumber,
-        periodName: formData.periodName,
-        fromDate: formData.fromDate,
-        fromTime: formData.fromTime,
-        toDate: formData.toDate,
-        toTime: formData.toTime,
+        startAt: `${formData.fromDate}T${formData.fromTime}:00`,
+        endAt: `${formData.toDate}T${formData.toTime}:00`,
       };
 
-      console.log('Updating period:', period.id, 'with data:', updatedPeriod);
       await apiClient.updatePeriod(iapId, period.id, updatedPeriod);
       toast.success('Operational period updated');
       onSuccess();

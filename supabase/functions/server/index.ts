@@ -763,7 +763,7 @@ const loadSharedData = async (
 ) => {
   const { data: incRow } = await supabase
     .from('incidents')
-    .select('id, name, number')
+    .select('id, name, number, org_id')
     .eq('id', iapId)
     .single();
   const { data: periodRow } = await supabase
@@ -780,6 +780,17 @@ const loadSharedData = async (
     .eq('period_id', periodId)
     .maybeSingle();
 
+  // Fall back to the org-level logo if this period has no explicit logo set.
+  let agencyLogoUrl = sharedRow?.agency_logo_url ?? '';
+  if (!agencyLogoUrl && incRow?.org_id) {
+    const { data: orgRow } = await supabase
+      .from('organizations')
+      .select('logo_url')
+      .eq('id', incRow.org_id)
+      .maybeSingle();
+    agencyLogoUrl = orgRow?.logo_url ?? '';
+  }
+
   return {
     iapId,
     periodId,
@@ -794,7 +805,7 @@ const loadSharedData = async (
     preparedByTitle: sharedRow?.prepared_by_title ?? '',
     approvedByName: sharedRow?.approved_by_name ?? '',
     agencyName: sharedRow?.agency_name ?? '',
-    agencyLogoUrl: sharedRow?.agency_logo_url ?? '',
+    agencyLogoUrl,
     updatedAt: sharedRow?.updated_at ?? null,
   };
 };
@@ -1309,6 +1320,163 @@ app.post("/admin/toggle-admin", async (c) => {
   } catch (error) {
     console.log(`Error toggling admin status: ${error}`);
     return c.json({ error: "Failed to toggle admin status" }, 500);
+  }
+});
+
+// ===== PROFILE ROUTES =====
+// User profile reads/writes user_metadata on the auth.users record.
+
+app.get("/profile", async (c) => {
+  try {
+    const user = await getAuthenticatedUser(c.req.raw);
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+    return c.json({
+      profile: {
+        name: user.user_metadata?.name ?? '',
+        title: user.user_metadata?.title ?? '',
+        email: user.email ?? '',
+      },
+    });
+  } catch (error) {
+    console.log(`Error fetching profile: ${error}`);
+    return c.json({ error: "Failed to fetch profile" }, 500);
+  }
+});
+
+app.put("/profile", async (c) => {
+  try {
+    const user = await getAuthenticatedUser(c.req.raw);
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+    const body = await c.req.json();
+    const { name, title } = body;
+    const supabase = getSupabaseClient(undefined, true);
+
+    const patch: Record<string, any> = {};
+    if (name !== undefined) patch.name = name;
+    if (title !== undefined) patch.title = title;
+
+    const { error } = await supabase.auth.admin.updateUserById(user.id, {
+      user_metadata: { ...user.user_metadata, ...patch },
+    });
+    if (error) {
+      console.log(`Error updating profile: ${error.message}`);
+      return c.json({ error: "Failed to update profile" }, 500);
+    }
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error updating profile: ${error}`);
+    return c.json({ error: "Failed to update profile" }, 500);
+  }
+});
+
+// ===== ORG ROUTES =====
+// Organization name + logo. Logo is stored in Supabase Storage bucket
+// `agency-logos` and the public URL is persisted to organizations.logo_url.
+
+app.get("/org", async (c) => {
+  try {
+    const user = await getAuthenticatedUser(c.req.raw);
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+    const supabase = getSupabaseClient(undefined, true);
+    const orgId = await getOrCreateUserOrg(supabase, user);
+
+    const { data: org, error } = await supabase
+      .from('organizations')
+      .select('id, name, logo_url')
+      .eq('id', orgId)
+      .single();
+    if (error || !org) {
+      console.log(`Error fetching org: ${error?.message}`);
+      return c.json({ error: "Failed to fetch organization" }, 500);
+    }
+
+    return c.json({ org });
+  } catch (error) {
+    console.log(`Error fetching org: ${error}`);
+    return c.json({ error: "Failed to fetch organization" }, 500);
+  }
+});
+
+app.put("/org", async (c) => {
+  try {
+    const user = await getAuthenticatedUser(c.req.raw);
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+    const body = await c.req.json();
+    const supabase = getSupabaseClient(undefined, true);
+    const orgId = await getOrCreateUserOrg(supabase, user);
+
+    const patch: Record<string, any> = {};
+    if (body.name !== undefined) patch.name = body.name;
+    if (body.logoUrl !== undefined) patch.logo_url = body.logoUrl;
+
+    const { data: org, error } = await supabase
+      .from('organizations')
+      .update(patch)
+      .eq('id', orgId)
+      .select('id, name, logo_url')
+      .single();
+    if (error || !org) {
+      console.log(`Error updating org: ${error?.message}`);
+      return c.json({ error: "Failed to update organization" }, 500);
+    }
+
+    return c.json({ org });
+  } catch (error) {
+    console.log(`Error updating org: ${error}`);
+    return c.json({ error: "Failed to update organization" }, 500);
+  }
+});
+
+app.post("/org/logo", async (c) => {
+  try {
+    const user = await getAuthenticatedUser(c.req.raw);
+    if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+    const supabase = getSupabaseClient(undefined, true);
+    const orgId = await getOrCreateUserOrg(supabase, user);
+
+    // Read raw body (the file bytes).
+    const bodyBuffer = await c.req.arrayBuffer();
+    const contentType = c.req.header('content-type') ?? 'image/png';
+    const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg' : 'png';
+    const storagePath = `${orgId}/logo.${ext}`;
+
+    const { error: uploadErr } = await supabase.storage
+      .from('agency-logos')
+      .upload(storagePath, bodyBuffer, {
+        contentType,
+        upsert: true, // overwrite previous logo
+      });
+    if (uploadErr) {
+      console.log(`Storage upload error: ${uploadErr.message}`);
+      return c.json({ error: "Failed to upload logo" }, 500);
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('agency-logos')
+      .getPublicUrl(storagePath);
+    const logoUrl = urlData.publicUrl;
+
+    // Persist the URL on the org row.
+    const { error: updateErr } = await supabase
+      .from('organizations')
+      .update({ logo_url: logoUrl })
+      .eq('id', orgId);
+    if (updateErr) {
+      console.log(`Org logo_url update error: ${updateErr.message}`);
+      return c.json({ error: "Failed to save logo URL" }, 500);
+    }
+
+    console.log(`Uploaded logo for org ${orgId}: ${logoUrl}`);
+    return c.json({ logoUrl });
+  } catch (error) {
+    console.log(`Error uploading logo: ${error}`);
+    return c.json({ error: "Failed to upload logo" }, 500);
   }
 });
 

@@ -174,10 +174,10 @@ export const ICS_203_BLOCKS = {
     maxWidth: 240,
     fontSize: 8,
   },
-  deputyICName: { x: 300, y: 660, maxWidth: 240, fontSize: 8 },
+  deputyICName: { x: 124, y: 630, maxWidth: 155, fontSize: 8 },
   safetyOfficerName: {
     x: 124,
-    y: 630,
+    y: 615,
     maxWidth: 240,
     fontSize: 8,
   },

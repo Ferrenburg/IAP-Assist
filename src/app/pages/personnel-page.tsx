@@ -180,24 +180,20 @@ export function PersonnelPage() {
   const handleGenerateICS203 = async () => {
     if (!iapId || !periodId) return;
 
+    if (!shared?.incidentName) {
+      toast.error('Incident name is required. Fill it in on the Incident Info page.');
+      return;
+    }
+
     try {
       setGenerating(true);
       toast.info('Generating ICS 203...');
 
-      // Fetch all required data including assignments
-      const [iapRes, periodsData, safetyRes, assignmentsData] = await Promise.all([
-        apiClient.getIAP(iapId),
-        apiClient.getData(iapId, 'periods'),
+      // Only fetch form-specific data; shared fields come from context.
+      const [safetyRes, assignmentsData] = await Promise.all([
         apiClient.getData(iapId, `period-${periodId}-safety`),
         apiClient.getData(iapId, `period-${periodId}-assignments`),
       ]);
-
-      const period = periodsData?.data?.find((p: any) => p.id === periodId);
-      if (!period) {
-        toast.error('Operational period not found');
-        setGenerating(false);
-        return;
-      }
 
       // Transform personnel data to organization format expected by ICS 203
       const organizationData = [];
@@ -282,24 +278,27 @@ export function PersonnelPage() {
 
       const baseData = {
         iapData: {
-          ...iapRes.iap,
-          preparedBy: personnelData.preparedByName || '',
-          preparedByPosition: personnelData.preparedByPosition || '',
-          preparedDateTime: personnelData.preparedDateTime || '',
+          incidentName: shared?.incidentName ?? '',
+          incidentNumber: shared?.incidentNumber ?? '',
+          preparedBy: shared?.preparedByName ?? '',
+          preparedByPosition: shared?.preparedByTitle ?? '',
+          preparedDateTime: personnelData.preparedDateTime ?? '',
+          agencyName: shared?.agencyName ?? '',
         },
-        periodData: period,
-        organizationData: organizationData,
-        branchesData: branchesData,
-        divisionsData: divisionsData,
+        periodData: {
+          periodNumber: shared?.periodNumber,
+          startAt: shared?.startAt,
+          endAt: shared?.endAt,
+        },
+        organizationData,
+        branchesData,
+        divisionsData,
         safetyData: safetyRes?.data || [],
         formData: organizationData,
       };
 
-      // Generate the PDF
       const pdfBytes = await icsFormGenerator.generateICS203(baseData);
-
-      // Download the PDF
-      const filename = `ICS_203_${iapRes.iap?.name || 'Incident'}_Period_${period.periodNumber}.pdf`;
+      const filename = `ICS_203_${shared?.incidentName || 'Incident'}_Period_${shared?.periodNumber}.pdf`;
       await pdfCombiner.downloadPDF(pdfBytes, filename);
 
       toast.success('ICS 203 downloaded successfully!');
@@ -321,6 +320,21 @@ export function PersonnelPage() {
 
   return (
     <div className="space-y-6">
+      {/* Incident info banner — read-only, populated from shared context */}
+      {shared && (
+        <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 flex items-center gap-4 text-sm text-slate-300 flex-wrap">
+          <span><span className="text-slate-500">Incident:</span> <span className="text-white font-medium">{shared.incidentName || '—'}</span></span>
+          <span className="text-slate-600">|</span>
+          <span><span className="text-slate-500">Period:</span> <span className="text-white font-medium">{shared.periodNumber}</span></span>
+          {shared.startAt && (
+            <>
+              <span className="text-slate-600">|</span>
+              <span className="text-slate-400">{new Date(shared.startAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} – {shared.endAt ? new Date(shared.endAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}</span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">ICS 203 - Organization Assignment List</h1>
@@ -408,7 +422,10 @@ export function PersonnelPage() {
                 type="text"
                 value={personnelData.incidentCommanderName || ''}
                 onFocus={(e) => handleInputFocus(e.target.value)}
-                onChange={(e) => updateField('incidentCommanderName', e.target.value)}
+                onChange={(e) => {
+                  updateField('incidentCommanderName', e.target.value);
+                  void updateShared({ incidentCommander: e.target.value });
+                }}
                 onBlur={(e) => handleInputBlur(e.target.value)}
                 placeholder="Select or type name"
                 className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -473,10 +490,11 @@ export function PersonnelPage() {
                     className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const updated = (personnelData.commanders || []).filter((_, i) => i !== idx);
+                      const newData = { ...personnelData, commanders: updated };
                       updateField('commanders', updated);
-                      saveData();
+                      await saveData(newData);
                     }}
                     className="p-2 text-red-400 hover:text-red-300 transition-colors"
                   >
@@ -863,10 +881,11 @@ export function PersonnelPage() {
                   className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const updated = (personnelData.technicalSpecialists || []).filter((_, i) => i !== idx);
+                    const newData = { ...personnelData, technicalSpecialists: updated };
                     updateField('technicalSpecialists', updated);
-                    saveData();
+                    await saveData(newData);
                   }}
                   className="p-2 text-red-400 hover:text-red-300 transition-colors"
                 >
@@ -1315,10 +1334,11 @@ export function PersonnelPage() {
                 className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
-                onClick={() => {
+                onClick={async () => {
                   const updated = (personnelData.agencyReps || []).filter((_, i) => i !== idx);
+                  const newData = { ...personnelData, agencyReps: updated };
                   updateField('agencyReps', updated);
-                  saveData();
+                  await saveData(newData);
                 }}
                 className="p-2 text-red-400 hover:text-red-300 transition-colors"
               >
