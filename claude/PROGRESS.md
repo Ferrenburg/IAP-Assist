@@ -8,16 +8,42 @@ A running log of work done across all sessions. Most recent entry at the top.
 
 ## Status Snapshot
 
-- **Current sprint:** Sprint 2 — code complete; pending Vercel deploy + Supabase Storage bucket setup
-- **Sprint started:** 2026-05-07
-- **Last session:** 2026-05-07 — Sprint 1 bug fixes + full Sprint 2 implementation
-- **Next session focus:** Vercel deploy (env vars + `agency-logos` bucket) + end-to-end smoke test; then Sprint 3 kickoff (ICS 204, 205, 205A, 206)
+- **Current sprint:** Sprint 3 — code complete
+- **Sprint started:** 2026-05-11
+- **Last session:** 2026-05-11 — ICS 203 agency rep fix + full Sprint 3 implementation (ICS 204, 205, 205A, 206)
+- **Next session focus:** End-to-end smoke test for Sprint 3 forms; then Sprint 4 kickoff (ICS 207, 208, individual PDF export polish)
 
 ---
 
 ## Session Log
 
 <!-- Newest entries go here, at the top of the log. -->
+
+### 2026-05-11 — Sprint 3, Session 1
+
+**Worked on:** ICS 203 agency rep layout fix (re-applied reverted work) + full Sprint 3 implementation — ICS 204, 205, 205A, and 206 forms wired.
+
+**Completed:**
+- Fix: ICS 203 agency representative field-mappings restored (3 slots, 2-row-per-rep, right-cell-only x=146, y-pairs 552/538 524/510 496/482); white rect pairs in form-generator updated to match
+- ICS 204 (Assignments): incident info banner; PDF gen now uses `useOpPeriod()` context instead of fetching IAP/periods separately; pre-export validation (incidentName + ≥1 assignment)
+- ICS 205 (Radio Comms): incident info banner; PDF gen context-wired; pre-export validation; Prepared By inputs write to shared context; UI cards use dark theme consistently
+- ICS 205A (Comms List): new tab added to communications page with contacts table (role, name, phone, radio); save/load via KV key `period-${periodId}-comms-contacts`; separate ICS 205A export button with validation
+- ICS 206 (Medical Plan) + ICS 208 (Safety): incident info banner; both PDF generators context-wired via `buildIapData()`/`buildPeriodData()` helpers; pre-export validation
+
+**In progress:**
+- Nothing in flight.
+
+**Decisions made:**
+- ICS 205A lives as a tab inside the communications page (same `/communications` route) — no new route needed since sidebar already labels it "ICS 205/205A — Comms".
+- All PDF generators now use `shared.*` from context rather than re-fetching `getIAP()` + `getData('periods')` — faster and consistent with the shared-data principle.
+
+**Blockers / open questions:**
+- KV store table (`kv_store_897e0759`) must be created in Supabase Studio for all form data to persist — still pending user confirmation this was done.
+- Vercel deploy + `agency-logos` Storage bucket still pending from Sprint 2.
+
+**Next session should start with:**
+- End-to-end smoke test: load each of the 4 new form pages, enter data, save, reload, export PDF, verify headers and layout.
+- If green, close Sprint 3, request client approval/payment, then start Sprint 4 (ICS 207, 208, individual export polish).
 
 ### 2026-05-07 — Sprint 2, Session 1
 

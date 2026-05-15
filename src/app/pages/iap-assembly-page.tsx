@@ -379,6 +379,14 @@ export function IAPAssemblyPage() {
 
     try {
       const pdfDocs: Uint8Array[] = [];
+      let runningPageCount = 0;
+
+      // Helper: push a generated PDF and update the running page count
+      const pushPdf = async (pdfBytes: Uint8Array) => {
+        pdfDocs.push(pdfBytes);
+        const tempDoc = await PDFDocument.load(pdfBytes);
+        runningPageCount += tempDoc.getPageCount();
+      };
 
       // Generate each selected form
       for (const form of selectedForms) {
@@ -387,7 +395,7 @@ export function IAPAssemblyPage() {
         try {
           if (form.id === 'cover') {
             const coverPdf = await generateCoverPage();
-            pdfDocs.push(coverPdf);
+            await pushPdf(coverPdf);
           } else if (form.id === 'ics202') {
             const objectivesData = await apiClient.getData(iapId, `period-${periodId}-objectives`);
             const commandData = await apiClient.getData(iapId, `period-${periodId}-command-emphasis`);
@@ -414,7 +422,7 @@ export function IAPAssemblyPage() {
               situationConditions: situationData?.data?.[0]?.content || '',
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics203') {
             const personnelDataRaw = await apiClient.getData(iapId, `period-${periodId}-personnel`);
             const assignmentsDataRaw = await apiClient.getData(iapId, `period-${periodId}-assignments`);
@@ -456,23 +464,60 @@ export function IAPAssemblyPage() {
               divisionsData: divisionsData,
               branchesData: branchesData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics204') {
-            const assignmentsData = await apiClient.getData(iapId, `period-${periodId}-assignments`);
-            const prepData = await apiClient.getData(iapId, `period-${periodId}-assignments-prep`);
+            const [assignmentsData, prepData, personnelData] = await Promise.all([
+              apiClient.getData(iapId, `period-${periodId}-assignments`),
+              apiClient.getData(iapId, `period-${periodId}-assignments-prep`),
+              apiClient.getData(iapId, `period-${periodId}-personnel`),
+            ]);
+            const assignments: any[] = assignmentsData?.data || [];
+            const personnel = personnelData?.data?.[0];
+            const prep = prepData?.data?.[0] || {};
 
-            console.log('[ICS 204 Data Debug]', {
-              assignments: assignmentsData?.data,
-              prep: prepData?.data,
-            });
+            const ics204IapData = {
+              ...iapData,
+              preparedBy: preparedByName || iapData?.preparedByName,
+              preparedByPosition: preparedByPosition || iapData?.preparedByTitle,
+              preparedDateTime: `${preparedDate}T${preparedTime}`,
+            };
 
-            const pdf = await icsFormGenerator.generateICS204({
-              iapData,
-              periodData,
-              assignmentsData: assignmentsData?.data || [],
-              prepData: prepData?.data?.[0] || {},
-            });
-            pdfDocs.push(pdf);
+            // One PDF page per assignment, each stamped with its IAP page number
+            for (let i = 0; i < assignments.length; i++) {
+              const assignment = assignments[i];
+              let branchDirector = '';
+              let branchDirectorContact = '';
+              if (assignment.branch && assignment.divisionGroupType !== 'branch') {
+                const linked = assignments.find((a: any) => a.divisionGroupType === 'branch' && a.name === assignment.branch);
+                branchDirector = linked?.supervisorName || '';
+                branchDirectorContact = linked?.supervisorContact || '';
+              }
+              const assignmentPdf = await icsFormGenerator.generateICS204({
+                iapData: ics204IapData,
+                periodData,
+                formData: [{
+                  division: assignment.name,
+                  divisionGroupType: assignment.divisionGroupType,
+                  branch: assignment.branch || '',
+                  reportingLocation: assignment.reportingLocation || '',
+                  supervisor: assignment.supervisorName || '',
+                  supervisorContact: assignment.supervisorContact || '',
+                  resources: assignment.resources || [],
+                  workAssignment: assignment.workAssignments || '',
+                  specialInstructions: assignment.specialInstructions || '',
+                  communications: assignment.contacts || [],
+                }],
+                operationsSectionChief: personnel?.operationsSectionChief || '',
+                operationsSectionChiefContact: personnel?.operationsSectionChiefContact || '',
+                branchDirector,
+                branchDirectorContact,
+                iapPageNumber: runningPageCount + 1,
+                preparedBy: preparedByName,
+                preparedByPosition,
+                preparedDateTime: prep.dateTimePrepared || `${preparedDate}T${preparedTime}`,
+              });
+              await pushPdf(assignmentPdf);
+            }
           } else if (form.id === 'ics205') {
             const channelsData = await apiClient.getData(iapId, `period-${periodId}-radio-channels`);
 
@@ -481,7 +526,7 @@ export function IAPAssemblyPage() {
               periodData,
               formData: channelsData?.data || [],
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics205a') {
             const contactsData = await apiClient.getData(iapId, `period-${periodId}-communications-data`);
 
@@ -490,7 +535,7 @@ export function IAPAssemblyPage() {
               periodData,
               formData: contactsData?.data || [],
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics206') {
             const medicalData = await apiClient.getData(iapId, `period-${periodId}-medical-data`);
             const stationsData = await apiClient.getData(iapId, `period-${periodId}-medical-stations`);
@@ -511,7 +556,7 @@ export function IAPAssemblyPage() {
               hospitals: hospitalsData?.data || [],
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics207') {
             const personnelDataRaw = await apiClient.getData(iapId, `period-${periodId}-personnel`);
 
@@ -524,7 +569,7 @@ export function IAPAssemblyPage() {
               periodData,
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics208') {
             const safetyData = await apiClient.getData(iapId, `period-${periodId}-safety-data`);
             const personnelDataRaw = await apiClient.getData(iapId, `period-${periodId}-personnel`);
@@ -539,7 +584,7 @@ export function IAPAssemblyPage() {
               formData: safetyData?.data || [],
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'weather') {
             toast.info('Weather PDF attachment will be available in Sprint 5');
           }

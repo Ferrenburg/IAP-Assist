@@ -388,28 +388,34 @@ export function SafetyMedicalPage() {
     }
   };
 
+  const buildIapData = (dateTimePrepared?: string) => ({
+    incidentName: shared?.incidentName,
+    incidentNumber: shared?.incidentNumber,
+    preparedBy: shared?.preparedByName,
+    preparedByPosition: shared?.preparedByTitle,
+    preparedDateTime: dateTimePrepared || new Date().toISOString(),
+  });
+  const buildPeriodData = () => ({ startAt: shared?.startAt, endAt: shared?.endAt });
+
+  const formatPreparedDateTime = (datetimeStr: string) => {
+    if (!datetimeStr) return '';
+    const dt = new Date(datetimeStr);
+    return `${dt.toISOString().split('T')[0]}T${dt.toTimeString().split(' ')[0].substring(0, 5)}`;
+  };
+
   const handleGenerateICS206 = async () => {
     if (!iapId || !periodId) return;
+
+    if (!shared?.incidentName) {
+      toast.error('Set an incident name in Incident Info before exporting');
+      return;
+    }
 
     try {
       setGenerating(true);
       toast.info('Generating ICS 206...');
 
-      // Fetch required data
-      const [iapRes, periodsData] = await Promise.all([
-        apiClient.getIAP(iapId),
-        apiClient.getData(iapId, 'periods'),
-      ]);
-
-      const period = periodsData?.data?.find((p: any) => p.id === periodId);
-      if (!period) {
-        toast.error('Operational period not found');
-        setGenerating(false);
-        return;
-      }
-
-      // Transform medical data into ICS 206 format
-      const formData = [
+      const formData: any[] = [
         ...medicalStations.map(station => ({
           itemType: 'medicalStation',
           name: station.name,
@@ -439,39 +445,17 @@ export function SafetyMedicalPage() {
       ];
 
       if (medicalData.specialProcedures) {
-        formData.push({
-          itemType: 'procedures',
-          content: medicalData.specialProcedures,
-        });
+        formData.push({ itemType: 'procedures', content: medicalData.specialProcedures });
       }
 
-      // Format the prepared date/time
-      const formatPreparedDateTime = (datetimeStr: string) => {
-        if (!datetimeStr) return '';
-        const dt = new Date(datetimeStr);
-        const date = dt.toISOString().split('T')[0];
-        const time = dt.toTimeString().split(' ')[0].substring(0, 5);
-        return `${date}T${time}`;
-      };
-
-      const ics206Data = {
-        iapData: {
-          ...iapRes.iap,
-          preparedBy: medicalData.preparedByName,
-          preparedByPosition: medicalData.positionTitle,
-          preparedDateTime: formatPreparedDateTime(medicalData.dateTimePrepared),
-        },
-        periodData: period,
+      const pdfBytes = await icsFormGenerator.generateICS206({
+        iapData: buildIapData(formatPreparedDateTime(medicalData.dateTimePrepared)),
+        periodData: buildPeriodData(),
         formData,
-      };
+      });
 
-      // Generate the PDF
-      const pdfBytes = await icsFormGenerator.generateICS206(ics206Data);
-
-      // Download the PDF
-      const filename = `ICS_206_${iapRes.iap?.name || 'Incident'}_Period_${period.periodNumber}.pdf`;
+      const filename = `ICS_206_${shared.incidentName}_Period_${shared.periodNumber || ''}.pdf`;
       await pdfCombiner.downloadPDF(pdfBytes, filename);
-
       toast.success('ICS 206 downloaded successfully!');
     } catch (error) {
       console.error('Error generating ICS 206:', error);
@@ -484,63 +468,28 @@ export function SafetyMedicalPage() {
   const handleGenerateICS208 = async () => {
     if (!iapId || !periodId) return;
 
+    if (!shared?.incidentName) {
+      toast.error('Set an incident name in Incident Info before exporting');
+      return;
+    }
+
     try {
       setGenerating(true);
       toast.info('Generating ICS 208...');
 
-      // Fetch required data
-      const [iapRes, periodsData] = await Promise.all([
-        apiClient.getIAP(iapId),
-        apiClient.getData(iapId, 'periods'),
-      ]);
-
-      const period = periodsData?.data?.find((p: any) => p.id === periodId);
-      if (!period) {
-        toast.error('Operational period not found');
-        setGenerating(false);
-        return;
-      }
-
-      // Format the prepared date/time
-      const formatPreparedDateTime = (datetimeStr: string) => {
-        if (!datetimeStr) return '';
-        const dt = new Date(datetimeStr);
-        const date = dt.toISOString().split('T')[0];
-        const time = dt.toTimeString().split(' ')[0].substring(0, 5);
-        return `${date}T${time}`;
-      };
-
-      // Transform safety data into ICS 208 format
       const formData = [
-        {
-          itemType: 'message',
-          content: safetyData.safetyMessage,
-        },
-        {
-          itemType: 'siteSafetyPlan',
-          required: safetyData.siteSafetyPlanRequired,
-          location: safetyData.siteSafetyPlanLocation,
-        },
+        { itemType: 'message', content: safetyData.safetyMessage },
+        { itemType: 'siteSafetyPlan', required: safetyData.siteSafetyPlanRequired, location: safetyData.siteSafetyPlanLocation },
       ];
 
-      const ics208Data = {
-        iapData: {
-          ...iapRes.iap,
-          preparedBy: safetyData.preparedByName,
-          preparedByPosition: safetyData.positionTitle,
-          preparedDateTime: formatPreparedDateTime(safetyData.dateTimePrepared),
-        },
-        periodData: period,
+      const pdfBytes = await icsFormGenerator.generateICS208({
+        iapData: buildIapData(formatPreparedDateTime(safetyData.dateTimePrepared)),
+        periodData: buildPeriodData(),
         formData,
-      };
+      });
 
-      // Generate the PDF
-      const pdfBytes = await icsFormGenerator.generateICS208(ics208Data);
-
-      // Download the PDF
-      const filename = `ICS_208_${iapRes.iap?.name || 'Incident'}_Period_${period.periodNumber}.pdf`;
+      const filename = `ICS_208_${shared.incidentName}_Period_${shared.periodNumber || ''}.pdf`;
       await pdfCombiner.downloadPDF(pdfBytes, filename);
-
       toast.success('ICS 208 downloaded successfully!');
     } catch (error) {
       console.error('Error generating ICS 208:', error);
@@ -558,8 +507,24 @@ export function SafetyMedicalPage() {
     );
   }
 
+  const formatBannerDate = (iso: string | null | undefined) => {
+    if (!iso) return '';
+    return iso.split('T')[0];
+  };
+
   return (
     <div className="space-y-6">
+      {/* Incident info banner */}
+      {shared?.incidentName && (
+        <div className="text-sm text-slate-400 flex items-center gap-3">
+          <span className="text-slate-200 font-medium">{shared.incidentName}</span>
+          {shared.periodNumber && <><span>·</span><span>Period {shared.periodNumber}</span></>}
+          {(shared.startAt || shared.endAt) && (
+            <><span>·</span><span>{formatBannerDate(shared.startAt)} – {formatBannerDate(shared.endAt)}</span></>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

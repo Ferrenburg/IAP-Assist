@@ -194,19 +194,15 @@ export const ICS_203_BLOCKS = {
     fontSize: 8,
   },
 
-  // Block 4 - Agency Representatives
-  agencyRep1Agency: { x: 38, y: 538, maxWidth: 100, fontSize: 8 },
-  agencyRep1Name: { x: 146, y: 538, maxWidth: 140, fontSize: 8 },
-  agencyRep2Agency: { x: 38, y: 524, maxWidth: 100, fontSize: 8 },
-  agencyRep2Name: { x: 146, y: 524, maxWidth: 140, fontSize: 8 },
-  agencyRep3Agency: { x: 38, y: 510, maxWidth: 100, fontSize: 8 },
-  agencyRep3Name: { x: 146, y: 510, maxWidth: 140, fontSize: 8 },
-  agencyRep4Agency: { x: 38, y: 496, maxWidth: 100, fontSize: 8 },
-  agencyRep4Name: { x: 146, y: 496, maxWidth: 140, fontSize: 8 },
-  agencyRep5Agency: { x: 38, y: 482, maxWidth: 100, fontSize: 8 },
-  agencyRep5Name: { x: 146, y: 482, maxWidth: 140, fontSize: 8 },
-  agencyRep6Agency: { x: 38, y: 468, maxWidth: 100, fontSize: 8 },
-  agencyRep6Name: { x: 146, y: 468, maxWidth: 140, fontSize: 8 },
+  // Block 4 - Agency Representatives (2-row-per-rep layout; both values in right cell x=146)
+  // Row A: "Agency/Organization" pre-printed label — value goes here (org name)
+  // Row B: "Name" pre-printed label — value goes here (rep name)
+  agencyRep1Agency: { x: 146, y: 552, maxWidth: 135, fontSize: 8 },
+  agencyRep1Name:   { x: 146, y: 538, maxWidth: 135, fontSize: 8 },
+  agencyRep2Agency: { x: 146, y: 524, maxWidth: 135, fontSize: 8 },
+  agencyRep2Name:   { x: 146, y: 510, maxWidth: 135, fontSize: 8 },
+  agencyRep3Agency: { x: 146, y: 496, maxWidth: 135, fontSize: 8 },
+  agencyRep3Name:   { x: 146, y: 482, maxWidth: 135, fontSize: 8 },
 
   // Block 5 - Planning Section
   planningChiefName: {
@@ -434,6 +430,9 @@ export const ICS_204_BLOCKS = {
   // Block 1 - Incident Name (top header, right side)
   incidentName: { x: 39, y: 708, maxWidth: 200, fontSize: 9 },
 
+  // IAP Page number (top-right header cell)
+  iapPageNumber: { x: 560, y: 725, maxWidth: 40, fontSize: 9 },
+
    // Block 2 - Operational Period (separate fields in header row)
   opPeriodDateFrom: {
     x: 250,
@@ -450,10 +449,11 @@ export const ICS_204_BLOCKS = {
   opPeriodDateTo: { x: 378, y: 707, maxWidth: 70, fontSize: 9 },
   opPeriodTimeTo: { x: 378, y: 691, maxWidth: 70, fontSize: 9 },
 
-  // Block 3 - Branch/Division/Group (separate header fields)
+  // Block 3 - Branch/Division/Group/Staging Area (separate header fields)
   branch: { x: 489, y: 703, maxWidth: 100, fontSize: 9 },
   division: { x: 494, y: 677, maxWidth: 100, fontSize: 9 },
   group: { x: 484, y: 653, maxWidth: 100, fontSize: 9 },
+  stagingArea: { x: 516, y: 629, maxWidth: 70, fontSize: 9 },
   reportingLocation: { x: 448, y: 607, maxWidth: 100, fontSize: 9 },
 
   // Block 4 - Operations Personnel (name/contact pairs)
@@ -476,8 +476,8 @@ export const ICS_204_BLOCKS = {
     fontSize: 8,
   },
   branchDirectorContact: {
-    x: 335,
-    y: 655,
+    x: 355,
+    y: 633,
     maxWidth: 90,
     fontSize: 8,
   },
@@ -521,12 +521,17 @@ export const ICS_204_BLOCKS = {
     fontSize: 8,
   },
 
-  // Block 8 - Communications (summary area)
+  // Block 8 - Communications table (3 columns matching the pre-printed template)
   communicationsStart: {
     x: 45,
     y: 152,
     maxWidth: 510,
     fontSize: 8,
+  },
+  commColumns: {
+    function: { x: 45,  maxWidth: 100 },  // Function/Role column
+    name:     { x: 175, maxWidth: 100 },  // Name column (after the "/" separator)
+    contact:  { x: 310, maxWidth: 240 },  // Contact Number/Frequency column
   },
   commLineHeight: 14,
 
@@ -606,36 +611,39 @@ export const ICS_205_BLOCKS = {
 
 // ICS 205A - Communications List (Portrait: 612 x 792)
 export const ICS_205A_BLOCKS = {
-  // Block 1 - Incident Name (top header)
-  incidentName: { x: 100, y: 740, maxWidth: 320, fontSize: 10 },
+  // Block 1 - Incident Name
+  // Block 1 cell bottom border sits at y≈706; cell top is around y≈735.
+  // y=712 keeps the text 6pt above the bottom border so it doesn't sit ON the border line.
+  incidentName: { x: 43, y: 712, maxWidth: 240, fontSize: 9 },
 
-  // Block 2 - Operational Period (header row - MUST stay above table)
-  opPeriodFrom: { x: 100, y: 715, maxWidth: 180, fontSize: 9 },
-  opPeriodTo: { x: 320, y: 715, maxWidth: 180, fontSize: 9 },
+  // Block 2 - Operational Period (split date/time rows, right half of header)
+  // Pre-printed "Date From:" / "Date To:" label baseline sits at y≈725 (bracketed: 720<y<730).
+  // Pre-printed "Time From:" / "Time To:" label baseline sits at y≈712 (bracketed: 706<y<718).
+  // x=405 mirrors ICS 202 (same header structure, confirmed working): fill area for "Date From:"
+  // starts right after the bold "Date From:" label ends (~x:402).
+  // x=510 mirrors ICS 202's "Date To:" fill area start.
+  opPeriodDateFrom: { x: 405, y: 725, maxWidth: 70, fontSize: 8 },
+  opPeriodTimeFrom: { x: 405, y: 712, maxWidth: 70, fontSize: 8 },
+  opPeriodDateTo:   { x: 510, y: 725, maxWidth: 60, fontSize: 8 },
+  opPeriodTimeTo:   { x: 510, y: 712, maxWidth: 60, fontSize: 8 },
 
-  // Block 3 - Communications Table (starts well below header)
-  commTableStart: { x: 50, y: 670, fontSize: 8 },
-  commRowHeight: 18,
+  // Block 3 - Communications Table
+  // Template grid lines are at y=663, 649, 635, ... (14pt pitch). First data row spans y=649–663.
+  // y=656 puts the text baseline in the vertical center of the first row.
+  commTableStart: { x: 50, y: 656, fontSize: 8 },
+  commRowHeight: 14,
   commColumns: {
-    position: { x: 50, maxWidth: 140 },
-    name: { x: 195, maxWidth: 140 },
-    method: { x: 340, maxWidth: 210 },
+    position: { x: 40,  maxWidth: 150 },
+    name:     { x: 195, maxWidth: 140 },
+    method:   { x: 340, maxWidth: 210 },
   },
 
-  // Block 4 - Prepared by (footer - must stay at bottom)
-  preparedByName: { x: 100, y: 70, maxWidth: 180, fontSize: 9 },
-  preparedByPosition: {
-    x: 300,
-    y: 70,
-    maxWidth: 140,
-    fontSize: 9,
-  },
-  preparedByDateTime: {
-    x: 470,
-    y: 70,
-    maxWidth: 90,
-    fontSize: 9,
-  },
+  // Block 4 - Prepared by (footer)
+  // "4. Prepared by: Name: __ Position/Title: __ Signature: __" row baseline ≈ y=113
+  // "ICS 205A | IAP Page __ | Date/Time: __" row (below) baseline ≈ y=92
+  preparedByName: { x: 155, y: 113, maxWidth: 165, fontSize: 9 },
+  preparedByPosition: { x: 345, y: 113, maxWidth: 140, fontSize: 9 },
+  preparedByDateTime: { x: 345, y: 92, maxWidth: 230, fontSize: 9 },
 };
 
 // ICS 206 - Medical Plan (Landscape: 792 x 612)
