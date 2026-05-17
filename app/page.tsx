@@ -6,7 +6,6 @@ import { MainWorkspace } from '@/app/pages/main-workspace';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
