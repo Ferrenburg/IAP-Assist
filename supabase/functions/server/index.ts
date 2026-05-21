@@ -1376,6 +1376,27 @@ app.put("/profile", async (c) => {
 // Organization name + logo. Logo is stored in Supabase Storage bucket
 // `agency-logos` and the public URL is persisted to organizations.logo_url.
 
+// Helper: fetch org row, falling back gracefully when logo_url column not yet migrated.
+const fetchOrgRow = async (supabase: ReturnType<typeof createClient>, orgId: string) => {
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('id, name, logo_url')
+    .eq('id', orgId)
+    .single();
+  if (!error) return data as { id: string; name: string; logo_url: string | null };
+  // Column may not exist yet (migration pending) — retry without it.
+  if (error.code === '42703' || error.message?.includes('logo_url')) {
+    const { data: basic, error: e2 } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .eq('id', orgId)
+      .single();
+    if (e2 || !basic) return null;
+    return { ...(basic as { id: string; name: string }), logo_url: null };
+  }
+  return null;
+};
+
 app.get("/org", async (c) => {
   try {
     const user = await getAuthenticatedUser(c.req.raw);
@@ -1384,15 +1405,8 @@ app.get("/org", async (c) => {
     const supabase = getSupabaseClient(undefined, true);
     const orgId = await getOrCreateUserOrg(supabase, user);
 
-    const { data: org, error } = await supabase
-      .from('organizations')
-      .select('id, name, logo_url')
-      .eq('id', orgId)
-      .single();
-    if (error || !org) {
-      console.log(`Error fetching org: ${error?.message}`);
-      return c.json({ error: "Failed to fetch organization" }, 500);
-    }
+    const org = await fetchOrgRow(supabase, orgId);
+    if (!org) return c.json({ error: "Failed to fetch organization" }, 500);
 
     return c.json({ org });
   } catch (error) {
@@ -1414,16 +1428,24 @@ app.put("/org", async (c) => {
     if (body.name !== undefined) patch.name = body.name;
     if (body.logoUrl !== undefined) patch.logo_url = body.logoUrl;
 
-    const { data: org, error } = await supabase
+    // Skip logo_url in the patch if the column doesn't exist yet
+    const hasLogoColumn = !('logo_url' in patch) || await (async () => {
+      const { error } = await supabase.from('organizations').select('logo_url').limit(1);
+      return !error;
+    })();
+    if (!hasLogoColumn) delete patch.logo_url;
+
+    const { error: updateErr } = await supabase
       .from('organizations')
       .update(patch)
-      .eq('id', orgId)
-      .select('id, name, logo_url')
-      .single();
-    if (error || !org) {
-      console.log(`Error updating org: ${error?.message}`);
+      .eq('id', orgId);
+    if (updateErr) {
+      console.log(`Error updating org: ${updateErr.message}`);
       return c.json({ error: "Failed to update organization" }, 500);
     }
+
+    const org = await fetchOrgRow(supabase, orgId);
+    if (!org) return c.json({ error: "Failed to fetch organization after update" }, 500);
 
     return c.json({ org });
   } catch (error) {
@@ -1446,11 +1468,18 @@ app.post("/org/logo", async (c) => {
     const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg' : 'png';
     const storagePath = `${orgId}/logo.${ext}`;
 
+    // Ensure the bucket exists — creates it on first use, ignored if already present.
+    const { error: bucketErr } = await supabase.storage
+      .createBucket('agency-logos', { public: true });
+    if (bucketErr && !bucketErr.message?.toLowerCase().includes('already exist') && !bucketErr.message?.toLowerCase().includes('duplicate')) {
+      console.log(`Bucket create warning: ${bucketErr.message}`);
+    }
+
     const { error: uploadErr } = await supabase.storage
       .from('agency-logos')
       .upload(storagePath, bodyBuffer, {
         contentType,
-        upsert: true, // overwrite previous logo
+        upsert: true,
       });
     if (uploadErr) {
       console.log(`Storage upload error: ${uploadErr.message}`);
@@ -1462,14 +1491,18 @@ app.post("/org/logo", async (c) => {
       .getPublicUrl(storagePath);
     const logoUrl = urlData.publicUrl;
 
-    // Persist the URL on the org row.
+    // Persist the URL — skip if logo_url column not yet migrated (upload still succeeds).
     const { error: updateErr } = await supabase
       .from('organizations')
       .update({ logo_url: logoUrl })
       .eq('id', orgId);
     if (updateErr) {
-      console.log(`Org logo_url update error: ${updateErr.message}`);
-      return c.json({ error: "Failed to save logo URL" }, 500);
+      if (updateErr.code === '42703' || updateErr.message?.includes('logo_url')) {
+        console.log('logo_url column missing — migration 0003_org_logo.sql not yet applied');
+      } else {
+        console.log(`Org logo_url update error: ${updateErr.message}`);
+        return c.json({ error: "Failed to save logo URL" }, 500);
+      }
     }
 
     console.log(`Uploaded logo for org ${orgId}: ${logoUrl}`);

@@ -1366,176 +1366,143 @@ export class ICSFormGenerator {
   async generateICS206(data: ICSFormData): Promise<Uint8Array> {
     const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_206);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const page = pdfDoc.getPages()[0];
 
-    // Block 1: Incident Name
-    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
-      x: ICS_206_BLOCKS.incidentName.x,
-      y: ICS_206_BLOCKS.incidentName.y,
-      size: ICS_206_BLOCKS.incidentName.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Block 2: Operational Period (split into two lines each)
     const opFromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
     const opFromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
-    const opToDate = this.isoDate(data.periodData?.endAt, data.periodData?.toDate);
-    const opToTime = this.isoTime(data.periodData?.endAt, data.periodData?.toTime);
+    const opToDate   = this.isoDate(data.periodData?.endAt,   data.periodData?.toDate);
+    const opToTime   = this.isoTime(data.periodData?.endAt,   data.periodData?.toTime);
 
-    page.drawText(opFromDate, {
-      x: ICS_206_BLOCKS.opPeriodFrom.date.x,
-      y: ICS_206_BLOCKS.opPeriodFrom.date.y,
-      size: ICS_206_BLOCKS.opPeriodFrom.date.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    const medical             = data.formData || [];
+    // Only render entries that have at least one meaningful field — blank saved rows are skipped
+    const medicalStations     = medical.filter((item: any) => item.itemType === 'medicalStation'  && (item.name     || item.location || item.contact));
+    const transportationItems = medical.filter((item: any) => item.itemType === 'transportation'  && (item.ambulanceService || item.service || item.location || item.contact));
+    const hospitalItems       = medical.filter((item: any) => item.itemType === 'hospital'        && (item.hospitalName || item.name || item.address || item.contact));
+    const proceduresItem      = medical.find((item: any)  => item.itemType === 'procedures');
 
-    page.drawText(opFromTime, {
-      x: ICS_206_BLOCKS.opPeriodFrom.time.x,
-      y: ICS_206_BLOCKS.opPeriodFrom.time.y,
-      size: ICS_206_BLOCKS.opPeriodFrom.time.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    // Pre-printed data rows per section on the ICS 206 template (adjust if template changes)
+    const MAX_STATIONS  = 6;
+    const MAX_TRANSPORT = 4;
+    const MAX_HOSPITALS = 5;
 
-    page.drawText(opToDate, {
-      x: ICS_206_BLOCKS.opPeriodTo.date.x,
-      y: ICS_206_BLOCKS.opPeriodTo.date.y,
-      size: ICS_206_BLOCKS.opPeriodTo.date.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    const totalPages = Math.max(
+      Math.ceil(medicalStations.length     / MAX_STATIONS)  || 1,
+      Math.ceil(transportationItems.length / MAX_TRANSPORT) || 1,
+      Math.ceil(hospitalItems.length       / MAX_HOSPITALS) || 1,
+      1,
+    );
 
-    page.drawText(opToTime, {
-      x: ICS_206_BLOCKS.opPeriodTo.time.x,
-      y: ICS_206_BLOCKS.opPeriodTo.time.y,
-      size: ICS_206_BLOCKS.opPeriodTo.time.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    // Draw Block 1 + Block 2 header onto any page
+    const drawHeader = (page: PDFPage) => {
+      page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
+        x: ICS_206_BLOCKS.incidentName.x, y: ICS_206_BLOCKS.incidentName.y,
+        size: ICS_206_BLOCKS.incidentName.fontSize, font, color: rgb(0, 0, 0),
+      });
+      page.drawText(opFromDate, { x: ICS_206_BLOCKS.opPeriodFrom.date.x, y: ICS_206_BLOCKS.opPeriodFrom.date.y, size: ICS_206_BLOCKS.opPeriodFrom.date.fontSize, font, color: rgb(0, 0, 0) });
+      page.drawText(opFromTime, { x: ICS_206_BLOCKS.opPeriodFrom.time.x, y: ICS_206_BLOCKS.opPeriodFrom.time.y, size: ICS_206_BLOCKS.opPeriodFrom.time.fontSize, font, color: rgb(0, 0, 0) });
+      page.drawText(opToDate,   { x: ICS_206_BLOCKS.opPeriodTo.date.x,   y: ICS_206_BLOCKS.opPeriodTo.date.y,   size: ICS_206_BLOCKS.opPeriodTo.date.fontSize,   font, color: rgb(0, 0, 0) });
+      page.drawText(opToTime,   { x: ICS_206_BLOCKS.opPeriodTo.time.x,   y: ICS_206_BLOCKS.opPeriodTo.time.y,   size: ICS_206_BLOCKS.opPeriodTo.time.fontSize,   font, color: rgb(0, 0, 0) });
+    };
 
-    // Block 3: Medical Aid Stations
-    const medical = data.formData || [];
-    const medicalStations = medical.filter((item: any) => item.itemType === 'medicalStation');
-    let yPos = ICS_206_BLOCKS.aidStationsStart.y;
-
-    medicalStations.slice(0, 10).forEach((item: any) => {
+    // Draw a slice of medical aid stations at the section's fixed y start
+    const drawAidStations = (page: PDFPage, slice: any[]) => {
       const cols = ICS_206_BLOCKS.aidStationColumns;
+      let yPos = ICS_206_BLOCKS.aidStationsStart.y;
+      slice.forEach((item: any) => {
+        drawTableCell(page, item.name     || '', cols.name.x,     yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.name.maxWidth     || 150);
+        drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.location.maxWidth || 200);
+        drawTableCell(page, item.contact  || '', cols.contact.x,  yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.contact.maxWidth  || 150);
+        if (cols.paramedicsYes && cols.paramedicsNo) {
+          const isYes = item.paramedic === 'Yes' || item.paramedic === true;
+          const isNo  = item.paramedic === 'No'  || item.paramedic === false;
+          drawCheckbox(page, cols.paramedicsYes.x, yPos + 3, 10, isYes, false);
+          drawCheckbox(page, cols.paramedicsNo.x,  yPos + 3, 10, isNo,  false);
+        }
+        yPos -= ICS_206_BLOCKS.aidStationRowHeight;
+      });
+    };
 
-      drawTableCell(page, item.name || '', cols.name.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.name.maxWidth || 150);
-      drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.location.maxWidth || 200);
-      drawTableCell(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.contact.maxWidth || 150);
-
-      // Paramedics Yes/No checkboxes
-      if (cols.paramedicsYes && cols.paramedicsNo) {
-        const isYes = item.paramedic === 'Yes' || item.paramedic === true;
-        const isNo = item.paramedic === 'No' || item.paramedic === false;
-        drawCheckbox(page, cols.paramedicsYes.x, yPos + 2, 7, isYes);
-        drawCheckbox(page, cols.paramedicsNo.x, yPos + 2, 7, isNo);
-      }
-
-      yPos -= ICS_206_BLOCKS.aidStationRowHeight;
-    });
-
-    // Block 4: Transportation
-    const transportationItems = medical.filter((item: any) => item.itemType === 'transportation');
-    yPos = ICS_206_BLOCKS.transportationStart.y;
-
-    transportationItems.slice(0, 10).forEach((item: any) => {
+    // Draw a slice of transportation entries
+    const drawTransportation = (page: PDFPage, slice: any[]) => {
       const cols = ICS_206_BLOCKS.transportationColumns;
+      let yPos = ICS_206_BLOCKS.transportationStart.y;
+      slice.forEach((item: any) => {
+        drawTableCell(page, item.service  || '', cols.service.x,  yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.service.maxWidth  || 140);
+        drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.location.maxWidth || 140);
+        drawTableCell(page, item.contact  || '', cols.contact.x,  yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.contact.maxWidth  || 120);
+        if (cols.levelALS && cols.levelBLS) {
+          drawCheckbox(page, cols.levelALS.x, yPos + 3, 10, item.level === 'ALS', false);
+          drawCheckbox(page, cols.levelBLS.x, yPos + 3, 10, item.level === 'BLS', false);
+        }
+        yPos -= ICS_206_BLOCKS.transportationRowHeight;
+      });
+    };
 
-      drawTableCell(page, item.service || '', cols.service.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.service.maxWidth || 140);
-      drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.location.maxWidth || 140);
-      drawTableCell(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.contact.maxWidth || 120);
-
-      // ALS/BLS checkboxes
-      if (cols.levelALS && cols.levelBLS) {
-        const isALS = item.level === 'ALS';
-        const isBLS = item.level === 'BLS';
-        drawCheckbox(page, cols.levelALS.x, yPos + 2, 7, isALS);
-        drawCheckbox(page, cols.levelBLS.x, yPos + 2, 7, isBLS);
-      }
-
-      yPos -= ICS_206_BLOCKS.transportationRowHeight;
-    });
-
-    // Block 5: Hospitals
-    const hospitalItems = medical.filter((item: any) => item.itemType === 'hospital');
-    yPos = ICS_206_BLOCKS.hospitalsStart.y;
-
-    hospitalItems.slice(0, 10).forEach((item: any) => {
+    // Draw a slice of hospital entries
+    const drawHospitals = (page: PDFPage, slice: any[]) => {
       const cols = ICS_206_BLOCKS.hospitalColumns;
+      let yPos = ICS_206_BLOCKS.hospitalsStart.y;
+      slice.forEach((item: any) => {
+        drawWrappedText(page, item.name       || '', cols.name.x,       yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.name.maxWidth       || 110, 8);
+        drawWrappedText(page, item.address    || '', cols.address.x,    yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.address.maxWidth    || 130, 8);
+        drawWrappedText(page, item.contact    || '', cols.contact.x,    yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.contact.maxWidth    ||  95, 8);
+        drawTableCell(page, item.airTime      || '', cols.airTime.x,    yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.airTime.maxWidth    ||  32);
+        drawTableCell(page, item.groundTime   || '', cols.groundTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.groundTime.maxWidth ||  32);
+        if (cols.traumaCenterYes) {
+          drawCheckbox(page, cols.traumaCenterYes.x, yPos + (cols.traumaCenterYes.yOffset || 0), 8, item.traumaCenter === true, false);
+          if (item.traumaCenter && item.traumaCenterLevel && cols.traumaCenterLevel) {
+            drawTableCell(page, item.traumaCenterLevel, cols.traumaCenterLevel.x, yPos + (cols.traumaCenterLevel.yOffset || 0), font, 12, cols.traumaCenterLevel.maxWidth || 20);
+          }
+        }
+        if (cols.burnCenterYes && cols.burnCenterNo) {
+          drawCheckbox(page, cols.burnCenterYes.x, yPos + (cols.burnCenterYes.yOffset || 0), 8, item.burnCenter === true,  false);
+          drawCheckbox(page, cols.burnCenterNo.x,  yPos + (cols.burnCenterNo.yOffset  || 0), 8, item.burnCenter === false, false);
+        }
+        if (cols.helipadYes && cols.helipadNo) {
+          drawCheckbox(page, cols.helipadYes.x, yPos + (cols.helipadYes.yOffset || 0), 8, item.helipad === true,  false);
+          drawCheckbox(page, cols.helipadNo.x,  yPos + (cols.helipadNo.yOffset  || 0), 8, item.helipad === false, false);
+        }
+        yPos -= ICS_206_BLOCKS.hospitalRowHeight;
+      });
+    };
 
-      // Use wrapped text for fields that might be long
-      drawWrappedText(page, item.name || '', cols.name.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.name.maxWidth || 110, 8);
-      drawWrappedText(page, item.address || '', cols.address.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.address.maxWidth || 130, 8);
-      drawWrappedText(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.contact.maxWidth || 95, 8);
-      drawTableCell(page, item.airTime || '', cols.airTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.airTime.maxWidth || 32);
-      drawTableCell(page, item.groundTime || '', cols.groundTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.groundTime.maxWidth || 32);
+    // Render all pages — each is a full ICS 206 template with its slice of each section
+    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      const page = pageIndex === 0
+        ? pdfDoc.getPages()[0]
+        : await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_206);
 
-      // Trauma center Yes checkbox and level
-      if (cols.traumaCenterYes) {
-        drawCheckbox(page, cols.traumaCenterYes.x, yPos + (cols.traumaCenterYes.yOffset || 0), 6, item.traumaCenter === true);
-        if (item.traumaCenter && item.traumaCenterLevel && cols.traumaCenterLevel) {
-          drawTableCell(page, item.traumaCenterLevel, cols.traumaCenterLevel.x, yPos + (cols.traumaCenterLevel.yOffset || 0), font, 12, cols.traumaCenterLevel.maxWidth || 20);
+      drawHeader(page);
+      drawAidStations(page,    medicalStations.slice(    pageIndex * MAX_STATIONS,  (pageIndex + 1) * MAX_STATIONS));
+      drawTransportation(page, transportationItems.slice(pageIndex * MAX_TRANSPORT, (pageIndex + 1) * MAX_TRANSPORT));
+      drawHospitals(page,      hospitalItems.slice(      pageIndex * MAX_HOSPITALS, (pageIndex + 1) * MAX_HOSPITALS));
+
+      // Special procedures and footer only on the last page
+      if (pageIndex === totalPages - 1) {
+        if (proceduresItem?.content) {
+          drawWrappedText(page, proceduresItem.content, ICS_206_BLOCKS.specialProceduresStart.x, ICS_206_BLOCKS.specialProceduresStart.y, font, ICS_206_BLOCKS.specialProceduresStart.fontSize || 8, ICS_206_BLOCKS.specialProceduresStart.maxWidth || 690, 12);
+        }
+        page.drawText(data.iapData?.preparedBy || '', {
+          x: ICS_206_BLOCKS.preparedByName.x, y: ICS_206_BLOCKS.preparedByName.y,
+          size: ICS_206_BLOCKS.preparedByName.fontSize, font, color: rgb(0, 0, 0),
+        });
+        const icName = data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
+        if (icName) {
+          page.drawText(icName, {
+            x: ICS_206_BLOCKS.approvedByName.x, y: ICS_206_BLOCKS.approvedByName.y,
+            size: ICS_206_BLOCKS.approvedByName.fontSize || 9, font, color: rgb(0, 0, 0),
+            maxWidth: ICS_206_BLOCKS.approvedByName.maxWidth,
+          });
         }
       }
 
-      // Burn center Yes/No checkboxes
-      if (cols.burnCenterYes && cols.burnCenterNo) {
-        drawCheckbox(page, cols.burnCenterYes.x, yPos + (cols.burnCenterYes.yOffset || 0), 6, item.burnCenter === true);
-        drawCheckbox(page, cols.burnCenterNo.x, yPos + (cols.burnCenterNo.yOffset || 0), 6, item.burnCenter === false);
-      }
-
-      // Helipad Yes/No checkboxes
-      if (cols.helipadYes && cols.helipadNo) {
-        drawCheckbox(page, cols.helipadYes.x, yPos + (cols.helipadYes.yOffset || 0), 6, item.helipad === true);
-        drawCheckbox(page, cols.helipadNo.x, yPos + (cols.helipadNo.yOffset || 0), 6, item.helipad === false);
-      }
-
-      yPos -= ICS_206_BLOCKS.hospitalRowHeight;
-    });
-
-    // Block 6: Special Procedures
-    const proceduresItem = medical.find((item: any) => item.itemType === 'procedures');
-    if (proceduresItem && proceduresItem.content) {
-      drawWrappedText(
-        page,
-        proceduresItem.content,
-        ICS_206_BLOCKS.specialProceduresStart.x,
-        ICS_206_BLOCKS.specialProceduresStart.y,
-        font,
-        ICS_206_BLOCKS.specialProceduresStart.fontSize || 8,
-        ICS_206_BLOCKS.specialProceduresStart.maxWidth || 690,
-        12
-      );
+      addOpPeriodFooter(page, font);
     }
 
-    // Block 7: Prepared by
-    page.drawText(data.iapData?.preparedBy || '', {
-      x: ICS_206_BLOCKS.preparedByName.x,
-      y: ICS_206_BLOCKS.preparedByName.y,
-      size: ICS_206_BLOCKS.preparedByName.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Block 8: Approved by (Incident Commander)
-    const icName = data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
-    if (icName) {
-      page.drawText(icName, {
-        x: ICS_206_BLOCKS.approvedByName.x,
-        y: ICS_206_BLOCKS.approvedByName.y,
-        size: ICS_206_BLOCKS.approvedByName.fontSize || 9,
-        font,
-        color: rgb(0, 0, 0),
-        maxWidth: ICS_206_BLOCKS.approvedByName.maxWidth,
-      });
+    // Page numbers when more than one page
+    const allPages = pdfDoc.getPages();
+    if (allPages.length > 1) {
+      allPages.forEach((p, i) => drawPageNumber(p, i + 1, allPages.length, 'ICS 206'));
     }
-
-    // Add OpPeriod footer
-    addOpPeriodFooter(page, font);
 
     return await pdfDoc.save();
   }

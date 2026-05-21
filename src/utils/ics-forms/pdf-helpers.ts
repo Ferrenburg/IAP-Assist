@@ -93,31 +93,32 @@ export function drawCheckbox(
   x: number,
   y: number,
   size: number,
-  checked: boolean
+  checked: boolean,
+  drawOutline = true
 ): void {
-  // Draw checkbox outline
-  page.drawRectangle({
-    x,
-    y,
-    width: size,
-    height: size,
-    borderColor: rgb(0, 0, 0),
-    borderWidth: 1,
-  });
+  if (drawOutline) {
+    page.drawRectangle({
+      x,
+      y,
+      width: size,
+      height: size,
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 1,
+    });
+  }
 
-  // Draw X if checked
   if (checked) {
-    const margin = size * 0.2;
+    const margin = size * 0.15;
     page.drawLine({
       start: { x: x + margin, y: y + margin },
       end: { x: x + size - margin, y: y + size - margin },
-      thickness: 2,
+      thickness: 1.5,
       color: rgb(0, 0, 0),
     });
     page.drawLine({
       start: { x: x + size - margin, y: y + margin },
       end: { x: x + margin, y: y + size - margin },
-      thickness: 2,
+      thickness: 1.5,
       color: rgb(0, 0, 0),
     });
   }
