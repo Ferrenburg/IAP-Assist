@@ -194,15 +194,22 @@ export const ICS_203_BLOCKS = {
     fontSize: 8,
   },
 
-  // Block 4 - Agency Representatives (2-row-per-rep layout; both values in right cell x=146)
-  // Row A: "Agency/Organization" pre-printed label — value goes here (org name)
-  // Row B: "Name" pre-printed label — value goes here (rep name)
-  agencyRep1Agency: { x: 146, y: 552, maxWidth: 135, fontSize: 8 },
+  // Block 4 - Agency Representatives
+  // The template has 6 data rows at 14pt intervals starting at y=552.
+  // Left column (Agency/Organization): x=43, right column (Name): x=146.
+  // Both columns share the same y per rep (single-row-per-rep layout).
+  agencyRep1Agency: { x: 43,  y: 538, maxWidth: 96,  fontSize: 8 },
   agencyRep1Name:   { x: 146, y: 538, maxWidth: 135, fontSize: 8 },
-  agencyRep2Agency: { x: 146, y: 524, maxWidth: 135, fontSize: 8 },
-  agencyRep2Name:   { x: 146, y: 510, maxWidth: 135, fontSize: 8 },
-  agencyRep3Agency: { x: 146, y: 496, maxWidth: 135, fontSize: 8 },
-  agencyRep3Name:   { x: 146, y: 482, maxWidth: 135, fontSize: 8 },
+  agencyRep2Agency: { x: 43,  y: 524, maxWidth: 96,  fontSize: 8 },
+  agencyRep2Name:   { x: 146, y: 524, maxWidth: 135, fontSize: 8 },
+  agencyRep3Agency: { x: 43,  y: 510, maxWidth: 96,  fontSize: 8 },
+  agencyRep3Name:   { x: 146, y: 510, maxWidth: 135, fontSize: 8 },
+  agencyRep4Agency: { x: 43,  y: 496, maxWidth: 96,  fontSize: 8 },
+  agencyRep4Name:   { x: 146, y: 496, maxWidth: 135, fontSize: 8 },
+  agencyRep5Agency: { x: 43,  y: 482, maxWidth: 96,  fontSize: 8 },
+  agencyRep5Name:   { x: 146, y: 482, maxWidth: 135, fontSize: 8 },
+  agencyRep6Agency: { x: 43,  y: 468, maxWidth: 96,  fontSize: 8 },
+  agencyRep6Name:   { x: 146, y: 468, maxWidth: 135, fontSize: 8 },
 
   // Block 5 - Planning Section
   planningChiefName: {

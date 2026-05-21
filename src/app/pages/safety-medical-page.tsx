@@ -61,7 +61,7 @@ interface MedicalData {
 export function SafetyMedicalPage() {
   const { iapId, periodId } = useParams();
   const { data: shared, update: updateShared } = useOpPeriod();
-  const [activeTab, setActiveTab] = useState<'medical' | 'safety'>('safety');
+  const [activeTab, setActiveTab] = useState<'medical' | 'safety'>('medical');
   const [medicalStations, setMedicalStations] = useState<MedicalStation[]>([]);
   const [transportation, setTransportation] = useState<Transportation[]>([]);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);

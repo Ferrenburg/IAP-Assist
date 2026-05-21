@@ -8,6 +8,7 @@ import {
   formatDateTime,
   drawCheckbox,
   drawWrappedText,
+  wrapText,
   drawPageNumber,
   addOpPeriodFooter,
 } from '../pdf-helpers';
@@ -88,53 +89,61 @@ export async function generateICS202(data: ICS202Data): Promise<Uint8Array> {
   }
 
   // BLOCK 2: Operational Period
-  currentPage.drawText(formatDate(data.operationalPeriod.dateFrom), {
+  // Guard every drawText call: pdf-lib 1.17.x throws on empty strings.
+  const dateFrom = formatDate(data.operationalPeriod.dateFrom);
+  const timeFrom = formatTime(data.operationalPeriod.timeFrom);
+  const dateTo   = formatDate(data.operationalPeriod.dateTo);
+  const timeTo   = formatTime(data.operationalPeriod.timeTo);
+
+  if (dateFrom) currentPage.drawText(dateFrom, {
     x: ICS_202_BLOCKS.opPeriodDateFrom.x,
     y: ICS_202_BLOCKS.opPeriodDateFrom.y,
     size: ICS_202_BLOCKS.opPeriodDateFrom.fontSize,
-    font: font,
+    font,
     color: rgb(0, 0, 0),
   });
 
-  currentPage.drawText(formatTime(data.operationalPeriod.timeFrom), {
+  if (timeFrom) currentPage.drawText(timeFrom, {
     x: ICS_202_BLOCKS.opPeriodTimeFrom.x,
     y: ICS_202_BLOCKS.opPeriodTimeFrom.y,
     size: ICS_202_BLOCKS.opPeriodTimeFrom.fontSize,
-    font: font,
+    font,
     color: rgb(0, 0, 0),
   });
 
-  currentPage.drawText(formatDate(data.operationalPeriod.dateTo), {
+  if (dateTo) currentPage.drawText(dateTo, {
     x: ICS_202_BLOCKS.opPeriodDateTo.x,
     y: ICS_202_BLOCKS.opPeriodDateTo.y,
     size: ICS_202_BLOCKS.opPeriodDateTo.fontSize,
-    font: font,
+    font,
     color: rgb(0, 0, 0),
   });
 
-  currentPage.drawText(formatTime(data.operationalPeriod.timeTo), {
+  if (timeTo) currentPage.drawText(timeTo, {
     x: ICS_202_BLOCKS.opPeriodTimeTo.x,
     y: ICS_202_BLOCKS.opPeriodTimeTo.y,
     size: ICS_202_BLOCKS.opPeriodTimeTo.fontSize,
-    font: font,
+    font,
     color: rgb(0, 0, 0),
   });
 
   // BLOCK 3: Objectives
-  let yPos = ICS_202_BLOCKS.objectivesStart.y;
-  const maxObjectivesYPos = 385; // Don't go below this on page 1
+  // Draw line-by-line so a single long objective can't overflow into sections below.
+  const OBJ_FONT_SIZE = ICS_202_BLOCKS.objectivesStart.fontSize || 10;
+  const OBJ_MAX_WIDTH = ICS_202_BLOCKS.objectivesStart.maxWidth || 520;
+  const OBJ_LINE_HEIGHT = ICS_202_BLOCKS.objectiveLineHeight; // 16
+  const OBJ_TOP = ICS_202_BLOCKS.objectivesStart.y;           // 670
+  // Every page (page 1 and all continuations) is a copy of the same ICS 202 template,
+  // so section 4 is printed at y=415 on every page. Objectives must stop above that
+  // border on ALL pages — use the same limit everywhere.
+  const OBJ_BOTTOM = ICS_202_BLOCKS.commandEmphasisStart.y + 30; // 445, safe above section 4
 
-  for (let i = 0; i < data.objectives.length; i++) {
-    const objective = data.objectives[i];
+  let yPos = OBJ_TOP;
 
-    // Check if we need a continuation page
-    if (yPos < maxObjectivesYPos && i < data.objectives.length) {
-      // Create continuation page
-      pageNumber++;
-      currentPage = await createContinuationPage(pdfDoc, TEMPLATE_PATH);
-      yPos = ICS_202_BLOCKS.objectivesStart.y;
-
-      // Re-add header info to continuation page
+  const startNewObjectivesPage = async () => {
+    pageNumber++;
+    currentPage = await createContinuationPage(pdfDoc, TEMPLATE_PATH);
+    if (data.incidentName) {
       currentPage.drawText(data.incidentName, {
         x: ICS_202_BLOCKS.incidentName.x,
         y: ICS_202_BLOCKS.incidentName.y,
@@ -143,21 +152,34 @@ export async function generateICS202(data: ICS202Data): Promise<Uint8Array> {
         color: rgb(0, 0, 0),
       });
     }
+    yPos = OBJ_TOP;
+  };
 
-    const objectiveText = `${i + 1}. ${objective.description}`;
+  for (let i = 0; i < data.objectives.length; i++) {
+    const objectiveText = `${i + 1}. ${data.objectives[i].description}`;
+    const lines = wrapText(objectiveText, font, OBJ_FONT_SIZE, OBJ_MAX_WIDTH);
 
-    yPos = drawWrappedText(
-      currentPage,
-      objectiveText,
-      ICS_202_BLOCKS.objectivesStart.x,
-      yPos,
-      font,
-      ICS_202_BLOCKS.objectivesStart.fontSize || 10,
-      ICS_202_BLOCKS.objectivesStart.maxWidth || 520,
-      ICS_202_BLOCKS.objectiveLineHeight
-    );
+    // If even the first line of this objective won't fit, open a new page first.
+    if (yPos - OBJ_LINE_HEIGHT < OBJ_BOTTOM) {
+      await startNewObjectivesPage();
+    }
 
-    yPos -= 10; // Extra space between objectives
+    for (const line of lines) {
+      // Check before every line — works identically on page 1 and all continuations.
+      if (yPos - OBJ_LINE_HEIGHT < OBJ_BOTTOM) {
+        await startNewObjectivesPage();
+      }
+      currentPage.drawText(line, {
+        x: ICS_202_BLOCKS.objectivesStart.x,
+        y: yPos,
+        size: OBJ_FONT_SIZE,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      yPos -= OBJ_LINE_HEIGHT;
+    }
+
+    yPos -= 10; // gap between objectives
   }
 
   // Go back to first page for remaining blocks

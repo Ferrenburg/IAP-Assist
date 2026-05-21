@@ -169,6 +169,25 @@ export class ICSFormGenerator {
     const branchesData = data.branchesData || [];
     const divisionsData = data.divisionsData || [];
 
+    // Agency rep slot definitions in outer scope so both renderOrganizationPositions
+    // and the overflow continuation-page logic can reference the same array.
+    const agencyRepSlots = [
+      { agency: ICS_203_BLOCKS.agencyRep1Agency, name: ICS_203_BLOCKS.agencyRep1Name },
+      { agency: ICS_203_BLOCKS.agencyRep2Agency, name: ICS_203_BLOCKS.agencyRep2Name },
+      { agency: ICS_203_BLOCKS.agencyRep3Agency, name: ICS_203_BLOCKS.agencyRep3Name },
+      { agency: ICS_203_BLOCKS.agencyRep4Agency, name: ICS_203_BLOCKS.agencyRep4Name },
+      { agency: ICS_203_BLOCKS.agencyRep5Agency, name: ICS_203_BLOCKS.agencyRep5Name },
+      { agency: ICS_203_BLOCKS.agencyRep6Agency, name: ICS_203_BLOCKS.agencyRep6Name },
+    ];
+
+    // Technical Specialist slot definitions in outer scope for overflow handling
+    const techSpecPositions = [
+      ICS_203_BLOCKS.technicalSpecialist1Name,
+      ICS_203_BLOCKS.technicalSpecialist2Name,
+      ICS_203_BLOCKS.technicalSpecialist3Name,
+      ICS_203_BLOCKS.technicalSpecialist4Name,
+    ];
+
     // Helper function to render organization positions
     const renderOrganizationPositions = (targetPage: PDFPage) => {
       const positionMap: { [key: string]: { x: number; y: number } } = {
@@ -254,42 +273,17 @@ export class ICSFormGenerator {
         }
       });
 
-      // Handle multiple Agency Representatives (3 slots, 2-row-per-rep layout)
-      // Each rep occupies an "Agency/Organization" row (agencyY) + a "Name" row (nameY).
-      // Both values land in the RIGHT cell (x=146) — the left labels are pre-printed.
-      const agencyRepPositions = [
-        { agency: ICS_203_BLOCKS.agencyRep1Agency, name: ICS_203_BLOCKS.agencyRep1Name },
-        { agency: ICS_203_BLOCKS.agencyRep2Agency, name: ICS_203_BLOCKS.agencyRep2Name },
-        { agency: ICS_203_BLOCKS.agencyRep3Agency, name: ICS_203_BLOCKS.agencyRep3Name },
-      ];
+      // Handle Agency Representatives — 6 slots per page (agencyRepSlots defined in outer scope).
       const agencyReps = orgData.filter((item: any) => item.position === 'Agency Representative');
-      agencyReps.forEach((item: any, index: number) => {
-        if (index < agencyRepPositions.length) {
-          const positions = agencyRepPositions[index];
-          if (item.agency && positions.agency?.x !== undefined) {
-            drawBoundedText(targetPage, item.agency, positions.agency.x, positions.agency.y, font, positions.agency.fontSize || 8, positions.agency.maxWidth || 135);
-          }
-          if (item.name && positions.name?.x !== undefined) {
-            drawBoundedText(targetPage, item.name, positions.name.x, positions.name.y, font, positions.name.fontSize || 8, positions.name.maxWidth || 135);
-          }
-        }
+      // Render the first batch (up to 6) on the current page
+      agencyReps.slice(0, agencyRepSlots.length).forEach((item: any, index: number) => {
+        const slots = agencyRepSlots[index];
+        if (item.agency) drawBoundedText(targetPage, item.agency, slots.agency.x, slots.agency.y, font, slots.agency.fontSize || 8, slots.agency.maxWidth || 96);
+        if (item.name)   drawBoundedText(targetPage, item.name,   slots.name.x,   slots.name.y,   font, slots.name.fontSize   || 8, slots.name.maxWidth   || 135);
       });
-      // Cover unused agency rep slots with white rectangles over the right cell only
-      const agencyRepPairs: [number, number][] = [[552, 538], [524, 510], [496, 482]];
-      agencyRepPairs.forEach(([agencyY, nameY], i) => {
-        if (i >= agencyReps.length) {
-          targetPage.drawRectangle({ x: 147, y: agencyY - 7, width: 134, height: 14, color: rgb(1, 1, 1), borderWidth: 0 });
-          targetPage.drawRectangle({ x: 147, y: nameY - 7,   width: 134, height: 14, color: rgb(1, 1, 1), borderWidth: 0 });
-        }
-      });
+      // No white rectangles needed — template blank rows are already clean.
 
-      // Handle multiple Technical Specialists (fill top-down)
-      const techSpecPositions = [
-        ICS_203_BLOCKS.technicalSpecialist1Name,
-        ICS_203_BLOCKS.technicalSpecialist2Name,
-        ICS_203_BLOCKS.technicalSpecialist3Name,
-        ICS_203_BLOCKS.technicalSpecialist4Name,
-      ];
+      // Handle multiple Technical Specialists (fill top-down, up to 4 on first page)
       const techSpecs = orgData.filter((item: any) => item.position === 'Technical Specialist');
       techSpecs.forEach((item: any, index: number) => {
         if (index < techSpecPositions.length && item.name) {
@@ -337,6 +331,78 @@ export class ICSFormGenerator {
 
     // Render organization positions on first page
     renderOrganizationPositions(page);
+
+    // Helper: draw Block 1 + Block 2 header onto any continuation page.
+    const drawContPageHeader = (contPage: PDFPage) => {
+      drawBoundedText(contPage, data.iapData?.incidentName || data.iapData?.name || '', ICS_203_BLOCKS.incidentName.x, ICS_203_BLOCKS.incidentName.y, font, ICS_203_BLOCKS.incidentName.fontSize || 10, ICS_203_BLOCKS.incidentName.maxWidth || 320);
+      drawBoundedText(contPage, formatDate(fromDate), ICS_203_BLOCKS.opPeriodDateFrom.x, ICS_203_BLOCKS.opPeriodDateFrom.y, font, ICS_203_BLOCKS.opPeriodDateFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodDateFrom.maxWidth || 80);
+      drawBoundedText(contPage, formatTime(fromTime), ICS_203_BLOCKS.opPeriodTimeFrom.x, ICS_203_BLOCKS.opPeriodTimeFrom.y, font, ICS_203_BLOCKS.opPeriodTimeFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodTimeFrom.maxWidth || 60);
+      drawBoundedText(contPage, formatDate(toDate),   ICS_203_BLOCKS.opPeriodDateTo.x,   ICS_203_BLOCKS.opPeriodDateTo.y,   font, ICS_203_BLOCKS.opPeriodDateTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodDateTo.maxWidth   || 70);
+      drawBoundedText(contPage, formatTime(toTime),   ICS_203_BLOCKS.opPeriodTimeTo.x,   ICS_203_BLOCKS.opPeriodTimeTo.y,   font, ICS_203_BLOCKS.opPeriodTimeTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodTimeTo.maxWidth   || 70);
+    };
+
+    // Unified Command overflow — tracks the last page created so agency rep overflow
+    // can reuse it instead of adding a redundant new page.
+    const icSlots = [
+      ICS_203_BLOCKS.incidentCommanderName,
+      ICS_203_BLOCKS.incidentCommanderName2,
+      ICS_203_BLOCKS.incidentCommanderName3,
+    ];
+    let lastContPage: PDFPage | null = null;
+    const allCommanders = orgData.filter((item: any) => item.position === 'Incident Commander');
+    if (allCommanders.length > icSlots.length) {
+      const overflow = allCommanders.slice(icSlots.length);
+      for (let i = 0; i < overflow.length; i += icSlots.length) {
+        const batch = overflow.slice(i, i + icSlots.length);
+        lastContPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_203);
+        drawContPageHeader(lastContPage);
+        batch.forEach((cmd: any, idx: number) => {
+          if (cmd.name) {
+            const slot = icSlots[idx];
+            drawBoundedText(lastContPage!, cmd.name, slot.x, slot.y, font, slot.fontSize || 8, slot.maxWidth || 240);
+          }
+        });
+      }
+    }
+
+    // Agency Representative overflow — reuses the last UC continuation page for the first
+    // batch so we don't add a new page when one already exists from UC overflow.
+    const allAgencyReps = orgData.filter((item: any) => item.position === 'Agency Representative');
+    if (allAgencyReps.length > agencyRepSlots.length) {
+      const agencyOverflow = allAgencyReps.slice(agencyRepSlots.length);
+      for (let i = 0; i < agencyOverflow.length; i += agencyRepSlots.length) {
+        const batch = agencyOverflow.slice(i, i + agencyRepSlots.length);
+        if (!(i === 0 && lastContPage !== null)) {
+          lastContPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_203);
+          drawContPageHeader(lastContPage);
+        }
+        batch.forEach((item: any, idx: number) => {
+          const slots = agencyRepSlots[idx];
+          if (item.agency) drawBoundedText(lastContPage!, item.agency, slots.agency.x, slots.agency.y, font, slots.agency.fontSize || 8, slots.agency.maxWidth || 96);
+          if (item.name)   drawBoundedText(lastContPage!, item.name,   slots.name.x,   slots.name.y,   font, slots.name.fontSize   || 8, slots.name.maxWidth   || 135);
+        });
+      }
+    }
+
+    // Technical Specialist overflow — reuses the last continuation page if one exists,
+    // otherwise creates a new one. Slots 0-3 (techSpecPositions) repeat on each extra page.
+    const allTechSpecs = orgData.filter((item: any) => item.position === 'Technical Specialist');
+    if (allTechSpecs.length > techSpecPositions.length) {
+      const techSpecOverflow = allTechSpecs.slice(techSpecPositions.length);
+      for (let i = 0; i < techSpecOverflow.length; i += techSpecPositions.length) {
+        const batch = techSpecOverflow.slice(i, i + techSpecPositions.length);
+        if (!(i === 0 && lastContPage !== null)) {
+          lastContPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_203);
+          drawContPageHeader(lastContPage);
+        }
+        batch.forEach((item: any, idx: number) => {
+          const slot = techSpecPositions[idx];
+          if (item.name && slot) {
+            drawBoundedText(lastContPage!, item.name, slot.x, slot.y, font, slot.fontSize || 8, slot.maxWidth || 240);
+          }
+        });
+      }
+    }
 
     // DYNAMIC Operations Section: Branches and Divisions/Groups
     const tableConfig = ICS_203_BLOCKS.branchTableStart;
@@ -747,19 +813,24 @@ export class ICSFormGenerator {
       // Use the correct field based on assignment type
       let fieldConfig;
       let personnelConfig;
+      let personnelContactConfig;
 
       if (assignmentType === 'branch') {
         fieldConfig = ICS_204_BLOCKS.branch;
         personnelConfig = ICS_204_BLOCKS.branchDirector;
+        personnelContactConfig = ICS_204_BLOCKS.branchDirectorContact;
       } else if (assignmentType === 'group') {
         fieldConfig = ICS_204_BLOCKS.group;
         personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+        personnelContactConfig = ICS_204_BLOCKS.divisionSupervisorContact;
       } else if (assignmentType === 'staging') {
         fieldConfig = ICS_204_BLOCKS.stagingArea;
         personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+        personnelContactConfig = ICS_204_BLOCKS.divisionSupervisorContact;
       } else {
         fieldConfig = ICS_204_BLOCKS.division;
         personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+        personnelContactConfig = ICS_204_BLOCKS.divisionSupervisorContact;
       }
 
       // If this division/group belongs to a branch, draw the branch name
@@ -813,7 +884,7 @@ export class ICSFormGenerator {
 
       // Row 3: Branch Director name OR Division/Group Supervisor name + contact
       drawOpsField(firstAssignment.supervisor || '', personnelConfig);
-      drawOpsField(firstAssignment.supervisorContact || '', ICS_204_BLOCKS.divisionSupervisorContact);
+      drawOpsField(firstAssignment.supervisorContact || '', personnelContactConfig);
     }
 
     // Block 5: Resources Assigned table

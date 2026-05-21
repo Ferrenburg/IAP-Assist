@@ -128,10 +128,15 @@ export function drawCheckbox(
  */
 export function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const year = date.getFullYear();
+  // Parse the date portion directly to avoid UTC-midnight → previous-day shift.
+  // isoDate() always hands us a YYYY-MM-DD string; split it instead of using
+  // new Date() which treats bare date strings as UTC and can roll back a day
+  // for users in negative-UTC-offset timezones.
+  const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = datePart.split('-');
+  if (parts.length !== 3) return '';
+  const [year, month, day] = parts;
+  if (!year || !month || !day) return '';
   return `${month}/${day}/${year}`;
 }
 

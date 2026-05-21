@@ -132,20 +132,18 @@ export function PersonnelPage() {
     try {
       const existing = await apiClient.getData(iapId, `period-${periodId}-personnel`);
       if (existing?.data?.[0]) {
-        // Update existing record using the existing ID
         const dataToSave = { ...dataToUse, id: existing.data[0].id };
         try {
           await apiClient.updateData(iapId, `period-${periodId}-personnel`, existing.data[0].id, dataToSave);
         } catch (updateErr: any) {
-          // If update fails because item doesn't exist, create it
           if (updateErr.message?.includes('not found') || updateErr.status === 404) {
             await apiClient.createData(iapId, `period-${periodId}-personnel`, dataToSave);
           } else {
             throw updateErr;
           }
         }
-        // Update local state with correct ID
-        setPersonnelData(dataToSave);
+        // Don't call setPersonnelData here — updateField already set the optimistic state.
+        // Calling it again with a stale closure snapshot causes the flicker.
       } else {
         // Create new record
         const createdData = await apiClient.createData(iapId, `period-${periodId}-personnel`, dataToUse);
@@ -384,10 +382,10 @@ export function PersonnelPage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => {
+              onClick={async () => {
                 const newData = { ...personnelData, commandStructure: 'single' as const };
                 updateField('commandStructure', 'single');
-                saveData(newData);
+                await saveData(newData);
               }}
               className={`px-4 py-2 text-sm rounded-lg transition-colors ${
                 personnelData.commandStructure === 'single'
@@ -398,10 +396,10 @@ export function PersonnelPage() {
               Single Incident Commander
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const newData = { ...personnelData, commandStructure: 'unified' as const };
                 updateField('commandStructure', 'unified');
-                saveData(newData);
+                await saveData(newData);
               }}
               className={`px-4 py-2 text-sm rounded-lg transition-colors ${
                 personnelData.commandStructure === 'unified'

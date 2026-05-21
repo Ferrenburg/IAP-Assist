@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { Plus, Trash2, HelpCircle, History, FileText, BookOpen, CircleHelp, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
@@ -27,10 +27,21 @@ export function ObjectivesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const sharedSynced = useRef(false);
 
   useEffect(() => {
     loadData();
   }, [iapId, periodId]);
+
+  // Seed local state from shared context on first load so the input value is
+  // immediately correct without waiting for the form-specific KV fetch.
+  useEffect(() => {
+    if (shared && !sharedSynced.current) {
+      sharedSynced.current = true;
+      if (shared.preparedByName) setPreparedByName(shared.preparedByName);
+      if (shared.preparedByTitle) setPreparedByPosition(shared.preparedByTitle);
+    }
+  }, [shared]);
 
   useEffect(() => {
     // Auto-resize all textareas after objectives load
@@ -488,11 +499,12 @@ export function ObjectivesPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
             <input
               type="text"
-              value={shared?.preparedByName ?? ''}
+              value={preparedByName}
               onChange={(e) => {
                 setPreparedByName(e.target.value);
                 void updateShared({ preparedByName: e.target.value });
               }}
+              onBlur={() => savePreparedByData()}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -500,11 +512,12 @@ export function ObjectivesPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
             <input
               type="text"
-              value={shared?.preparedByTitle ?? ''}
+              value={preparedByPosition}
               onChange={(e) => {
                 setPreparedByPosition(e.target.value);
                 void updateShared({ preparedByTitle: e.target.value });
               }}
+              onBlur={() => savePreparedByData()}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
