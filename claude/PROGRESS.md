@@ -8,16 +8,42 @@ A running log of work done across all sessions. Most recent entry at the top.
 
 ## Status Snapshot
 
-- **Current sprint:** Sprint 3 — code complete
-- **Sprint started:** 2026-05-11
-- **Last session:** 2026-05-11 — ICS 203 agency rep fix + full Sprint 3 implementation (ICS 204, 205, 205A, 206)
-- **Next session focus:** End-to-end smoke test for Sprint 3 forms; then Sprint 4 kickoff (ICS 207, 208, individual PDF export polish)
+- **Current sprint:** Sprint 4 — in progress
+- **Sprint started:** 2026-05-22
+- **Last session:** 2026-05-22 — Sprint 4 session 1: ICS 207 export + ICS 208 overflow
+- **Next session focus:** ICS 207 coordinate calibration (test export → adjust ICS_207_BLOCKS)
 
 ---
 
 ## Session Log
 
 <!-- Newest entries go here, at the top of the log. -->
+
+### 2026-05-22 — Sprint 4, Session 1
+
+**Worked on:** ICS 207 export wiring + ICS 208 overflow continuation pages.
+
+**Completed:**
+- Fix: `generateICS207` positionMap had empty-string key for Planning Section Chief — corrected to `'Planning Section Chief'`
+- Feat: `handleGenerateICS207` added to `personnel-page.tsx` — extracts 8 top-level positions (IC, Command Staff, 4 Section Chiefs) and calls the generator
+- Feat: ICS 207 export button added to Personnel page header alongside ICS 203 button
+- Feat: `generateICS208` refactored — safety message split into wrapped lines, paginated; site safety plan + prepared by + approved by only render on last page; page numbers added for multi-page output
+- Fix: `handleGenerateICS208` in safety-medical page now passes IC name from shared context so Approved By field renders correctly
+- `wrapText` added to form-generator imports
+
+**In progress:**
+- ICS 207 coordinate calibration — coordinates in `ICS_207_BLOCKS` are estimates; need test export + visual comparison against the template.
+
+**Decisions made:**
+- ICS 207 uses the same Personnel page data as ICS 203 (no dedicated ICS 207 form page needed — data overlap is 100% for the 8 top-level positions).
+- `Finance/Admin Section Chief` key used in ICS 207 positionMap matches the key pushed in `handleGenerateICS207` (not the longer 'Finance/Administration Section Chief' used by ICS 203).
+
+**Blockers / open questions:**
+- ICS 207 coordinates still need calibration; can't sign off until a test PDF is exported and eyeballed.
+- Previous pending items still apply: `0003_org_logo.sql` migration + edge function deploy.
+
+**Next session should start with:**
+- Export an ICS 207 PDF, open it, compare positions against the template, adjust `ICS_207_BLOCKS` in field-mappings.ts.
 
 ### 2026-05-11 — Sprint 3, Session 1
 

@@ -308,6 +308,64 @@ export function PersonnelPage() {
     }
   };
 
+  const handleGenerateICS207 = async () => {
+    if (!iapId || !periodId) return;
+
+    if (!shared?.incidentName) {
+      toast.error('Incident name is required. Fill it in on the Incident Info page.');
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      toast.info('Generating ICS 207...');
+
+      // Build the 8 top-level org chart positions from personnel data
+      const organizationData: { position: string; name: string }[] = [];
+
+      if (personnelData.commandStructure === 'single' && personnelData.incidentCommanderName) {
+        organizationData.push({ position: 'Incident Commander', name: personnelData.incidentCommanderName });
+      } else if (personnelData.commandStructure === 'unified' && personnelData.commanders) {
+        personnelData.commanders.forEach(cmd => {
+          if (cmd.name) organizationData.push({ position: 'Incident Commander', name: cmd.name });
+        });
+      }
+      if (personnelData.safetyOfficerName)    organizationData.push({ position: 'Safety Officer',               name: personnelData.safetyOfficerName });
+      if (personnelData.publicInfoOfficerName) organizationData.push({ position: 'Public Information Officer',  name: personnelData.publicInfoOfficerName });
+      if (personnelData.liaisonOfficerName)   organizationData.push({ position: 'Liaison Officer',             name: personnelData.liaisonOfficerName });
+      if (personnelData.operationsSectionChief) organizationData.push({ position: 'Operations Section Chief',  name: personnelData.operationsSectionChief });
+      if (personnelData.planningSectionChief)  organizationData.push({ position: 'Planning Section Chief',     name: personnelData.planningSectionChief });
+      if (personnelData.logisticsSectionChief) organizationData.push({ position: 'Logistics Section Chief',    name: personnelData.logisticsSectionChief });
+      if (personnelData.financeSectionChief)   organizationData.push({ position: 'Finance/Admin Section Chief', name: personnelData.financeSectionChief });
+
+      const pdfBytes = await icsFormGenerator.generateICS207({
+        iapData: {
+          incidentName: shared?.incidentName ?? '',
+          incidentNumber: shared?.incidentNumber ?? '',
+          preparedBy: shared?.preparedByName ?? '',
+          preparedByPosition: shared?.preparedByTitle ?? '',
+          preparedDateTime: personnelData.preparedDateTime ?? '',
+          agencyName: shared?.agencyName ?? '',
+        },
+        periodData: {
+          periodNumber: shared?.periodNumber,
+          startAt: shared?.startAt,
+          endAt: shared?.endAt,
+        },
+        formData: organizationData,
+      });
+
+      const filename = `ICS_207_${shared?.incidentName || 'Incident'}_Period_${shared?.periodNumber}.pdf`;
+      await pdfCombiner.downloadPDF(pdfBytes, filename);
+      toast.success('ICS 207 downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating ICS 207:', error);
+      toast.error('Failed to generate ICS 207');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -367,6 +425,23 @@ export function PersonnelPage() {
               <>
                 <FileText className="w-4 h-4" />
                 ICS 203
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleGenerateICS207}
+            disabled={generating}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4" />
+                ICS 207
               </>
             )}
           </button>

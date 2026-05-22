@@ -724,74 +724,37 @@ export const ICS_206_BLOCKS = {
 };
 
 // ICS 207 - Organization Chart (Landscape: 792 x 612)
+// ICS 207 - Incident Organization Chart (Landscape: 792 x 612)
 export const ICS_207_BLOCKS = {
-  // Block 1 - Incident Name
-  incidentName: { x: 100, y: 570, maxWidth: 400, fontSize: 9 },
+  // Block 1 - Incident Name (left ~38% of header row)
+  incidentName: { x: 120, y: 590, maxWidth: 185, fontSize: 9 },
 
-  // Block 2 - Operational Period
-  opPeriodFrom: { x: 100, y: 545, maxWidth: 150, fontSize: 8 },
-  opPeriodTo: { x: 380, y: 545, maxWidth: 150, fontSize: 8 },
+  // Block 2 - Operational Period (right portion of header, two rows)
+  opPeriodFrom: {
+    date: { x: 447, y: 590, fontSize: 8 },
+    time: { x: 447, y: 568, fontSize: 8 },
+  },
+  opPeriodTo: {
+    date: { x: 578, y: 590, fontSize: 8 },
+    time: { x: 578, y: 568, fontSize: 8 },
+  },
 
-  // Block 3 - Organization Chart (visual box positions - names must stay INSIDE boxes)
+  // Block 3 - Organization Chart (names go in lower portion of each printed box)
   orgChart: {
-    incidentCommander: {
-      x: 340,
-      y: 480,
-      maxWidth: 110,
-      fontSize: 8,
-    },
-    safetyOfficer: {
-      x: 140,
-      y: 430,
-      maxWidth: 95,
-      fontSize: 7,
-    },
-    publicInfoOfficer: {
-      x: 260,
-      y: 430,
-      maxWidth: 95,
-      fontSize: 7,
-    },
-    liaisonOfficer: {
-      x: 380,
-      y: 430,
-      maxWidth: 95,
-      fontSize: 7,
-    },
-    operationsChief: {
-      x: 140,
-      y: 350,
-      maxWidth: 105,
-      fontSize: 7,
-    },
-    planningChief: {
-      x: 260,
-      y: 350,
-      maxWidth: 105,
-      fontSize: 7,
-    },
-    logisticsChief: {
-      x: 380,
-      y: 350,
-      maxWidth: 105,
-      fontSize: 7,
-    },
-    financeChief: {
-      x: 500,
-      y: 350,
-      maxWidth: 105,
-      fontSize: 7,
-    },
+    incidentCommander:  { x: 340, y: 437, maxWidth: 120, fontSize: 8 },  // center-top
+    liaisonOfficer:     { x: 548, y: 462, maxWidth: 90,  fontSize: 7 },  // upper right
+    safetyOfficer:      { x: 548, y: 408, maxWidth: 90,  fontSize: 7 },  // right, below liaison
+    publicInfoOfficer:  { x: 548, y: 358, maxWidth: 90,  fontSize: 7 },  // right, below safety
+    operationsChief:    { x: 196, y: 400, maxWidth: 120, fontSize: 8 },  // left side
+    planningChief:      { x: 444, y: 282, maxWidth: 100, fontSize: 8 },  // center lower
+    logisticsChief:     { x: 560, y: 282, maxWidth: 100, fontSize: 8 },  // center-right lower
+    financeChief:       { x: 678, y: 282, maxWidth:  95, fontSize: 8 },  // far right lower
   },
 
-  // Block 4 - Prepared by (footer - must stay at bottom)
-  preparedByName: { x: 180, y: 70, maxWidth: 230, fontSize: 9 },
-  preparedByDateTime: {
-    x: 600,
-    y: 70,
-    maxWidth: 130,
-    fontSize: 9,
-  },
+  // Block 4 - Prepared by (bottom footer strip)
+  preparedByName:     { x: 185, y: 22, maxWidth: 140, fontSize: 9 },
+  preparedByPosition: { x: 358, y: 22, maxWidth: 130, fontSize: 9 },
+  preparedByDateTime: { x: 625, y: 22, maxWidth: 130, fontSize: 9 },
 };
 
 // ICS 208 - Safety Message/Plan (Portrait: 612 x 792)

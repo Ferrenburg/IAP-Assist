@@ -486,6 +486,9 @@ export function SafetyMedicalPage() {
         iapData: buildIapData(formatPreparedDateTime(safetyData.dateTimePrepared)),
         periodData: buildPeriodData(),
         formData,
+        organizationData: shared?.incidentCommander
+          ? [{ position: 'Incident Commander', name: shared.incidentCommander }]
+          : [],
       });
 
       const filename = `ICS_208_${shared.incidentName}_Period_${shared.periodNumber || ''}.pdf`;
