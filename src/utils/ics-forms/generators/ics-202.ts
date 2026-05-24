@@ -127,91 +127,108 @@ export async function generateICS202(data: ICS202Data): Promise<Uint8Array> {
     color: rgb(0, 0, 0),
   });
 
-  // BLOCK 3: Objectives
-  // Draw line-by-line so a single long objective can't overflow into sections below.
-  const OBJ_FONT_SIZE = ICS_202_BLOCKS.objectivesStart.fontSize || 10;
-  const OBJ_MAX_WIDTH = ICS_202_BLOCKS.objectivesStart.maxWidth || 520;
-  const OBJ_LINE_HEIGHT = ICS_202_BLOCKS.objectiveLineHeight; // 16
-  const OBJ_TOP = ICS_202_BLOCKS.objectivesStart.y;           // 670
-  // Every page (page 1 and all continuations) is a copy of the same ICS 202 template,
-  // so section 4 is printed at y=415 on every page. Objectives must stop above that
-  // border on ALL pages — use the same limit everywhere.
-  const OBJ_BOTTOM = ICS_202_BLOCKS.commandEmphasisStart.y + 30; // 445, safe above section 4
+  // BLOCKS 3 + 4: Unified page-by-page rendering.
+  // All three sections (Objectives, Command Emphasis, Situational Awareness) are
+  // pre-wrapped and rendered together on each page. A new page is only opened when
+  // at least one section still has remaining text. This means every page's zone is
+  // fully used before creating the next page, keeping total page count minimal.
+  {
+    const OBJ_FONT_SIZE  = ICS_202_BLOCKS.objectivesStart.fontSize || 10;
+    const OBJ_MAX_WIDTH  = ICS_202_BLOCKS.objectivesStart.maxWidth || 520;
+    const OBJ_LINE_HEIGHT = ICS_202_BLOCKS.objectiveLineHeight; // 16
+    const OBJ_X          = ICS_202_BLOCKS.objectivesStart.x;
+    const OBJ_TOP        = ICS_202_BLOCKS.objectivesStart.y;   // 670
+    const OBJ_BOTTOM     = ICS_202_BLOCKS.commandEmphasisStart.y + 30; // 445
 
-  let yPos = OBJ_TOP;
+    const CMD_FONT_SIZE  = ICS_202_BLOCKS.commandEmphasisStart.fontSize || 9;
+    const CMD_MAX_WIDTH  = ICS_202_BLOCKS.commandEmphasisStart.maxWidth || 510;
+    const CMD_LINE_HEIGHT = 12;
+    const CMD_X          = ICS_202_BLOCKS.commandEmphasisStart.x;
+    const CMD_TOP        = ICS_202_BLOCKS.commandEmphasisStart.y;              // 415
+    const CMD_BOTTOM     = ICS_202_BLOCKS.situationalAwarenessStart.y + 25;   // ~315
 
-  const startNewObjectivesPage = async () => {
-    pageNumber++;
-    currentPage = await createContinuationPage(pdfDoc, TEMPLATE_PATH);
-    if (data.incidentName) {
-      currentPage.drawText(data.incidentName, {
-        x: ICS_202_BLOCKS.incidentName.x,
-        y: ICS_202_BLOCKS.incidentName.y,
-        size: ICS_202_BLOCKS.incidentName.fontSize,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-    }
-    yPos = OBJ_TOP;
-  };
+    const SIT_FONT_SIZE  = ICS_202_BLOCKS.situationalAwarenessStart.fontSize || 9;
+    const SIT_MAX_WIDTH  = ICS_202_BLOCKS.situationalAwarenessStart.maxWidth || 510;
+    const SIT_LINE_HEIGHT = 12;
+    const SIT_X          = ICS_202_BLOCKS.situationalAwarenessStart.x;
+    const SIT_TOP        = ICS_202_BLOCKS.situationalAwarenessStart.y;         // 290
+    const SIT_BOTTOM     = ICS_202_BLOCKS.siteSafetyPlanRequired.y + 8;       // ~235
 
-  for (let i = 0; i < data.objectives.length; i++) {
-    const objectiveText = `${i + 1}. ${data.objectives[i].description}`;
-    const lines = wrapText(objectiveText, font, OBJ_FONT_SIZE, OBJ_MAX_WIDTH);
-
-    // If even the first line of this objective won't fit, open a new page first.
-    if (yPos - OBJ_LINE_HEIGHT < OBJ_BOTTOM) {
-      await startNewObjectivesPage();
+    // Pre-wrap objectives into a flat line list; null marks a gap between objectives.
+    const objItems: (string | null)[] = [];
+    for (let i = 0; i < data.objectives.length; i++) {
+      const wrapped = wrapText(`${i + 1}. ${data.objectives[i].description}`, font, OBJ_FONT_SIZE, OBJ_MAX_WIDTH);
+      for (const line of wrapped) objItems.push(line);
+      if (i < data.objectives.length - 1) objItems.push(null);
     }
 
-    for (const line of lines) {
-      // Check before every line — works identically on page 1 and all continuations.
-      if (yPos - OBJ_LINE_HEIGHT < OBJ_BOTTOM) {
-        await startNewObjectivesPage();
+    const cmdItems = data.commandEmphasis
+      ? wrapText(data.commandEmphasis, font, CMD_FONT_SIZE, CMD_MAX_WIDTH)
+      : [];
+    const sitItems = data.situationalAwareness
+      ? wrapText(data.situationalAwareness, font, SIT_FONT_SIZE, SIT_MAX_WIDTH)
+      : [];
+
+    let objIdx = 0, cmdIdx = 0, sitIdx = 0;
+    let isFirstPage = true;
+
+    const drawIncidentName = (page: typeof currentPage) => {
+      if (data.incidentName) {
+        page.drawText(data.incidentName, {
+          x: ICS_202_BLOCKS.incidentName.x,
+          y: ICS_202_BLOCKS.incidentName.y,
+          size: ICS_202_BLOCKS.incidentName.fontSize,
+          font: boldFont,
+          color: rgb(0, 0, 0),
+        });
       }
-      currentPage.drawText(line, {
-        x: ICS_202_BLOCKS.objectivesStart.x,
-        y: yPos,
-        size: OBJ_FONT_SIZE,
-        font,
-        color: rgb(0, 0, 0),
-      });
-      yPos -= OBJ_LINE_HEIGHT;
+    };
+
+    while (objIdx < objItems.length || cmdIdx < cmdItems.length || sitIdx < sitItems.length) {
+      if (!isFirstPage) {
+        pageNumber++;
+        currentPage = await createContinuationPage(pdfDoc, TEMPLATE_PATH);
+        drawIncidentName(currentPage);
+      }
+
+      // Objectives zone
+      let yObj = OBJ_TOP;
+      while (objIdx < objItems.length) {
+        const item = objItems[objIdx];
+        if (item === null) {
+          if (yObj - 10 >= OBJ_BOTTOM) { yObj -= 10; objIdx++; }
+          else break;
+        } else {
+          if (yObj - OBJ_LINE_HEIGHT >= OBJ_BOTTOM) {
+            currentPage.drawText(item, { x: OBJ_X, y: yObj, size: OBJ_FONT_SIZE, font, color: rgb(0, 0, 0) });
+            yObj -= OBJ_LINE_HEIGHT;
+            objIdx++;
+          } else break;
+        }
+      }
+
+      // Command Emphasis zone
+      let yCmd = CMD_TOP;
+      while (cmdIdx < cmdItems.length && yCmd - CMD_LINE_HEIGHT >= CMD_BOTTOM) {
+        currentPage.drawText(cmdItems[cmdIdx], { x: CMD_X, y: yCmd, size: CMD_FONT_SIZE, font, color: rgb(0, 0, 0) });
+        yCmd -= CMD_LINE_HEIGHT;
+        cmdIdx++;
+      }
+
+      // Situational Awareness zone
+      let ySit = SIT_TOP;
+      while (sitIdx < sitItems.length && ySit - SIT_LINE_HEIGHT >= SIT_BOTTOM) {
+        currentPage.drawText(sitItems[sitIdx], { x: SIT_X, y: ySit, size: SIT_FONT_SIZE, font, color: rgb(0, 0, 0) });
+        ySit -= SIT_LINE_HEIGHT;
+        sitIdx++;
+      }
+
+      isFirstPage = false;
     }
-
-    yPos -= 10; // gap between objectives
   }
 
-  // Go back to first page for remaining blocks
+  // Go back to first page for remaining blocks (5-8)
   currentPage = pdfDoc.getPages()[0];
-
-  // BLOCK 4: Command Emphasis
-  if (data.commandEmphasis) {
-    drawWrappedText(
-      currentPage,
-      data.commandEmphasis,
-      ICS_202_BLOCKS.commandEmphasisStart.x,
-      ICS_202_BLOCKS.commandEmphasisStart.y,
-      font,
-      ICS_202_BLOCKS.commandEmphasisStart.fontSize || 9,
-      ICS_202_BLOCKS.commandEmphasisStart.maxWidth || 520,
-      12
-    );
-  }
-
-  // BLOCK 4: Situational Awareness
-  if (data.situationalAwareness) {
-    drawWrappedText(
-      currentPage,
-      data.situationalAwareness,
-      ICS_202_BLOCKS.situationalAwarenessStart.x,
-      ICS_202_BLOCKS.situationalAwarenessStart.y,
-      font,
-      ICS_202_BLOCKS.situationalAwarenessStart.fontSize || 9,
-      ICS_202_BLOCKS.situationalAwarenessStart.maxWidth || 520,
-      12
-    );
-  }
 
   // BLOCK 5: Site Safety Plan
   if (data.siteSafetyPlanRequired !== undefined && data.siteSafetyPlanRequired !== null) {
