@@ -6,7 +6,8 @@ import { FileText, Upload, QrCode, CheckCircle2, AlertCircle } from 'lucide-reac
 import { apiClient } from '../../utils/api-client';
 import { useOpPeriod } from '../../contexts/op-period-context';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
-import { PDFDocument } from 'pdf-lib';
+import { generateWeatherPDF } from '../../utils/ics-forms/generators/weather-pdf';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { toast } from 'sonner';
 
 interface FormSelection {
@@ -109,7 +110,7 @@ export function IAPAssemblyPage() {
     {
       id: 'weather',
       title: 'Weather Forecast',
-      description: 'Weather forecast for the operational period (available in Sprint 5)',
+      description: 'NWS weather forecast — fetch data on the Weather page first to enable',
       checked: false,
       requiresData: false,
     },
@@ -250,117 +251,184 @@ export function IAPAssemblyPage() {
 
   const generateCoverPage = async (): Promise<Uint8Array> => {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([612, 792]); // Letter size
+    const page = pdfDoc.addPage([612, 792]);
+    const PW = 612;
+    const PH = 792;
 
-    const { width, height } = page.getSize();
-    const helvetica = await pdfDoc.embedFont('Helvetica');
-    const helveticaBold = await pdfDoc.embedFont('Helvetica-Bold');
+    const font    = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // Add logo if provided
-    let yPosition = height - 100;
+    const NAVY    = rgb(0.08, 0.18, 0.38);
+    const GOLD    = rgb(0.80, 0.60, 0.10);
+    const WHITE   = rgb(1, 1, 1);
+    const DARK    = rgb(0.12, 0.12, 0.12);
+    const MID     = rgb(0.35, 0.35, 0.35);
+    const LIGHT   = rgb(0.94, 0.95, 0.97);
+
+    // ── Top header bar ──────────────────────────────────────────────────────
+    page.drawRectangle({ x: 0, y: PH - 110, width: PW, height: 110, color: NAVY });
+    // Gold accent strip
+    page.drawRectangle({ x: 0, y: PH - 113, width: PW, height: 3, color: GOLD });
+
+    // Agency logo (top-left inside header)
+    let logoEndX = 56;
     if (logoPreview) {
       try {
         const logoBytes = await fetch(logoPreview).then(r => r.arrayBuffer());
         const logoImage = logoPreview.toLowerCase().includes('png')
           ? await pdfDoc.embedPng(logoBytes)
           : await pdfDoc.embedJpg(logoBytes);
-
-        const logoScale = 100 / logoImage.width;
-        page.drawImage(logoImage, {
-          x: (width - logoImage.width * logoScale) / 2,
-          y: yPosition,
-          width: logoImage.width * logoScale,
-          height: logoImage.height * logoScale,
-        });
-        yPosition -= (logoImage.height * logoScale) + 50;
+        const logoH = 78;
+        const logoW = (logoImage.width / logoImage.height) * logoH;
+        page.drawImage(logoImage, { x: 24, y: PH - 100, width: logoW, height: logoH });
+        logoEndX = 24 + logoW + 14;
       } catch (err) {
         console.error('Failed to embed logo:', err);
       }
-    } else {
-      yPosition -= 30;
     }
 
-    // Title
+    // "INCIDENT ACTION PLAN" header text
     page.drawText('INCIDENT ACTION PLAN', {
-      x: (width - helveticaBold.widthOfTextAtSize('INCIDENT ACTION PLAN', 28)) / 2,
-      y: yPosition,
-      size: 28,
-      font: helveticaBold,
+      x: logoEndX, y: PH - 52, size: 22, font: boldFont, color: WHITE,
     });
-    yPosition -= 60;
+    page.drawText('OPERATIONAL PERIOD DOCUMENT', {
+      x: logoEndX, y: PH - 72, size: 10, font, color: rgb(0.72, 0.80, 0.94),
+    });
 
-    // Incident Name
+    // ── Incident Name band ───────────────────────────────────────────────────
     const incidentName = iapData?.name || 'Unnamed Incident';
-    page.drawText(incidentName, {
-      x: (width - helveticaBold.widthOfTextAtSize(incidentName, 20)) / 2,
-      y: yPosition,
-      size: 20,
-      font: helveticaBold,
-    });
-    yPosition -= 50;
+    page.drawRectangle({ x: 0, y: PH - 165, width: PW, height: 52, color: LIGHT });
+    page.drawRectangle({ x: 0, y: PH - 165, width: 6, height: 52, color: GOLD });
 
-    // Operational Period
-    const formatISODate = (iso: string | null | undefined) => {
+    const nameSize = incidentName.length > 40 ? 16 : 20;
+    page.drawText(incidentName, {
+      x: 24, y: PH - 142, size: nameSize, font: boldFont, color: NAVY,
+      maxWidth: PW - 48,
+    });
+
+    // ── Op Period block ──────────────────────────────────────────────────────
+    const fmtDate = (iso: string | null | undefined) => {
       if (!iso) return '—';
       return new Date(iso).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false,
       });
     };
 
-    const opPeriodText = `Operational Period: ${formatISODate(periodData?.startAt)} - ${formatISODate(periodData?.endAt)}`;
-    page.drawText(opPeriodText, {
-      x: (width - helvetica.widthOfTextAtSize(opPeriodText, 12)) / 2,
-      y: yPosition,
-      size: 12,
-      font: helvetica,
-    });
-    yPosition -= 80;
+    let y = PH - 210;
+    page.drawText('OPERATIONAL PERIOD', { x: 40, y, size: 8, font: boldFont, color: GOLD });
+    y -= 14;
+    page.drawText(`From:  ${fmtDate(periodData?.startAt)}`, { x: 40, y, size: 11, font, color: DARK });
+    y -= 16;
+    page.drawText(`To:      ${fmtDate(periodData?.endAt)}`, { x: 40, y, size: 11, font, color: DARK });
 
-    // Prepared by section
-    page.drawText('Prepared by:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(preparedByName || '________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Position/Title:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(preparedByPosition || '________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Date/Time:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(`${preparedDate} ${preparedTime}`, { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 50;
-
-    // Approved by section
-    page.drawText('Approved by Incident Commander:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(approvedByName || '________________________', { x: 350, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Signature:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText('________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Date/Time:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText('________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-
-    // QR Code placeholder (bottom right)
-    if (includeQRCode && publicUrl) {
-      page.drawText('Scan for digital access:', { x: width - 200, y: 80, size: 10, font: helvetica });
-      page.drawText(publicUrl, { x: width - 200, y: 65, size: 8, font: helvetica });
+    // Incident number (right column)
+    if (iapData?.incidentNumber) {
+      page.drawText('INCIDENT NUMBER', { x: 360, y: PH - 210, size: 8, font: boldFont, color: GOLD });
+      page.drawText(iapData.incidentNumber, { x: 360, y: PH - 224, size: 11, font, color: DARK });
     }
 
-    // Footer
-    const footerText = `Generated by OpPeriod - ${new Date().toLocaleString()}`;
-    page.drawText(footerText, {
-      x: (width - helvetica.widthOfTextAtSize(footerText, 8)) / 2,
-      y: 30,
-      size: 8,
-      font: helvetica,
-      color: { type: 'RGB', red: 0.5, green: 0.5, blue: 0.5 },
+    y -= 30;
+    // Thin rule
+    page.drawLine({ start: { x: 40, y }, end: { x: PW - 40, y }, thickness: 0.5, color: rgb(0.78, 0.78, 0.78) });
+    y -= 24;
+
+    // ── Signature blocks ─────────────────────────────────────────────────────
+    const drawSigBlock = (
+      title: string,
+      name: string,
+      position: string,
+      dateTime: string,
+      xLeft: number,
+      yTop: number,
+      blockW: number,
+    ) => {
+      page.drawRectangle({ x: xLeft, y: yTop - 130, width: blockW, height: 130, color: LIGHT });
+      page.drawRectangle({ x: xLeft, y: yTop, width: blockW, height: 20, color: NAVY });
+      page.drawText(title, { x: xLeft + 8, y: yTop + 5, size: 9, font: boldFont, color: WHITE });
+
+      let sy = yTop - 22;
+      page.drawText('Name:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
+      page.drawText(name || '________________________________', { x: xLeft + 8, y: sy - 13, size: 10, font, color: DARK });
+
+      sy -= 38;
+      page.drawText('Position / Title:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
+      page.drawText(position || '________________________________', { x: xLeft + 8, y: sy - 13, size: 10, font, color: DARK });
+
+      sy -= 38;
+      page.drawText('Signature:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
+      page.drawLine({
+        start: { x: xLeft + 8, y: sy - 18 },
+        end: { x: xLeft + blockW - 8, y: sy - 18 },
+        thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
+      });
+
+      sy -= 34;
+      page.drawText('Date / Time:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
+      page.drawText(dateTime || '________________________________', { x: xLeft + 8, y: sy - 13, size: 10, font, color: DARK });
+    };
+
+    const BLOCK_W = 248;
+    const BLOCK_Y = y;
+
+    drawSigBlock(
+      'PREPARED BY — PLANNING SECTION CHIEF',
+      preparedByName,
+      preparedByPosition,
+      `${preparedDate}  ${preparedTime}`,
+      40,
+      BLOCK_Y,
+      BLOCK_W,
+    );
+
+    drawSigBlock(
+      'APPROVED BY — INCIDENT COMMANDER',
+      approvedByName,
+      'Incident Commander',
+      '',
+      PW - 40 - BLOCK_W,
+      BLOCK_Y,
+      BLOCK_W,
+    );
+
+    y = BLOCK_Y - 130 - 24;
+
+    // ── IAP Contents summary ─────────────────────────────────────────────────
+    page.drawText('CONTENTS OF THIS IAP', { x: 40, y, size: 8, font: boldFont, color: GOLD });
+    y -= 14;
+
+    const includedForms = forms.filter(f => f.checked).map(f => f.title);
+    const cols = 2;
+    const colW = (PW - 80) / cols;
+    includedForms.forEach((title, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      page.drawText(`•  ${title}`, {
+        x: 40 + col * colW,
+        y: y - row * 14,
+        size: 9,
+        font,
+        color: DARK,
+        maxWidth: colW - 10,
+      });
     });
+    y -= (Math.ceil(includedForms.length / cols)) * 14 + 16;
+
+    // ── Footer bar ───────────────────────────────────────────────────────────
+    page.drawRectangle({ x: 0, y: 0, width: PW, height: 36, color: NAVY });
+    page.drawText('CONFIDENTIAL — FOR AUTHORIZED PERSONNEL ONLY', {
+      x: 40, y: 14, size: 8, font: boldFont, color: rgb(0.72, 0.80, 0.94),
+    });
+    page.drawText(`Generated by OpPeriod  |  ${new Date().toLocaleString()}`, {
+      x: PW - 40 - font.widthOfTextAtSize(`Generated by OpPeriod  |  ${new Date().toLocaleString()}`, 7),
+      y: 14, size: 7, font, color: rgb(0.55, 0.62, 0.75),
+    });
+
+    // QR Code note (if enabled)
+    if (includeQRCode && publicUrl) {
+      page.drawText('Digital access:', { x: 40, y: 52, size: 8, font: boldFont, color: MID });
+      page.drawText(publicUrl, { x: 110, y: 52, size: 8, font, color: rgb(0.15, 0.35, 0.75), maxWidth: PW - 150 });
+    }
 
     return await pdfDoc.save();
   };
@@ -586,7 +654,22 @@ export function IAPAssemblyPage() {
             });
             await pushPdf(pdf);
           } else if (form.id === 'weather') {
-            toast.info('Weather PDF attachment will be available in Sprint 5');
+            const weatherRes = await apiClient.getData(iapId, `period-${periodId}-weather`);
+            const weatherData = weatherRes?.data?.[0];
+            if (!weatherData || !weatherData.forecast?.length) {
+              toast.warning('No weather data found — visit the Weather page to fetch forecast data first. Skipping weather attachment.');
+            } else {
+              const weatherPdf = await generateWeatherPDF({
+                locationName: weatherData.locationName || '',
+                latitude: weatherData.latitude || '',
+                longitude: weatherData.longitude || '',
+                weatherPoint: weatherData.weatherPoint || null,
+                forecast: weatherData.forecast || [],
+                alerts: weatherData.alerts || [],
+                generatedAt: weatherData.lastUpdated || new Date().toLocaleString(),
+              });
+              await pushPdf(weatherPdf);
+            }
           }
         } catch (err) {
           console.error(`Failed to generate ${form.title}:`, err);

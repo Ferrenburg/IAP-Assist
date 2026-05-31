@@ -8,16 +8,41 @@ A running log of work done across all sessions. Most recent entry at the top.
 
 ## Status Snapshot
 
-- **Current sprint:** Sprint 4 — in progress
-- **Sprint started:** 2026-05-22
-- **Last session:** 2026-05-22 — Sprint 4 session 1: ICS 207 export + ICS 208 overflow
-- **Next session focus:** ICS 207 coordinate calibration (test export → adjust ICS_207_BLOCKS)
+- **Current sprint:** Sprint 5 — complete
+- **Sprint started:** 2026-05-25
+- **Last session:** 2026-05-25 — Sprint 5 session 1: cover page, weather persistence, weather PDF wiring
+- **Next session focus:** Sprint 6 — IAP Assembly Page polish & QA
 
 ---
 
 ## Session Log
 
 <!-- Newest entries go here, at the top of the log. -->
+
+### 2026-05-25 — Sprint 5, Session 1
+
+**Worked on:** Cover page redesign, weather data persistence, weather PDF wiring into combined IAP export.
+
+**Completed:**
+- New `src/utils/ics-forms/generators/weather-pdf.ts` — shared weather PDF generator with navy/gold styled header, alert section, extended forecast table, multi-page support with page numbering
+- `weather-page.tsx` refactored — uses shared generator for Export PDF button; saves fetched weather data to KV key `period-{periodId}-weather` on every successful NWS fetch; loads saved data on mount; uses `useParams()` for iapId/periodId
+- `iap-assembly-page.tsx` — weather stub replaced: loads from KV, calls `generateWeatherPDF()`, shows graceful warning toast if no weather data saved; also imports `generateWeatherPDF` from shared util
+- Cover page in assembly page completely redesigned: navy header bar + gold accent strip, agency logo embedded top-left, incident name band with left gold bar, op period + incident number, two formal signature blocks (Prepared By + Approved By IC) with name/position/signature line/date fields, IAP contents list in 2 columns, navy footer bar with confidentiality notice
+
+**In progress:**
+- Nothing in flight.
+
+**Decisions made:**
+- Weather input stays as lat/lng (not ZIP) — NWS API requires coordinates and geocoding adds a third-party dependency with no benefit given the existing map picker modal
+- Weather data saved per operational period (not per IAP) — key `period-{periodId}-weather` — consistent with all other form data
+- Cover page logo is loaded from the local `logoPreview` state (uploaded in the IAP Cover section of the assembly page) — no change to the logo upload UX
+
+**Blockers / open questions:**
+- None.
+
+**Next session should start with:**
+- Export a test combined IAP with weather enabled to verify the weather PDF renders correctly in the merged document
+- Test cover page with and without logo, verify signature blocks are legible
 
 ### 2026-05-22 — Sprint 4, Session 1
 
