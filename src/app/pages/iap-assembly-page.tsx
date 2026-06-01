@@ -42,6 +42,9 @@ export function IAPAssemblyPage() {
   const [includeQRCode, setIncludeQRCode] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
 
+  // Weather data availability
+  const [weatherAvailable, setWeatherAvailable] = useState<boolean | null>(null);
+
   // Form selection
   const [forms, setForms] = useState<FormSelection[]>([
     {
@@ -118,6 +121,7 @@ export function IAPAssemblyPage() {
 
   useEffect(() => {
     loadData();
+    checkWeatherAvailability();
     // Auto-populate date/time
     const now = new Date();
     setPreparedDate(now.toISOString().split('T')[0]);
@@ -131,6 +135,10 @@ export function IAPAssemblyPage() {
     if (shared.preparedByName) setPreparedByName(shared.preparedByName);
     if (shared.preparedByTitle) setPreparedByPosition(shared.preparedByTitle);
     if (shared.approvedByName) setApprovedByName(shared.approvedByName);
+    // Auto-load the org logo saved in Account Settings — user can still override.
+    if (shared.agencyLogoUrl && !logoPreview) {
+      setLogoPreview(shared.agencyLogoUrl);
+    }
   }, [shared]);
 
   // Transform personnel data to organization format expected by ICS forms
@@ -200,6 +208,20 @@ export function IAPAssemblyPage() {
     if (personnelData.costUnitLeader) organizationData.push({ position: 'Cost Unit Leader', name: personnelData.costUnitLeader });
 
     return organizationData;
+  };
+
+  const checkWeatherAvailability = async () => {
+    if (!iapId || !periodId) return;
+    try {
+      const weatherRes = await apiClient.getData(iapId, `period-${periodId}-weather`);
+      const hasData = !!(weatherRes?.data?.[0]?.forecast?.length);
+      setWeatherAvailable(hasData);
+      if (hasData) {
+        setForms(prev => prev.map(f => f.id === 'weather' ? { ...f, checked: true } : f));
+      }
+    } catch {
+      setWeatherAvailable(false);
+    }
   };
 
   const loadData = async () => {
@@ -596,7 +618,7 @@ export function IAPAssemblyPage() {
             });
             await pushPdf(pdf);
           } else if (form.id === 'ics205a') {
-            const contactsData = await apiClient.getData(iapId, `period-${periodId}-communications-data`);
+            const contactsData = await apiClient.getData(iapId, `period-${periodId}-comms-contacts`);
 
             const pdf = await icsFormGenerator.generateICS205A({
               iapData,
@@ -896,6 +918,11 @@ export function IAPAssemblyPage() {
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-slate-500" />
                   <span className="font-medium text-slate-900">{form.title}</span>
+                  {form.id === 'weather' && weatherAvailable !== null && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${weatherAvailable ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {weatherAvailable ? 'Data ready' : 'No data — visit Weather page first'}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-slate-600 mt-1">{form.description}</p>
               </div>

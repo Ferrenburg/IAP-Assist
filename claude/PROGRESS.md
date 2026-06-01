@@ -8,16 +8,44 @@ A running log of work done across all sessions. Most recent entry at the top.
 
 ## Status Snapshot
 
-- **Current sprint:** Sprint 5 — complete
-- **Sprint started:** 2026-05-25
-- **Last session:** 2026-05-25 — Sprint 5 session 1: cover page, weather persistence, weather PDF wiring
-- **Next session focus:** Sprint 6 — IAP Assembly Page polish & QA
+- **Current sprint:** Sprint 6
+- **Sprint started:** 2026-06-01
+- **Last session:** 2026-06-01 — Sprint 6 session 1: assembly page bug fixes, weather status badge, knowledge transfer docs
+- **Next session focus:** ICS 207 coordinate calibration, end-to-end smoke test, cross-browser QA
 
 ---
 
 ## Session Log
 
 <!-- Newest entries go here, at the top of the log. -->
+
+### 2026-06-01 — Sprint 6, Session 1
+
+**Worked on:** Sprint 6 analysis, IAP Assembly page bug fixes, knowledge transfer documentation.
+
+**Completed:**
+- Thorough sprint analysis before implementation — reviewed all prior sessions and mapped existing code against sprint-6 deliverables
+- Fix: ICS 205A KV key bug — `period-{id}-communications-data` → `period-{id}-comms-contacts` in assembly page; this was silently generating blank ICS 205A on every combined export
+- Fix: org logo auto-loads from `shared.agencyLogoUrl` on mount (Account Settings logo) — no re-upload required per export; manual override still possible
+- Feature: weather data availability pre-check on assembly page mount — shows colored badge ("Data ready" / "No data") on the weather row; auto-checks the checkbox if data exists
+- Docs: created `docs/handoff/` with README.md, database-setup.md, environment-and-deployment.md, api-reference.md
+
+**In progress:**
+- Nothing in flight.
+
+**Decisions made:**
+- QR code feature left as plain-text URL (no library added — user confirmed this is acceptable for MVP)
+- ICS 207 calibration is a manual QA step — documented in handoff docs; cannot be done programmatically without visual PDF output
+
+**Blockers / open questions:**
+- ICS 207 coordinates still need visual confirmation after export
+- End-to-end smoke test still pending
+- Cross-browser testing still pending
+
+**Next session should start with:**
+- Export a test combined IAP and verify: ICS 205A has contacts, logo appears on cover, weather badge is correct
+- ICS 207 solo export → calibrate coordinates if needed
+- Full end-to-end smoke test
 
 ### 2026-05-25 — Sprint 5, Session 1
 

@@ -15,20 +15,20 @@ Ship the dedicated IAP Assembly page UI, polish the entire app, run end-to-end Q
 ## Deliverables
 
 ### IAP Assembly Page UI
-- [ ] Dedicated export page
-- [ ] Auto-filled incident name and operational period
-- [ ] Prepared by and approved by fields
-- [ ] Checkboxes for each available form
-- [ ] Checkbox for weather attachment
-- [ ] "Generate Combined IAP" action button
+- [x] Dedicated export page
+- [x] Auto-filled incident name and operational period
+- [x] Prepared by and approved by fields (seeded from shared context, user-editable)
+- [x] Checkboxes for each available form
+- [x] Checkbox for weather attachment (with live "Data ready / No data" badge)
+- [x] "Generate Combined IAP" action button
 
 ### Final Polish
 - [ ] UI/UX refinements across all pages
-- [ ] Bug fixes from testing
+- [x] Bug fixes from testing (ICS 205A KV key bug, logo auto-load)
 - [ ] Performance optimization
 - [ ] Error handling improvements
 - [ ] Loading states everywhere they're needed
-- [ ] Cross-browser testing (Chrome, Firefox, Safari, Edge)
+- [ ] Cross-browser testing (Chrome, Firefox, Safari, Edge) — manual QA step
 
 ### Quality Assurance
 - [ ] End-to-end test: incident creation → IAP export
@@ -37,11 +37,11 @@ Ship the dedicated IAP Assembly page UI, polish the entire app, run end-to-end Q
 - [ ] Edge case handling (empty fields, missing optional data, long text, etc.)
 
 ### Final Knowledge Transfer Package
-- [ ] Complete source code with documentation
-- [ ] Database schema and setup instructions
-- [ ] Environment configuration guide
-- [ ] Deployment process documentation
-- [ ] API documentation
+- [x] Complete source code with documentation (CLAUDE.md + inline comments)
+- [x] Database schema and setup instructions (docs/handoff/database-setup.md)
+- [x] Environment configuration guide (docs/handoff/environment-and-deployment.md)
+- [x] Deployment process documentation (docs/handoff/environment-and-deployment.md)
+- [x] API documentation (docs/handoff/api-reference.md)
 
 ---
 
@@ -82,13 +82,42 @@ By end of this sprint, the MVP must demonstrate:
 
 ## Progress Log
 
-_No entries yet._
+### 2026-06-01 — Sprint 6, Session 1
+
+**Worked on:** Pre-implementation analysis, bug fixes in IAP Assembly page, weather status indicator, knowledge transfer documentation.
+
+**Completed:**
+- Full sprint analysis: reviewed all prior sprint sessions, mapped IAP Assembly page against sprint-6 deliverables
+- Fix: ICS 205A KV key bug — assembly page was loading `period-{id}-communications-data` instead of `period-{id}-comms-contacts`, causing blank ICS 205A in every combined export
+- Fix: org logo now auto-loads from `shared.agencyLogoUrl` (set via Account Settings) on mount — no more manual re-upload per export; user can still override with local upload
+- Feature: weather data availability pre-check on mount — fetches weather KV key on load, shows "Data ready" (green) or "No data — visit Weather page first" (amber) badge on the weather checkbox; auto-checks the checkbox if data is available
+- Docs: `docs/handoff/` created with 4 files: README.md (overview), database-setup.md (schema, KV store, migrations, Storage), environment-and-deployment.md (env vars, Supabase checklist, Vercel steps, ICS 207 calibration QA guide), api-reference.md (all edge function endpoints)
+
+**In progress:**
+- Nothing in flight.
+
+**Decisions made:**
+- ICS 207 coordinate calibration is a manual QA step — cannot be done without visual confirmation of a real PDF export; procedure documented in `docs/handoff/environment-and-deployment.md`
+- QR code kept as plain-text URL on cover page (no QR image library added — out of original MVP scope per user decision)
+- Logo auto-load uses `shared.agencyLogoUrl` from the op-period context; `logoPreview` local state is only set if it wasn't already set (so manual upload takes precedence)
+
+**Blockers / open questions:**
+- ICS 207 coordinates still need visual confirmation — export a test ICS 207 and eyeball all 8 position boxes; adjust `ICS_207_BLOCKS.orgChart` in `field-mappings.ts` if any are off
+- Cross-browser testing (Firefox, Safari, Edge) is manual — load the app, create incident, fill all forms, export combined IAP, verify PDF opens correctly
+- End-to-end QA smoke test still pending: full flow from sign-up → incident → period → all 8 forms → combined IAP export
+
+**Next session should start with:**
+- Export a test combined IAP (all forms checked) and verify: ICS 205A has contacts, org logo appears on cover, weather badge shows correct status, page numbers are correct
+- Export ICS 207 alone and calibrate coordinates if needed
+- Run end-to-end smoke test across all 8 forms
 
 ---
 
 ## Open Items
 
-_None yet._
+- [ ] ICS 207 coordinate visual calibration (export test PDF, compare positions, adjust ICS_207_BLOCKS in field-mappings.ts)
+- [ ] End-to-end smoke test: sign-up → incident → period → all 8 forms → combined IAP export
+- [ ] Cross-browser testing (Firefox, Safari, Edge) — manual QA
 
 ---
 
