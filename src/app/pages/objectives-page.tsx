@@ -77,8 +77,11 @@ export function ObjectivesPage() {
       setObjectives(deduped);
       setCommandEmphasis(commandData?.data?.[0]?.content || '');
       setSituationConditions(situationData?.data?.[0]?.content || '');
-      setPreparedByName(preparedByData?.data?.[0]?.name || '');
-      setPreparedByPosition(preparedByData?.data?.[0]?.position || '');
+      // Name and position are shared fields — shared context is the authority.
+      // Only use the KV store values as a fallback when the shared context is empty,
+      // to avoid overwriting a correct shared value with a stale/partial KV value.
+      setPreparedByName((prev) => prev || preparedByData?.data?.[0]?.name || '');
+      setPreparedByPosition((prev) => prev || preparedByData?.data?.[0]?.position || '');
       setPreparedDateTime(preparedByData?.data?.[0]?.dateTime || '');
     } catch (err) {
       console.error('Failed to load objectives data:', err);
@@ -421,7 +424,7 @@ export function ObjectivesPage() {
           <div className="space-y-3">
             {objectives.map((objective) => (
               <div key={objective.id} className="flex items-start gap-3 bg-slate-800 rounded-lg p-4 border border-slate-700">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-semibold mt-1">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-semibold">
                   {objective.number}
                 </div>
                 <textarea

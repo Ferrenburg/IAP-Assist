@@ -10,14 +10,39 @@ A running log of work done across all sessions. Most recent entry at the top.
 
 - **Current sprint:** Sprint 6
 - **Sprint started:** 2026-06-01
-- **Last session:** 2026-06-01 — Sprint 6 session 1: assembly page bug fixes, weather status badge, knowledge transfer docs
-- **Next session focus:** ICS 207 coordinate calibration, end-to-end smoke test, cross-browser QA
+- **Last session:** 2026-06-04 — Sprint 6 session 2: 7 bug fixes across multiple pages + ICS 207 PDF coordinate calibration
+- **Next session focus:** End-to-end smoke test, cross-browser QA, final sprint review
 
 ---
 
 ## Session Log
 
 <!-- Newest entries go here, at the top of the log. -->
+
+### 2026-06-04 — Sprint 6, Session 2 (Bug Fixes)
+
+**Worked on:** 7 user-reported bugs across ICS forms and the IAP Assembly cover page, plus ICS 207 PDF coordinate calibration.
+
+**Completed:**
+- Fix: ICS 202 number-badge vertical alignment — removed `mt-1` offset so badge sits inline with text
+- Fix: Position/Title partial save (PM → P only) — root cause was per-keystroke API calls arriving out-of-order; replaced `update()` in `op-period-context.tsx` with debounced patch-accumulation (400 ms idle window, one API call per burst)
+- Fix: KV load overwriting shared context on 202 page — changed `setPreparedByPosition` to use functional updater `(prev) => prev || kvValue` so shared-seeded values aren't clobbered
+- Fix: Input glitch on Communications, Assignments, Personnel, Safety/Medical pages — added local state + `onBlur` sync pattern to all "Prepared by" inputs so context re-renders don't interrupt typing
+- Fix: Weather hourly tab data cut off by scrollbar — added `pr-3` padding + `shrink-0` / `truncate` on inner divs so content scrolls cleanly
+- Fix: IAP cover page — Incident Commander name not appearing; now seeded from `shared.approvedByName || shared.incidentCommander` on mount
+- Fix: IAP cover page logo pushing "INCIDENT ACTION PLAN" text off screen — capped logo width at 160 px and added `maxWidth` constraint to the title text draw call
+- Fix: ICS 207 PDF — Incident Name and Op Period fields appearing in wrong positions; root cause was the template storing landscape content in a portrait PDF container. Corrected all field coordinates in `ICS_207_BLOCKS` (field-mappings.ts) and added `rotate: { type: 'degrees', angle: 90 }` to prepared-by draw calls in `generateICS207` so that footer text reads correctly when the form is viewed landscape
+
+**Decisions made:**
+- ICS 207 header text (Incident Name, Op Period dates/times) drawn with angle=0; appears within correct field boxes in portrait view. Prepared-by drawn with angle=90 so it reads correctly in landscape.
+- Debounce window set to 400 ms — fast enough to feel snappy, slow enough to collapse most typing bursts into one API call.
+
+**Blockers / open questions:**
+- ICS 207 org chart box positions (incidentCommander, operationsChief, etc.) not verified visually yet — user has not reported issues with those fields.
+
+**Next session should start with:**
+- Full end-to-end smoke test: create IAP, fill all forms, export combined PDF, verify all pages
+- Cross-browser check (Chrome + Safari at minimum)
 
 ### 2026-06-01 — Sprint 6, Session 1
 

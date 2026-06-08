@@ -997,7 +997,7 @@ export class ICSFormGenerator {
     // Don't modify rotation - work with the template as-is
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
+    page.drawText(sanitizeText(data.iapData?.incidentName || data.iapData?.name || ''), {
       x: ICS_205_BLOCKS.incidentName.x,
       y: ICS_205_BLOCKS.incidentName.y,
       size: ICS_205_BLOCKS.incidentName.fontSize,
@@ -1014,7 +1014,7 @@ export class ICSFormGenerator {
       ? data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
       : new Date().toTimeString().split(' ')[0].substring(0, 5);
 
-    page.drawText(preparedDate, {
+    page.drawText(formatDate(preparedDate), {
       x: ICS_205_BLOCKS.dateTimePrepared.date.x,
       y: ICS_205_BLOCKS.dateTimePrepared.date.y,
       size: ICS_205_BLOCKS.dateTimePrepared.date.fontSize,
@@ -1023,7 +1023,7 @@ export class ICSFormGenerator {
       rotate: { type: 'degrees', angle: 90 },
     });
 
-    page.drawText(preparedTime, {
+    page.drawText(formatTime(preparedTime), {
       x: ICS_205_BLOCKS.dateTimePrepared.time.x,
       y: ICS_205_BLOCKS.dateTimePrepared.time.y,
       size: ICS_205_BLOCKS.dateTimePrepared.time.fontSize,
@@ -1033,15 +1033,15 @@ export class ICSFormGenerator {
     });
 
     // Block 3: Operational Period (split into two lines each)
-    const opFromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
-    const opFromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
-    const opToDate = this.isoDate(data.periodData?.endAt, data.periodData?.toDate);
-    const opToTime = this.isoTime(data.periodData?.endAt, data.periodData?.toTime);
+    const opFromDate = formatDate(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate));
+    const opFromTime = formatTime(this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opToDate = formatDate(this.isoDate(data.periodData?.endAt, data.periodData?.toDate));
+    const opToTime = formatTime(this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     page.drawText(opFromDate, {
       x: ICS_205_BLOCKS.opPeriodFrom.date.x,
       y: ICS_205_BLOCKS.opPeriodFrom.date.y,
-      size: ICS_205_BLOCKS.opPeriodFrom.date.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -1050,7 +1050,7 @@ export class ICSFormGenerator {
     page.drawText(opFromTime, {
       x: ICS_205_BLOCKS.opPeriodFrom.time.x,
       y: ICS_205_BLOCKS.opPeriodFrom.time.y,
-      size: ICS_205_BLOCKS.opPeriodFrom.time.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -1059,7 +1059,7 @@ export class ICSFormGenerator {
     page.drawText(opToDate, {
       x: ICS_205_BLOCKS.opPeriodTo.date.x,
       y: ICS_205_BLOCKS.opPeriodTo.date.y,
-      size: ICS_205_BLOCKS.opPeriodTo.date.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -1068,7 +1068,7 @@ export class ICSFormGenerator {
     page.drawText(opToTime, {
       x: ICS_205_BLOCKS.opPeriodTo.time.x,
       y: ICS_205_BLOCKS.opPeriodTo.time.y,
-      size: ICS_205_BLOCKS.opPeriodTo.time.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -1133,7 +1133,7 @@ export class ICSFormGenerator {
         });
 
         // Block 1: Incident Name
-        continuationPage.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
+        continuationPage.drawText(sanitizeText(data.iapData?.incidentName || data.iapData?.name || ''), {
           x: ICS_205_BLOCKS.incidentName.x,
           y: ICS_205_BLOCKS.incidentName.y,
           size: ICS_205_BLOCKS.incidentName.fontSize,
@@ -1143,7 +1143,7 @@ export class ICSFormGenerator {
         });
 
         // Block 2: Date/Time Prepared
-        continuationPage.drawText(preparedDate, {
+        continuationPage.drawText(formatDate(preparedDate), {
           x: ICS_205_BLOCKS.dateTimePrepared.date.x,
           y: ICS_205_BLOCKS.dateTimePrepared.date.y,
           size: ICS_205_BLOCKS.dateTimePrepared.date.fontSize,
@@ -1152,7 +1152,7 @@ export class ICSFormGenerator {
           rotate: { type: 'degrees', angle: 90 },
         });
 
-        continuationPage.drawText(preparedTime, {
+        continuationPage.drawText(formatTime(preparedTime), {
           x: ICS_205_BLOCKS.dateTimePrepared.time.x,
           y: ICS_205_BLOCKS.dateTimePrepared.time.y,
           size: ICS_205_BLOCKS.dateTimePrepared.time.fontSize,
@@ -1165,7 +1165,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opFromDate, {
           x: ICS_205_BLOCKS.opPeriodFrom.date.x,
           y: ICS_205_BLOCKS.opPeriodFrom.date.y,
-          size: ICS_205_BLOCKS.opPeriodFrom.date.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1174,7 +1174,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opFromTime, {
           x: ICS_205_BLOCKS.opPeriodFrom.time.x,
           y: ICS_205_BLOCKS.opPeriodFrom.time.y,
-          size: ICS_205_BLOCKS.opPeriodFrom.time.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1183,7 +1183,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opToDate, {
           x: ICS_205_BLOCKS.opPeriodTo.date.x,
           y: ICS_205_BLOCKS.opPeriodTo.date.y,
-          size: ICS_205_BLOCKS.opPeriodTo.date.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1192,7 +1192,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opToTime, {
           x: ICS_205_BLOCKS.opPeriodTo.time.x,
           y: ICS_205_BLOCKS.opPeriodTo.time.y,
-          size: ICS_205_BLOCKS.opPeriodTo.time.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1513,6 +1513,11 @@ export class ICSFormGenerator {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const page = pdfDoc.getPages()[0];
 
+    // ICS 207 is stored as a portrait PDF but with landscape content rotated 90° CCW.
+    // All filled-in text must be drawn with rotate=90 (CCW) so it reads left-to-right
+    // when the form is viewed in landscape (user rotates page 90° CCW).
+    const ics207Rotate = { type: 'degrees' as const, angle: 90 };
+
     // Block 1: Incident Name
     page.drawText(sanitizeText(data.iapData?.incidentName || data.iapData?.name || ''), {
       x: ICS_207_BLOCKS.incidentName.x,
@@ -1520,6 +1525,7 @@ export class ICSFormGenerator {
       size: ICS_207_BLOCKS.incidentName.fontSize,
       font,
       color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
     });
 
     // Block 2: Operational Period — separate Date and Time rows
@@ -1528,10 +1534,10 @@ export class ICSFormGenerator {
     const opToDate   = formatDate(this.isoDate(data.periodData?.endAt,   data.periodData?.toDate));
     const opToTime   = formatTime(this.isoTime(data.periodData?.endAt,   data.periodData?.toTime));
 
-    page.drawText(opFromDate, { x: ICS_207_BLOCKS.opPeriodFrom.date.x, y: ICS_207_BLOCKS.opPeriodFrom.date.y, size: ICS_207_BLOCKS.opPeriodFrom.date.fontSize, font, color: rgb(0, 0, 0) });
-    page.drawText(opFromTime, { x: ICS_207_BLOCKS.opPeriodFrom.time.x, y: ICS_207_BLOCKS.opPeriodFrom.time.y, size: ICS_207_BLOCKS.opPeriodFrom.time.fontSize, font, color: rgb(0, 0, 0) });
-    page.drawText(opToDate,   { x: ICS_207_BLOCKS.opPeriodTo.date.x,   y: ICS_207_BLOCKS.opPeriodTo.date.y,   size: ICS_207_BLOCKS.opPeriodTo.date.fontSize,   font, color: rgb(0, 0, 0) });
-    page.drawText(opToTime,   { x: ICS_207_BLOCKS.opPeriodTo.time.x,   y: ICS_207_BLOCKS.opPeriodTo.time.y,   size: ICS_207_BLOCKS.opPeriodTo.time.fontSize,   font, color: rgb(0, 0, 0) });
+    page.drawText(opFromDate, { x: ICS_207_BLOCKS.opPeriodFrom.date.x, y: ICS_207_BLOCKS.opPeriodFrom.date.y, size: ICS_207_BLOCKS.opPeriodFrom.date.fontSize, font, color: rgb(0, 0, 0), rotate: ics207Rotate });
+    page.drawText(opFromTime, { x: ICS_207_BLOCKS.opPeriodFrom.time.x, y: ICS_207_BLOCKS.opPeriodFrom.time.y, size: ICS_207_BLOCKS.opPeriodFrom.time.fontSize, font, color: rgb(0, 0, 0), rotate: ics207Rotate });
+    page.drawText(opToDate,   { x: ICS_207_BLOCKS.opPeriodTo.date.x,   y: ICS_207_BLOCKS.opPeriodTo.date.y,   size: ICS_207_BLOCKS.opPeriodTo.date.fontSize,   font, color: rgb(0, 0, 0), rotate: ics207Rotate });
+    page.drawText(opToTime,   { x: ICS_207_BLOCKS.opPeriodTo.time.x,   y: ICS_207_BLOCKS.opPeriodTo.time.y,   size: ICS_207_BLOCKS.opPeriodTo.time.fontSize,   font, color: rgb(0, 0, 0), rotate: ics207Rotate });
 
     // Block 3: Organization Chart — names drawn in lower portion of each pre-printed box
     const orgData = data.formData || [];
@@ -1555,13 +1561,14 @@ export class ICSFormGenerator {
       }
     });
 
-    // Block 4: Prepared by (footer)
+    // Block 4: Prepared by (portrait right strip — same rotation as all other ICS 207 text)
     page.drawText(sanitizeText(data.iapData?.preparedBy || ''), {
       x: ICS_207_BLOCKS.preparedByName.x,
       y: ICS_207_BLOCKS.preparedByName.y,
       size: ICS_207_BLOCKS.preparedByName.fontSize,
       font,
       color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
     });
 
     page.drawText(sanitizeText(data.iapData?.preparedByPosition || ''), {
@@ -1570,6 +1577,7 @@ export class ICSFormGenerator {
       size: ICS_207_BLOCKS.preparedByPosition.fontSize,
       font,
       color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
     });
 
     const preparedDateTime = data.iapData?.preparedDateTime
@@ -1581,6 +1589,7 @@ export class ICSFormGenerator {
       size: ICS_207_BLOCKS.preparedByDateTime.fontSize,
       font,
       color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
     });
 
     addOpPeriodFooter(page, font);

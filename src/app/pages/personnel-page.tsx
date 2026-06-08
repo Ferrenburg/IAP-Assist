@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, X, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
@@ -102,6 +102,18 @@ export function PersonnelPage() {
   const [loading, setLoading] = useState(true);
   const [focusedFieldValue, setFocusedFieldValue] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+
+  const [localPreparedByName, setLocalPreparedByName] = useState('');
+  const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
+  const sharedSynced = useRef(false);
+
+  useEffect(() => {
+    if (shared && !sharedSynced.current) {
+      sharedSynced.current = true;
+      setLocalPreparedByName(shared.preparedByName ?? '');
+      setLocalPreparedByTitle(shared.preparedByTitle ?? '');
+    }
+  }, [shared]);
 
   useEffect(() => {
     loadData();
@@ -1433,11 +1445,12 @@ export function PersonnelPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
             <input
               type="text"
-              value={shared?.preparedByName ?? ''}
+              value={localPreparedByName}
               onChange={(e) => {
+                setLocalPreparedByName(e.target.value);
                 updateField('preparedByName', e.target.value);
-                void updateShared({ preparedByName: e.target.value });
               }}
+              onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -1445,11 +1458,12 @@ export function PersonnelPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
             <input
               type="text"
-              value={shared?.preparedByTitle ?? ''}
+              value={localPreparedByTitle}
               onChange={(e) => {
+                setLocalPreparedByTitle(e.target.value);
                 updateField('preparedByPosition', e.target.value);
-                void updateShared({ preparedByTitle: e.target.value });
               }}
+              onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

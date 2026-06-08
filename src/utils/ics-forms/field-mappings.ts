@@ -560,25 +560,39 @@ export const ICS_204_BLOCKS = {
 
 // ICS 205 - Radio Communications Plan (Landscape: 792 x 612)
 export const ICS_205_BLOCKS = {
-  // ICS 205 is landscape format with 90-degree rotation in template
-  // For row-based table rendering, rows go down the page (x increases)
-  // Block 1 - Incident Name
-  incidentName: { x: 98, y: 40, maxWidth: 400, fontSize: 9 },
+  // Portrait PDF (612x792), /Rotate=0. ICS 205 stores landscape content rotated 90 deg CCW
+  // into portrait space. Set /Rotate=90 or rotate the paper to read in landscape orientation.
+  //
+  // Coordinate mapping (landscape -> portrait):
+  //   portrait_x = 612 - landscape_y  (header row at landscape top -> portrait x ~ 68-100)
+  //   portrait_y = landscape_x        (landscape left edge -> portrait bottom)
+  //
+  // ALL header/footer text drawn with rotate=90 (CCW) so it reads left-to-right in landscape view.
+  // Header row (Date line):  portrait x=80  (1. Incident Name header = x=68)
+  // Header row (Time line):  portrait x=92
+  // Footer:                  portrait x=580 (6. Prepared By fields)
 
-  // Block 2 - Date/Time Prepared (split into two lines)
+  // Block 1 - Incident Name (starts after "1. Incident Name:" label, portrait y=130)
+  incidentName: { x: 68, y: 130, maxWidth: 172, fontSize: 9 },
+
+  // Block 2 - Date/Time Prepared (landscape header, second column)
+  //   Date row: portrait x=85, Time row: portrait x=97
+  //   Value starts after "Date:" label at portrait y=345
   dateTimePrepared: {
-    date: { x: 84, y: 297, fontSize: 8 },
-    time: { x: 100, y: 297, fontSize: 8 },
+    date: { x: 85, y: 345, fontSize: 8 },
+    time: { x: 97, y: 345, fontSize: 8 },
   },
 
-  // Block 3 - Operational Period (split into two lines each)
+  // Block 3 - Operational Period (landscape header, third column)
+  //   Date From value: portrait y=615 (after "Date From:" label which ends ~y=595)
+  //   Date To value:   portrait y=715 (after "Date To:"   label which ends ~y=695)
   opPeriodFrom: {
-    date: { x: 84, y: 566, fontSize: 8 },
-    time: { x: 100, y: 566, fontSize: 8 },
+    date: { x: 85, y: 588, fontSize: 8 },
+    time: { x: 97, y: 588, fontSize: 8 },
   },
   opPeriodTo: {
-    date: { x: 84, y: 670, fontSize: 8 },
-    time: { x: 100, y: 670, fontSize: 8 },
+    date: { x: 85, y: 715, fontSize: 8 },
+    time: { x: 97, y: 715, fontSize: 8 },
   },
 
   // Block 4 - Radio Communications Table (row-based)
@@ -608,11 +622,11 @@ export const ICS_205_BLOCKS = {
     fontSize: 8,
   },
 
-  // Block 6 - Prepared by
-  preparedByName: { x: 534, y: 295, maxWidth: 230, fontSize: 9 },
+  // Block 6 - Prepared by (portrait right strip x~580; landscape bottom-left footer)
+  preparedByName: { x: 580, y: 88, maxWidth: 172, fontSize: 9 },
   preparedByDateTime: {
-    date: { x: 554, y: 392, fontSize: 9 },
-    time: { x: 554, y: 472, fontSize: 9 },
+    date: { x: 580, y: 495, fontSize: 9 },
+    time: { x: 580, y: 520, fontSize: 9 },
   },
 };
 
@@ -723,38 +737,52 @@ export const ICS_206_BLOCKS = {
   approvedByName: { x: 299, y: 75, maxWidth: 230, fontSize: 9 },
 };
 
-// ICS 207 - Organization Chart (Landscape: 792 x 612)
-// ICS 207 - Incident Organization Chart (Landscape: 792 x 612)
+// ICS 207 - Incident Organization Chart (Portrait: 612 x 792)
 export const ICS_207_BLOCKS = {
-  // Block 1 - Incident Name (left ~38% of header row)
-  incidentName: { x: 120, y: 590, maxWidth: 185, fontSize: 9 },
+  // Portrait PDF (612x792), /Rotate=0. ICS 207 stores landscape content rotated 90 deg CCW
+  // into portrait space. Set /Rotate=90 or rotate the paper to read in landscape orientation.
+  //
+  // Coordinate mapping (landscape -> portrait):
+  //   portrait_x = 612 - landscape_y  (header row at landscape top -> portrait x ~ 60-90)
+  //   portrait_y = landscape_x        (landscape left edge -> portrait bottom)
+  //
+  // ALL text drawn with rotate=90 (CCW) so it reads left-to-right in landscape view.
+  // Header row: portrait x ~ 60-90  (1. Incident Name + 2. Operational Period fields)
+  // Footer row: portrait x ~ 575-600 (4. Prepared By fields)
 
-  // Block 2 - Operational Period (right portion of header, two rows)
+  // Block 1 - Incident Name (starts just after the "1. Incident Name:" label, portrait y=130)
+  incidentName: { x: 68, y: 130, maxWidth: 185, fontSize: 9 },
+
+  // Block 2 - Operational Period
+  //   Date row: portrait x=68  (first text line in the Op Period cell)
+  //   Time row: portrait x=84  (second text line, 16pt below date row)
+  //   Date From / Time From: portrait y=445  (landscape left of the "Date From:" value area)
+  //   Date To   / Time To:   portrait y=563  (landscape left of the "Date To:" value area)
   opPeriodFrom: {
-    date: { x: 447, y: 590, fontSize: 8 },
-    time: { x: 447, y: 568, fontSize: 8 },
+    date: { x: 68, y: 445, fontSize: 8 },
+    time: { x: 84, y: 445, fontSize: 8 },
   },
   opPeriodTo: {
-    date: { x: 578, y: 590, fontSize: 8 },
-    time: { x: 578, y: 568, fontSize: 8 },
+    date: { x: 68, y: 563, fontSize: 8 },
+    time: { x: 84, y: 563, fontSize: 8 },
   },
 
-  // Block 3 - Organization Chart (names go in lower portion of each printed box)
+  // Block 3 - Organization Chart (pending visual calibration in landscape orientation)
   orgChart: {
-    incidentCommander:  { x: 340, y: 437, maxWidth: 120, fontSize: 8 },  // center-top
-    liaisonOfficer:     { x: 548, y: 462, maxWidth: 90,  fontSize: 7 },  // upper right
-    safetyOfficer:      { x: 548, y: 408, maxWidth: 90,  fontSize: 7 },  // right, below liaison
-    publicInfoOfficer:  { x: 548, y: 358, maxWidth: 90,  fontSize: 7 },  // right, below safety
-    operationsChief:    { x: 196, y: 400, maxWidth: 120, fontSize: 8 },  // left side
-    planningChief:      { x: 444, y: 282, maxWidth: 100, fontSize: 8 },  // center lower
-    logisticsChief:     { x: 560, y: 282, maxWidth: 100, fontSize: 8 },  // center-right lower
-    financeChief:       { x: 678, y: 282, maxWidth:  95, fontSize: 8 },  // far right lower
+    incidentCommander:  { x: 340, y: 437, maxWidth: 120, fontSize: 8 },
+    liaisonOfficer:     { x: 548, y: 462, maxWidth: 90,  fontSize: 7 },
+    safetyOfficer:      { x: 548, y: 408, maxWidth: 90,  fontSize: 7 },
+    publicInfoOfficer:  { x: 548, y: 358, maxWidth: 90,  fontSize: 7 },
+    operationsChief:    { x: 100, y: 400, maxWidth: 120, fontSize: 8 },
+    planningChief:      { x: 240, y: 282, maxWidth: 100, fontSize: 8 },
+    logisticsChief:     { x: 370, y: 282, maxWidth: 100, fontSize: 8 },
+    financeChief:       { x: 500, y: 282, maxWidth:  95, fontSize: 8 },
   },
 
-  // Block 4 - Prepared by (bottom footer strip)
-  preparedByName:     { x: 185, y: 22, maxWidth: 140, fontSize: 9 },
-  preparedByPosition: { x: 358, y: 22, maxWidth: 130, fontSize: 9 },
-  preparedByDateTime: { x: 625, y: 22, maxWidth: 130, fontSize: 9 },
+  // Block 4 - Prepared by (portrait right strip; landscape lx ~ 85-620 -> portrait y = 85-620)
+  preparedByName:     { x: 585, y:  85, maxWidth: 175, fontSize: 8 },
+  preparedByPosition: { x: 585, y: 290, maxWidth: 195, fontSize: 8 },
+  preparedByDateTime: { x: 585, y: 495, maxWidth: 125, fontSize: 8 },
 };
 
 // ICS 208 - Safety Message/Plan (Portrait: 612 x 792)

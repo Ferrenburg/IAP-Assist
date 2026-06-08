@@ -50,7 +50,7 @@ const WORKSPACE_GROUPS = [
   {
     label: 'Safety',
     items: [
-      { label: 'ICS 206 — Safety/Medical', path: 'safety-medical', icon: ShieldAlert },
+      { label: 'ICS 206/208 — Safety/Medical', path: 'safety-medical', icon: ShieldAlert },
       { label: 'Weather', path: 'weather', icon: Cloud },
     ],
   },

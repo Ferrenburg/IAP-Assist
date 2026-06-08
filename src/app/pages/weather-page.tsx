@@ -411,15 +411,15 @@ export function WeatherPage() {
             )}
 
             {activeTab === 'hourly' && (
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-3">
                 {hourlyForecast.map((period, idx) => (
                   <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0">
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-slate-400 w-32">{period.name}</span>
-                      <img src={period.icon} alt={period.shortForecast} className="w-8 h-8" />
-                      <span className="text-sm text-white">{period.shortForecast}</span>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <span className="text-sm text-slate-400 w-32 shrink-0">{period.name}</span>
+                      <img src={period.icon} alt={period.shortForecast} className="w-8 h-8 shrink-0" />
+                      <span className="text-sm text-white truncate">{period.shortForecast}</span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0 ml-4">
                       <div className="text-lg font-semibold text-white">{period.temperature}°{period.temperatureUnit}</div>
                       <div className="text-xs text-slate-400">{period.windSpeed} {period.windDirection}</div>
                     </div>

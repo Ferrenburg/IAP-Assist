@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, Trash2, ShieldAlert, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
@@ -83,6 +83,18 @@ export function SafetyMedicalPage() {
   });
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+
+  const [localPreparedByName, setLocalPreparedByName] = useState('');
+  const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
+  const sharedSynced = useRef(false);
+
+  useEffect(() => {
+    if (shared && !sharedSynced.current) {
+      sharedSynced.current = true;
+      setLocalPreparedByName(shared.preparedByName ?? '');
+      setLocalPreparedByTitle(shared.preparedByTitle ?? '');
+    }
+  }, [shared]);
 
   useEffect(() => {
     loadData();
@@ -669,11 +681,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
                 <input
                   type="text"
-                  value={shared?.preparedByName ?? ''}
+                  value={localPreparedByName}
                   onChange={(e) => {
+                    setLocalPreparedByName(e.target.value);
                     setSafetyData({ ...safetyData, preparedByName: e.target.value });
-                    void updateShared({ preparedByName: e.target.value });
                   }}
+                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -681,11 +694,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={shared?.preparedByTitle ?? ''}
+                  value={localPreparedByTitle}
                   onChange={(e) => {
+                    setLocalPreparedByTitle(e.target.value);
                     setSafetyData({ ...safetyData, positionTitle: e.target.value });
-                    void updateShared({ preparedByTitle: e.target.value });
                   }}
+                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1136,11 +1150,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
                 <input
                   type="text"
-                  value={shared?.preparedByName ?? ''}
+                  value={localPreparedByName}
                   onChange={(e) => {
+                    setLocalPreparedByName(e.target.value);
                     setMedicalData({ ...medicalData, preparedByName: e.target.value });
-                    void updateShared({ preparedByName: e.target.value });
                   }}
+                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1148,11 +1163,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={shared?.preparedByTitle ?? ''}
+                  value={localPreparedByTitle}
                   onChange={(e) => {
+                    setLocalPreparedByTitle(e.target.value);
                     setMedicalData({ ...medicalData, positionTitle: e.target.value });
-                    void updateShared({ preparedByTitle: e.target.value });
                   }}
+                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

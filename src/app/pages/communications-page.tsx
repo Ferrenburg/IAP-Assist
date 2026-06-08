@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, Trash2, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
@@ -51,6 +51,20 @@ export function CommunicationsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+
+  // Local state for preparer fields so typing doesn't trigger context re-renders.
+  const [localPreparedByName, setLocalPreparedByName] = useState('');
+  const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
+  const sharedSynced = useRef(false);
+
+  // Seed local state once from shared context when it first becomes available.
+  useEffect(() => {
+    if (shared && !sharedSynced.current) {
+      sharedSynced.current = true;
+      setLocalPreparedByName(shared.preparedByName ?? '');
+      setLocalPreparedByTitle(shared.preparedByTitle ?? '');
+    }
+  }, [shared]);
 
   useEffect(() => {
     loadData();
@@ -486,8 +500,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
                 <input
                   type="text"
-                  value={shared?.preparedByName ?? ''}
-                  onChange={(e) => void updateShared({ preparedByName: e.target.value })}
+                  value={localPreparedByName}
+                  onChange={(e) => setLocalPreparedByName(e.target.value)}
+                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
                   placeholder="Preparer name"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -496,8 +511,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={shared?.preparedByTitle ?? ''}
-                  onChange={(e) => void updateShared({ preparedByTitle: e.target.value })}
+                  value={localPreparedByTitle}
+                  onChange={(e) => setLocalPreparedByTitle(e.target.value)}
+                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
                   placeholder="Position or title"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -614,8 +630,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
                 <input
                   type="text"
-                  value={shared?.preparedByName ?? ''}
-                  onChange={(e) => void updateShared({ preparedByName: e.target.value })}
+                  value={localPreparedByName}
+                  onChange={(e) => setLocalPreparedByName(e.target.value)}
+                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
                   placeholder="Preparer name"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -624,8 +641,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={shared?.preparedByTitle ?? ''}
-                  onChange={(e) => void updateShared({ preparedByTitle: e.target.value })}
+                  value={localPreparedByTitle}
+                  onChange={(e) => setLocalPreparedByTitle(e.target.value)}
+                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
                   placeholder="Position or title"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />

@@ -45,6 +45,11 @@ export function OpPeriodProvider({ children }: { children: ReactNode }) {
   // Guard against race conditions when iapId/periodId changes mid-fetch.
   const requestRef = useRef(0);
 
+  // Debounce rapid keystroke updates so only one API call fires per burst.
+  // Patches are accumulated so the final call always has the complete latest value.
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingPatchRef = useRef<Partial<SharedOpPeriodData>>({});
+
   const fetchData = useCallback(async () => {
     if (!iapId || !periodId) {
       setLoading(false);
@@ -74,23 +79,53 @@ export function OpPeriodProvider({ children }: { children: ReactNode }) {
     void fetchData();
   }, [fetchData]);
 
+  // Flush whatever is in pendingPatchRef to the server immediately.
+  // Called by the debounce timer and on unmount to avoid losing in-flight edits.
+  const flushPendingUpdate = useCallback(async () => {
+    const patch = { ...pendingPatchRef.current };
+    pendingPatchRef.current = {};
+    if (Object.keys(patch).length === 0 || !iapId || !periodId) return;
+    try {
+      const { shared } = await apiClient.updateSharedData(iapId, periodId, patch);
+      setData(shared);
+    } catch (err: any) {
+      setError(err?.message ?? 'Failed to save shared data');
+      await fetchData();
+    }
+  }, [iapId, periodId, fetchData]);
+
   const update = useCallback(
-    async (patch: Partial<SharedOpPeriodData>) => {
-      if (!iapId || !periodId) return;
-      // Optimistic update.
+    (patch: Partial<SharedOpPeriodData>): Promise<void> => {
+      if (!iapId || !periodId) return Promise.resolve();
+
+      // Optimistic update for instant UI feedback.
       setData((prev) => (prev ? { ...prev, ...patch } : prev));
-      try {
-        const { shared } = await apiClient.updateSharedData(iapId, periodId, patch);
-        setData(shared);
-      } catch (err: any) {
-        setError(err?.message ?? 'Failed to save shared data');
-        // Rollback on failure by re-fetching authoritative state.
-        await fetchData();
-        throw err;
-      }
+
+      // Merge this patch into the accumulator. Rapid keystrokes on the same
+      // field keep overwriting the same key, so the final flush always sends
+      // the complete latest value — eliminating out-of-order server writes.
+      Object.assign(pendingPatchRef.current, patch);
+
+      // Reset the debounce window on every call.
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        void flushPendingUpdate();
+      }, 400);
+
+      return Promise.resolve();
     },
-    [iapId, periodId, fetchData],
+    [iapId, periodId, flushPendingUpdate],
   );
+
+  // Flush any pending update when the provider unmounts (navigation away).
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      void flushPendingUpdate();
+    };
+  }, [flushPendingUpdate]);
 
   const value = useMemo<OpPeriodContextValue>(
     () => ({ data, loading, error, update, refresh: fetchData, iapId, periodId }),

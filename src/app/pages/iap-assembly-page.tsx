@@ -134,7 +134,10 @@ export function IAPAssemblyPage() {
     if (!shared) return;
     if (shared.preparedByName) setPreparedByName(shared.preparedByName);
     if (shared.preparedByTitle) setPreparedByPosition(shared.preparedByTitle);
-    if (shared.approvedByName) setApprovedByName(shared.approvedByName);
+    // approvedByName is the IC's signature block on the cover. Use the explicit
+    // approvedByName if set, otherwise fall back to the IC name entered on the forms.
+    const icName = shared.approvedByName || shared.incidentCommander;
+    if (icName) setApprovedByName(icName);
     // Auto-load the org logo saved in Account Settings — user can still override.
     if (shared.agencyLogoUrl && !logoPreview) {
       setLogoPreview(shared.agencyLogoUrl);
@@ -293,6 +296,8 @@ export function IAPAssemblyPage() {
     page.drawRectangle({ x: 0, y: PH - 113, width: PW, height: 3, color: GOLD });
 
     // Agency logo (top-left inside header)
+    // Cap logo width at 160pt so the heading text always has room on the right.
+    const MAX_LOGO_W = 160;
     let logoEndX = 56;
     if (logoPreview) {
       try {
@@ -301,7 +306,8 @@ export function IAPAssemblyPage() {
           ? await pdfDoc.embedPng(logoBytes)
           : await pdfDoc.embedJpg(logoBytes);
         const logoH = 78;
-        const logoW = (logoImage.width / logoImage.height) * logoH;
+        const naturalW = (logoImage.width / logoImage.height) * logoH;
+        const logoW = Math.min(naturalW, MAX_LOGO_W);
         page.drawImage(logoImage, { x: 24, y: PH - 100, width: logoW, height: logoH });
         logoEndX = 24 + logoW + 14;
       } catch (err) {
@@ -309,12 +315,14 @@ export function IAPAssemblyPage() {
       }
     }
 
-    // "INCIDENT ACTION PLAN" header text
+    // "INCIDENT ACTION PLAN" header text — maxWidth guards against any remaining overflow.
     page.drawText('INCIDENT ACTION PLAN', {
       x: logoEndX, y: PH - 52, size: 22, font: boldFont, color: WHITE,
+      maxWidth: PW - logoEndX - 20,
     });
     page.drawText('OPERATIONAL PERIOD DOCUMENT', {
       x: logoEndX, y: PH - 72, size: 10, font, color: rgb(0.72, 0.80, 0.94),
+      maxWidth: PW - logoEndX - 20,
     });
 
     // ── Incident Name band ───────────────────────────────────────────────────
