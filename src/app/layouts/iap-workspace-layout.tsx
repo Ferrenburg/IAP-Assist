@@ -17,22 +17,12 @@ export function IAPWorkspaceLayout({
   const { resolvedTheme } = useTheme();
   const showSidebar = pathname.includes('/iap/');
 
-  // The workspace header and sidebar are always dark. When the sidebar is
-  // visible (IAP form pages), lock the main area to the same dark background
-  // so text colors like text-white and text-slate-300 stay readable regardless
-  // of the user's light/dark theme preference.
-  const mainBg = showSidebar
-    ? 'bg-slate-900'
-    : resolvedTheme === 'light'
-    ? 'bg-slate-100'
-    : 'bg-slate-800';
-
   return (
-    <div className={`h-screen flex flex-col ${mainBg}`}>
+    <div className={`h-screen flex flex-col ${resolvedTheme === 'light' ? 'bg-slate-50' : 'bg-slate-900'}`}>
       <WorkspaceHeader />
       <div className="flex-1 flex overflow-hidden">
         {showSidebar && <Sidebar />}
-        <main className={fullHeight ? `flex-1 overflow-hidden ${mainBg}` : `flex-1 overflow-y-auto p-6 ${mainBg}`}>
+        <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto p-6'}>
           {fullHeight ? children : <div className="max-w-6xl mx-auto">{children}</div>}
         </main>
       </div>
