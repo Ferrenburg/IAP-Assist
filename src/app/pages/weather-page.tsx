@@ -160,19 +160,17 @@ export function WeatherPage() {
 
       const [forecastRes, hourlyRes, alertsRes] = await Promise.all([
         fetch(point.forecast, { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } }),
-        fetch(point.forecastHourly, { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } }),
+        fetch(point.forecastHourly, { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } }).catch(() => null),
         fetch(`https://api.weather.gov/alerts/active?point=${latitude},${longitude}`, {
           headers: { 'User-Agent': '(OpPeriod, contact@example.com)' },
         }),
       ]);
 
       if (!forecastRes.ok) throw new Error('Weather forecast data is currently unavailable for this location. Please try again shortly.');
-      if (!hourlyRes.ok) throw new Error('Hourly forecast data is currently unavailable for this location. Please try again shortly.');
 
       const forecastData = await forecastRes.json();
-      const hourlyData = await hourlyRes.json();
       const periods: WeatherPeriod[] = forecastData.properties.periods;
-      const hourly: WeatherPeriod[] = hourlyData.properties.periods;
+      const hourly: WeatherPeriod[] = (hourlyRes?.ok ? (await hourlyRes.json()).properties.periods : []);
 
       let fetchedAlerts: WeatherAlert[] = [];
       if (alertsRes.ok) {
