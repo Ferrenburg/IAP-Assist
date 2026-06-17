@@ -81,7 +81,14 @@ export function WorkspaceHeader() {
     <header className="bg-white border-b border-slate-200">
       <div className="px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 shrink-0">
-          <img src={opLogo} alt="OpPeriod" className="h-6" />
+          <Link href="/" className="cursor-pointer">
+            <img src={opLogo} alt="OpPeriod" className="h-6" />
+          </Link>
+          {!iapId && (
+            <Link href="/" className="text-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5">
+              ← All Incidents
+            </Link>
+          )}
         </div>
 
         {currentPeriod && (
@@ -165,17 +172,17 @@ export function WorkspaceHeader() {
         </div>
       </div>
 
-      <div className="flex gap-0.5 overflow-x-auto px-4 border-t border-slate-100">
+      {iapId && periodId && <div className="flex gap-0.5 overflow-x-auto px-4 border-t border-slate-100">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const fullPath = `/iap/${iapId}/period/${periodId}${tab.path}`;
+          const fullPath = iapId && periodId ? `/iap/${iapId}/period/${periodId}${tab.path}` : '#';
           const isActive = pathname === fullPath;
           const isAssembly = tab.id === 'iap-assembly';
 
           return (
             <Link
               key={tab.id}
-              to={fullPath}
+              href={fullPath}
               className={`px-4 py-3 text-sm font-medium whitespace-nowrap flex items-center gap-2 border-b-2 transition-colors ${
                 isActive
                   ? isAssembly
@@ -191,7 +198,7 @@ export function WorkspaceHeader() {
             </Link>
           );
         })}
-      </div>
+      </div>}
     </header>
   );
 }

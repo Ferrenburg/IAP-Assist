@@ -363,66 +363,6 @@ export function IAPAssemblyPage() {
     page.drawLine({ start: { x: 40, y }, end: { x: PW - 40, y }, thickness: 0.5, color: rgb(0.78, 0.78, 0.78) });
     y -= 24;
 
-    // ── Signature blocks ─────────────────────────────────────────────────────
-    const drawSigBlock = (
-      title: string,
-      name: string,
-      position: string,
-      dateTime: string,
-      xLeft: number,
-      yTop: number,
-      blockW: number,
-    ) => {
-      page.drawRectangle({ x: xLeft, y: yTop - 130, width: blockW, height: 130, color: LIGHT });
-      page.drawRectangle({ x: xLeft, y: yTop, width: blockW, height: 20, color: NAVY });
-      page.drawText(title, { x: xLeft + 8, y: yTop + 5, size: 9, font: boldFont, color: WHITE });
-
-      let sy = yTop - 22;
-      page.drawText('Name:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
-      page.drawText(name || '________________________________', { x: xLeft + 8, y: sy - 13, size: 10, font, color: DARK });
-
-      sy -= 38;
-      page.drawText('Position / Title:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
-      page.drawText(position || '________________________________', { x: xLeft + 8, y: sy - 13, size: 10, font, color: DARK });
-
-      sy -= 38;
-      page.drawText('Signature:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
-      page.drawLine({
-        start: { x: xLeft + 8, y: sy - 18 },
-        end: { x: xLeft + blockW - 8, y: sy - 18 },
-        thickness: 0.5, color: rgb(0.6, 0.6, 0.6),
-      });
-
-      sy -= 34;
-      page.drawText('Date / Time:', { x: xLeft + 8, y: sy, size: 8, font: boldFont, color: MID });
-      page.drawText(dateTime || '________________________________', { x: xLeft + 8, y: sy - 13, size: 10, font, color: DARK });
-    };
-
-    const BLOCK_W = 248;
-    const BLOCK_Y = y;
-
-    drawSigBlock(
-      'PREPARED BY — PLANNING SECTION CHIEF',
-      preparedByName,
-      preparedByPosition,
-      `${preparedDate}  ${preparedTime}`,
-      40,
-      BLOCK_Y,
-      BLOCK_W,
-    );
-
-    drawSigBlock(
-      'APPROVED BY — INCIDENT COMMANDER',
-      approvedByName,
-      'Incident Commander',
-      '',
-      PW - 40 - BLOCK_W,
-      BLOCK_Y,
-      BLOCK_W,
-    );
-
-    y = BLOCK_Y - 130 - 24;
-
     // ── IAP Contents summary ─────────────────────────────────────────────────
     page.drawText('CONTENTS OF THIS IAP', { x: 40, y, size: 8, font: boldFont, color: GOLD });
     y -= 14;

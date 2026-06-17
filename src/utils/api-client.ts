@@ -60,7 +60,7 @@ class APIClient {
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Request failed' }));
+        const error = await response.json().catch(() => ({ error: `HTTP ${response.status} (non-JSON response — edge function may need redeployment)` }));
         const errorMessage = error.error || `HTTP ${response.status}`;
 
         // Retry on specific status codes

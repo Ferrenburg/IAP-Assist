@@ -245,8 +245,10 @@ export function WeatherPage() {
       const link = document.createElement('a');
       link.href = url;
       link.download = `weather-forecast-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
       link.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
 
       toast.success('PDF exported successfully');
     } catch (error: any) {

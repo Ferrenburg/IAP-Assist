@@ -3,11 +3,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, User, Mail, Building, Sun, Moon, Monitor, Upload, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
 import { useAuth } from '../../contexts/auth-context';
 import { useTheme } from '../../contexts/theme-context';
-import { apiClient } from '../../utils/api-client';
+import { projectId, publishableKey } from '../../utils/supabase-info';
 import { toast } from 'sonner';
 import opLogo from '../../imports/OP_Logo.png';
+
+const supabaseUrl = `https://${projectId}.supabase.co`;
+
+// Creates a Supabase client that forwards the current user's JWT so RLS
+// policies apply correctly. Called per-operation so the token is always fresh.
+function authedClient() {
+  const token = localStorage.getItem('access_token');
+  return createClient(supabaseUrl, publishableKey, {
+    global: { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+}
 
 export function AccountSettings() {
   const router = useRouter();
@@ -21,6 +34,7 @@ export function AccountSettings() {
   const [savingProfile, setSavingProfile] = useState(false);
 
   // Organization
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [orgName, setOrgName] = useState('');
   const [orgLogoUrl, setOrgLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -29,29 +43,67 @@ export function AccountSettings() {
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (user) {
-      setName(user.user_metadata?.name ?? '');
-      setTitle(user.user_metadata?.title ?? '');
-      setEmail(user.email ?? '');
-    }
+    if (!user) return;
+    setName(user.user_metadata?.name ?? '');
+    setTitle(user.user_metadata?.title ?? '');
+    setEmail(user.email ?? '');
     loadOrg();
   }, [user]);
 
   const loadOrg = async () => {
+    if (!user) return;
     try {
-      const { org } = await apiClient.getOrg();
+      const db = authedClient();
+
+      const { data: membership, error: mErr } = await db
+        .from('org_members')
+        .select('org_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (mErr || !membership) {
+        console.error('No org membership found:', mErr?.message);
+        return;
+      }
+
+      setOrgId(membership.org_id);
+
+      const { data: org, error: oErr } = await db
+        .from('organizations')
+        .select('id, name, logo_url')
+        .eq('id', membership.org_id)
+        .single();
+
+      if (oErr || !org) {
+        console.error('Failed to load org:', oErr?.message);
+        return;
+      }
+
       setOrgName(org.name ?? '');
       setOrgLogoUrl(org.logo_url ?? null);
       if (org.logo_url) setLogoPreview(org.logo_url);
     } catch (err) {
-      console.error('Failed to load org:', err);
+      console.error('loadOrg error:', err);
     }
   };
 
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      await apiClient.updateProfile({ name, title });
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          apikey: publishableKey,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: { name, title } }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.msg || body.error_description || `HTTP ${res.status}`);
+      }
       toast.success('Profile saved');
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save profile');
@@ -61,9 +113,15 @@ export function AccountSettings() {
   };
 
   const saveOrgName = async () => {
+    if (!orgId) return;
     setSavingOrg(true);
     try {
-      await apiClient.updateOrg({ name: orgName });
+      const db = authedClient();
+      const { error } = await db
+        .from('organizations')
+        .update({ name: orgName })
+        .eq('id', orgId);
+      if (error) throw error;
       toast.success('Organization name saved');
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to save organization');
@@ -74,7 +132,7 @@ export function AccountSettings() {
 
   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !orgId) return;
 
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload a PNG or JPG image');
@@ -85,28 +143,50 @@ export function AccountSettings() {
       return;
     }
 
-    // Show local preview immediately
     const reader = new FileReader();
     reader.onloadend = () => setLogoPreview(reader.result as string);
     reader.readAsDataURL(file);
 
     setUploadingLogo(true);
     try {
-      const { logoUrl } = await apiClient.uploadOrgLogo(file);
+      const db = authedClient();
+      const ext = file.type.includes('jpeg') || file.type.includes('jpg') ? 'jpg' : 'png';
+      const path = `${orgId}/logo.${ext}`;
+
+      const { error: uploadErr } = await db.storage
+        .from('agency-logos')
+        .upload(path, file, { contentType: file.type, upsert: true });
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = db.storage.from('agency-logos').getPublicUrl(path);
+      const logoUrl = urlData.publicUrl;
+
+      const { error: updateErr } = await db
+        .from('organizations')
+        .update({ logo_url: logoUrl })
+        .eq('id', orgId);
+      if (updateErr) throw updateErr;
+
       setOrgLogoUrl(logoUrl);
       setLogoPreview(logoUrl);
       toast.success('Logo uploaded');
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to upload logo');
-      setLogoPreview(orgLogoUrl); // revert preview
+      setLogoPreview(orgLogoUrl);
     } finally {
       setUploadingLogo(false);
     }
   };
 
   const removeLogo = async () => {
+    if (!orgId) return;
     try {
-      await apiClient.updateOrg({ logoUrl: null });
+      const db = authedClient();
+      const { error } = await db
+        .from('organizations')
+        .update({ logo_url: null })
+        .eq('id', orgId);
+      if (error) throw error;
       setOrgLogoUrl(null);
       setLogoPreview(null);
       if (logoInputRef.current) logoInputRef.current.value = '';
@@ -223,7 +303,7 @@ export function AccountSettings() {
               />
               <button
                 onClick={saveOrgName}
-                disabled={savingOrg}
+                disabled={savingOrg || !orgId}
                 className="flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
               >
                 {savingOrg ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -268,7 +348,7 @@ export function AccountSettings() {
                 )}
               </div>
             ) : (
-              <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-sm rounded-lg transition-colors">
+              <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white text-sm rounded-lg transition-colors ${!orgId ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 {uploadingLogo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 Upload Logo (PNG or JPG, max 5 MB)
                 <input
@@ -276,6 +356,7 @@ export function AccountSettings() {
                   type="file"
                   accept="image/png,image/jpeg"
                   onChange={handleLogoFileChange}
+                  disabled={!orgId}
                   className="hidden"
                 />
               </label>

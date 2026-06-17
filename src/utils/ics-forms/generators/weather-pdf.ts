@@ -37,8 +37,20 @@ export interface WeatherPDFData {
   generatedAt: string;
 }
 
-function wrapText(text: string, font: any, fontSize: number, maxWidth: number): string[] {
-  const words = text.split(' ');
+function sanitize(text: string | undefined | null): string {
+  if (!text) return '';
+  return text
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, '-')
+    .replace(/•/g, '*')
+    .replace(/[^\x00-\xFF]/g, '?');
+}
+
+function wrapText(text: string | undefined | null, font: any, fontSize: number, maxWidth: number): string[] {
+  const safe = sanitize(text);
+  if (!safe) return [];
+  const words = safe.split(' ');
   const lines: string[] = [];
   let currentLine = '';
 
@@ -108,7 +120,7 @@ export async function generateWeatherPDF(data: WeatherPDFData): Promise<Uint8Arr
   drawHeader(true);
 
   // Metadata block
-  const locationText = data.locationName || `${data.latitude}, ${data.longitude}`;
+  const locationText = sanitize(data.locationName) || `${data.latitude}, ${data.longitude}`;
   page.drawText(`Location: ${locationText}`, { x: MARGIN, y, size: 11, font: boldFont, color: DARK });
   y -= 16;
   if (data.weatherPoint) {
@@ -136,7 +148,7 @@ export async function generateWeatherPDF(data: WeatherPDFData): Promise<Uint8Arr
 
     for (const alert of data.alerts.slice(0, 5)) {
       ensureSpace(52);
-      page.drawText(`▶  ${alert.event}  —  ${alert.severity}`, {
+      page.drawText(`>> ${sanitize(alert.event)}  -  ${sanitize(alert.severity)}`, {
         x: MARGIN + 8, y, size: 10, font: boldFont, color: ALERT_RED,
       });
       y -= 14;
@@ -169,9 +181,9 @@ export async function generateWeatherPDF(data: WeatherPDFData): Promise<Uint8Arr
 
     // Period header row
     page.drawRectangle({ x: MARGIN, y: y - 3, width: CW, height: 20, color: NAVY_LIGHT });
-    page.drawText(period.name, { x: MARGIN + 8, y: y + 3, size: 10, font: boldFont, color: NAVY });
+    page.drawText(sanitize(period.name), { x: MARGIN + 8, y: y + 3, size: 10, font: boldFont, color: NAVY });
     page.drawText(
-      `${period.temperature}°${period.temperatureUnit}   |   Wind: ${period.windSpeed} ${period.windDirection}`,
+      `${period.temperature} ${period.temperatureUnit}   |   Wind: ${sanitize(period.windSpeed)} ${sanitize(period.windDirection)}`,
       { x: MARGIN + 170, y: y + 3, size: 10, font, color: DARK },
     );
     y -= 22;
