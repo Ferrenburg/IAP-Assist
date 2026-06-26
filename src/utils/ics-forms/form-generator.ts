@@ -1557,7 +1557,7 @@ export class ICSFormGenerator {
     orgData.forEach((item: any) => {
       const pos = positionMap[item.position];
       if (pos && item.name) {
-        drawBoundedText(page, sanitizeText(item.name), pos.x, pos.y, font, pos.fontSize || 8, pos.maxWidth || 110);
+        drawTableCell(page, sanitizeText(item.name), pos.x, pos.y, font, pos.fontSize || 8, pos.maxWidth || 110, 90);
       }
     });
 

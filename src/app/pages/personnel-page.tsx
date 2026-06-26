@@ -107,13 +107,6 @@ export function PersonnelPage() {
   const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
   const sharedSynced = useRef(false);
 
-  useEffect(() => {
-    if (shared && !sharedSynced.current) {
-      sharedSynced.current = true;
-      setLocalPreparedByName(shared.preparedByName ?? '');
-      setLocalPreparedByTitle(shared.preparedByTitle ?? '');
-    }
-  }, [shared]);
 
   useEffect(() => {
     loadData();
@@ -126,6 +119,8 @@ export function PersonnelPage() {
       const data = await apiClient.getData(iapId, `period-${periodId}-personnel`);
       if (data?.data?.[0]) {
         setPersonnelData(data.data[0]);
+        setLocalPreparedByName(data.data[0].preparedByName || '');
+        setLocalPreparedByTitle(data.data[0].preparedByPosition || '');
       } else {
         setPersonnelData({ id: crypto.randomUUID(), commandStructure: 'single' });
       }
@@ -290,8 +285,8 @@ export function PersonnelPage() {
         iapData: {
           incidentName: shared?.incidentName ?? '',
           incidentNumber: shared?.incidentNumber ?? '',
-          preparedBy: shared?.preparedByName ?? '',
-          preparedByPosition: shared?.preparedByTitle ?? '',
+          preparedBy: localPreparedByName,
+          preparedByPosition: localPreparedByTitle,
           preparedDateTime: personnelData.preparedDateTime ?? '',
           agencyName: shared?.agencyName ?? '',
         },
@@ -354,8 +349,8 @@ export function PersonnelPage() {
         iapData: {
           incidentName: shared?.incidentName ?? '',
           incidentNumber: shared?.incidentNumber ?? '',
-          preparedBy: shared?.preparedByName ?? '',
-          preparedByPosition: shared?.preparedByTitle ?? '',
+          preparedBy: localPreparedByName,
+          preparedByPosition: localPreparedByTitle,
           preparedDateTime: personnelData.preparedDateTime ?? '',
           agencyName: shared?.agencyName ?? '',
         },
@@ -1450,7 +1445,7 @@ export function PersonnelPage() {
                 setLocalPreparedByName(e.target.value);
                 updateField('preparedByName', e.target.value);
               }}
-              onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
+              onBlur={() => saveData()}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -1463,7 +1458,7 @@ export function PersonnelPage() {
                 setLocalPreparedByTitle(e.target.value);
                 updateField('preparedByPosition', e.target.value);
               }}
-              onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
+              onBlur={() => saveData()}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

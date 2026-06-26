@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, Trash2, ShieldAlert, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
@@ -84,17 +84,12 @@ export function SafetyMedicalPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  const [localPreparedByName, setLocalPreparedByName] = useState('');
-  const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
-  const sharedSynced = useRef(false);
+  // Separate prepared-by state per form — ICS 208 (Safety) and ICS 206 (Medical) are independent.
+  const [ics208PreparedByName, setIcs208PreparedByName] = useState('');
+  const [ics208PreparedByTitle, setIcs208PreparedByTitle] = useState('');
+  const [ics206PreparedByName, setIcs206PreparedByName] = useState('');
+  const [ics206PreparedByTitle, setIcs206PreparedByTitle] = useState('');
 
-  useEffect(() => {
-    if (shared && !sharedSynced.current) {
-      sharedSynced.current = true;
-      setLocalPreparedByName(shared.preparedByName ?? '');
-      setLocalPreparedByTitle(shared.preparedByTitle ?? '');
-    }
-  }, [shared]);
 
   useEffect(() => {
     loadData();
@@ -118,6 +113,8 @@ export function SafetyMedicalPage() {
 
       if (medData?.data?.[0]) {
         setMedicalData(medData.data[0]);
+        setIcs206PreparedByName(medData.data[0].preparedByName || '');
+        setIcs206PreparedByTitle(medData.data[0].positionTitle || '');
       } else {
         setMedicalData({
           id: crypto.randomUUID(),
@@ -130,6 +127,8 @@ export function SafetyMedicalPage() {
 
       if (safeData?.data?.[0]) {
         setSafetyData(safeData.data[0]);
+        setIcs208PreparedByName(safeData.data[0].preparedByName || '');
+        setIcs208PreparedByTitle(safeData.data[0].positionTitle || '');
       } else {
         setSafetyData({
           id: crypto.randomUUID(),
@@ -400,11 +399,18 @@ export function SafetyMedicalPage() {
     }
   };
 
-  const buildIapData = (dateTimePrepared?: string) => ({
+  const buildIcs206IapData = (dateTimePrepared?: string) => ({
     incidentName: shared?.incidentName,
     incidentNumber: shared?.incidentNumber,
-    preparedBy: shared?.preparedByName,
-    preparedByPosition: shared?.preparedByTitle,
+    preparedBy: ics206PreparedByName,
+    preparedByPosition: ics206PreparedByTitle,
+    preparedDateTime: dateTimePrepared || new Date().toISOString(),
+  });
+  const buildIcs208IapData = (dateTimePrepared?: string) => ({
+    incidentName: shared?.incidentName,
+    incidentNumber: shared?.incidentNumber,
+    preparedBy: ics208PreparedByName,
+    preparedByPosition: ics208PreparedByTitle,
     preparedDateTime: dateTimePrepared || new Date().toISOString(),
   });
   const buildPeriodData = () => ({ startAt: shared?.startAt, endAt: shared?.endAt });
@@ -461,7 +467,7 @@ export function SafetyMedicalPage() {
       }
 
       const pdfBytes = await icsFormGenerator.generateICS206({
-        iapData: buildIapData(formatPreparedDateTime(medicalData.dateTimePrepared)),
+        iapData: buildIcs206IapData(formatPreparedDateTime(medicalData.dateTimePrepared)),
         periodData: buildPeriodData(),
         formData,
       });
@@ -495,7 +501,7 @@ export function SafetyMedicalPage() {
       ];
 
       const pdfBytes = await icsFormGenerator.generateICS208({
-        iapData: buildIapData(formatPreparedDateTime(safetyData.dateTimePrepared)),
+        iapData: buildIcs208IapData(formatPreparedDateTime(safetyData.dateTimePrepared)),
         periodData: buildPeriodData(),
         formData,
         organizationData: shared?.incidentCommander
@@ -681,12 +687,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
                 <input
                   type="text"
-                  value={localPreparedByName}
+                  value={ics208PreparedByName}
                   onChange={(e) => {
-                    setLocalPreparedByName(e.target.value);
+                    setIcs208PreparedByName(e.target.value);
                     setSafetyData({ ...safetyData, preparedByName: e.target.value });
                   }}
-                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
+                  onBlur={() => saveSafetyData()}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -694,12 +700,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={localPreparedByTitle}
+                  value={ics208PreparedByTitle}
                   onChange={(e) => {
-                    setLocalPreparedByTitle(e.target.value);
+                    setIcs208PreparedByTitle(e.target.value);
                     setSafetyData({ ...safetyData, positionTitle: e.target.value });
                   }}
-                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
+                  onBlur={() => saveSafetyData()}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1150,12 +1156,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
                 <input
                   type="text"
-                  value={localPreparedByName}
+                  value={ics206PreparedByName}
                   onChange={(e) => {
-                    setLocalPreparedByName(e.target.value);
+                    setIcs206PreparedByName(e.target.value);
                     setMedicalData({ ...medicalData, preparedByName: e.target.value });
                   }}
-                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
+                  onBlur={() => saveMedicalData()}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -1163,12 +1169,12 @@ export function SafetyMedicalPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={localPreparedByTitle}
+                  value={ics206PreparedByTitle}
                   onChange={(e) => {
-                    setLocalPreparedByTitle(e.target.value);
+                    setIcs206PreparedByTitle(e.target.value);
                     setMedicalData({ ...medicalData, positionTitle: e.target.value });
                   }}
-                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
+                  onBlur={() => saveMedicalData()}
                   className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

@@ -36,6 +36,10 @@ interface CommunicationsData {
   id: string;
   specialInstructions: string;
   dateTimePrepared: string;
+  preparedByName?: string;
+  preparedByTitle?: string;
+  ics205aPreparedByName?: string;
+  ics205aPreparedByTitle?: string;
 }
 
 export function CommunicationsPage() {
@@ -52,19 +56,15 @@ export function CommunicationsPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  // Local state for preparer fields so typing doesn't trigger context re-renders.
-  const [localPreparedByName, setLocalPreparedByName] = useState('');
-  const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
-  const sharedSynced = useRef(false);
+  // Local state for preparer fields — separate per form so typing doesn't trigger re-renders.
+  const [ics205PreparedByName, setIcs205PreparedByName] = useState('');
+  const [ics205PreparedByTitle, setIcs205PreparedByTitle] = useState('');
+  const [ics205aPreparedByName, setIcs205aPreparedByName] = useState('');
+  const [ics205aPreparedByTitle, setIcs205aPreparedByTitle] = useState('');
 
-  // Seed local state once from shared context when it first becomes available.
-  useEffect(() => {
-    if (shared && !sharedSynced.current) {
-      sharedSynced.current = true;
-      setLocalPreparedByName(shared.preparedByName ?? '');
-      setLocalPreparedByTitle(shared.preparedByTitle ?? '');
-    }
-  }, [shared]);
+  // Ref always holds the latest commData so saveCommData never reads a stale closure.
+  const commDataRef = useRef<CommunicationsData>({ id: '', specialInstructions: '', dateTimePrepared: '' });
+
 
   useEffect(() => {
     loadData();
@@ -102,9 +102,16 @@ export function CommunicationsPage() {
       setContacts(contactsData?.data || []);
 
       if (commDataResponse?.data?.[0]) {
+        commDataRef.current = commDataResponse.data[0];
         setCommData(commDataResponse.data[0]);
+        setIcs205PreparedByName(commDataResponse.data[0].preparedByName || '');
+        setIcs205PreparedByTitle(commDataResponse.data[0].preparedByTitle || '');
+        setIcs205aPreparedByName(commDataResponse.data[0].ics205aPreparedByName || '');
+        setIcs205aPreparedByTitle(commDataResponse.data[0].ics205aPreparedByTitle || '');
       } else {
-        setCommData({ id: crypto.randomUUID(), specialInstructions: '', dateTimePrepared: '' });
+        const initial = { id: crypto.randomUUID(), specialInstructions: '', dateTimePrepared: '' };
+        commDataRef.current = initial;
+        setCommData(initial);
       }
     } catch (err) {
       console.error('Failed to load communications data:', err);
@@ -235,10 +242,11 @@ export function CommunicationsPage() {
 
   const saveCommData = async (showToast = false) => {
     if (!iapId || !periodId) return;
+    const latest = commDataRef.current;
     try {
       const existing = await apiClient.getData(iapId, `period-${periodId}-communications-data`);
       if (existing?.data?.[0]) {
-        const dataToSave = { ...commData, id: existing.data[0].id };
+        const dataToSave = { ...latest, id: existing.data[0].id };
         try {
           await apiClient.updateData(iapId, `period-${periodId}-communications-data`, existing.data[0].id, dataToSave);
         } catch (updateErr: any) {
@@ -246,9 +254,10 @@ export function CommunicationsPage() {
             await apiClient.createData(iapId, `period-${periodId}-communications-data`, dataToSave);
           } else throw updateErr;
         }
+        commDataRef.current = dataToSave;
         setCommData(dataToSave);
       } else {
-        await apiClient.createData(iapId, `period-${periodId}-communications-data`, commData);
+        await apiClient.createData(iapId, `period-${periodId}-communications-data`, latest);
       }
       if (showToast) toast.success('Communications data saved');
     } catch (err) {
@@ -260,12 +269,19 @@ export function CommunicationsPage() {
   // ── PDF generators ────────────────────────────────────────────────────────
 
   const buildPeriodData = () => ({ startAt: shared?.startAt, endAt: shared?.endAt });
-  const buildIapData = (dateTimePrepared?: string) => ({
+  const buildIcs205IapData = (dateTimePrepared?: string) => ({
     incidentName: shared?.incidentName,
     incidentNumber: shared?.incidentNumber,
-    preparedBy: shared?.preparedByName,
-    preparedByPosition: shared?.preparedByTitle,
+    preparedBy: ics205PreparedByName,
+    preparedByPosition: ics205PreparedByTitle,
     preparedDateTime: dateTimePrepared || commData.dateTimePrepared || new Date().toISOString(),
+  });
+  const buildIcs205aIapData = () => ({
+    incidentName: shared?.incidentName,
+    incidentNumber: shared?.incidentNumber,
+    preparedBy: ics205aPreparedByName,
+    preparedByPosition: ics205aPreparedByTitle,
+    preparedDateTime: commData.dateTimePrepared || new Date().toISOString(),
   });
 
   const handleGenerateICS205 = async () => {
@@ -283,7 +299,7 @@ export function CommunicationsPage() {
       toast.info('Generating ICS 205...');
 
       const pdfBytes = await icsFormGenerator.generateICS205({
-        iapData: buildIapData(),
+        iapData: buildIcs205IapData(),
         periodData: buildPeriodData(),
         formData: channels,
         specialInstructions: commData.specialInstructions,
@@ -315,7 +331,7 @@ export function CommunicationsPage() {
       toast.info('Generating ICS 205A...');
 
       const pdfBytes = await icsFormGenerator.generateICS205A({
-        iapData: buildIapData(),
+        iapData: buildIcs205aIapData(),
         periodData: buildPeriodData(),
         formData: contacts,
       });
@@ -485,7 +501,7 @@ export function CommunicationsPage() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Special Instructions</label>
             <textarea
               value={commData.specialInstructions}
-              onChange={(e) => setCommData({ ...commData, specialInstructions: e.target.value })}
+              onChange={(e) => { commDataRef.current = { ...commDataRef.current, specialInstructions: e.target.value }; setCommData(commDataRef.current); }}
               onBlur={() => saveCommData(false)}
               placeholder="Any special instructions..."
               className="w-full h-32 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -500,9 +516,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
                 <input
                   type="text"
-                  value={localPreparedByName}
-                  onChange={(e) => setLocalPreparedByName(e.target.value)}
-                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
+                  value={ics205PreparedByName}
+                  onChange={(e) => { setIcs205PreparedByName(e.target.value); commDataRef.current = { ...commDataRef.current, preparedByName: e.target.value }; setCommData(commDataRef.current); }}
+                  onBlur={() => saveCommData(false)}
                   placeholder="Preparer name"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -511,9 +527,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={localPreparedByTitle}
-                  onChange={(e) => setLocalPreparedByTitle(e.target.value)}
-                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
+                  value={ics205PreparedByTitle}
+                  onChange={(e) => { setIcs205PreparedByTitle(e.target.value); commDataRef.current = { ...commDataRef.current, preparedByTitle: e.target.value }; setCommData(commDataRef.current); }}
+                  onBlur={() => saveCommData(false)}
                   placeholder="Position or title"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -523,7 +539,7 @@ export function CommunicationsPage() {
                 <input
                   type="datetime-local"
                   value={commData.dateTimePrepared}
-                  onChange={(e) => setCommData({ ...commData, dateTimePrepared: e.target.value })}
+                  onChange={(e) => { commDataRef.current = { ...commDataRef.current, dateTimePrepared: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -630,9 +646,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
                 <input
                   type="text"
-                  value={localPreparedByName}
-                  onChange={(e) => setLocalPreparedByName(e.target.value)}
-                  onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
+                  value={ics205aPreparedByName}
+                  onChange={(e) => { setIcs205aPreparedByName(e.target.value); commDataRef.current = { ...commDataRef.current, ics205aPreparedByName: e.target.value }; setCommData(commDataRef.current); }}
+                  onBlur={() => saveCommData(false)}
                   placeholder="Preparer name"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -641,9 +657,9 @@ export function CommunicationsPage() {
                 <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
                 <input
                   type="text"
-                  value={localPreparedByTitle}
-                  onChange={(e) => setLocalPreparedByTitle(e.target.value)}
-                  onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
+                  value={ics205aPreparedByTitle}
+                  onChange={(e) => { setIcs205aPreparedByTitle(e.target.value); commDataRef.current = { ...commDataRef.current, ics205aPreparedByTitle: e.target.value }; setCommData(commDataRef.current); }}
+                  onBlur={() => saveCommData(false)}
                   placeholder="Position or title"
                   className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />

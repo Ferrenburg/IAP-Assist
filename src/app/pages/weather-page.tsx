@@ -1,11 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { Cloud, HelpCircle, MapPin, RefreshCw, X, Search, AlertTriangle, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '../../utils/api-client';
 import { generateWeatherPDF, WeatherPeriod, WeatherAlert } from '../../utils/ics-forms/generators/weather-pdf';
+
+const LeafletMap = dynamic(
+  () => import('../components/leaflet-map').then((m) => m.LeafletMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+        Loading map…
+      </div>
+    ),
+  }
+);
 
 interface WeatherPoint {
   gridId: string;
@@ -612,15 +625,23 @@ function MapPickerModal({
           )}
 
           {activeTab === 'map' && (
-            <div className="bg-slate-100 rounded-lg p-4 h-96 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-                <p className="text-slate-600 text-sm">Interactive map would appear here</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Selected: {markerLat.toFixed(4)}, {markerLon.toFixed(4)}
-                </p>
-              </div>
+            <div className="rounded-lg overflow-hidden h-96">
+              <LeafletMap
+                lat={markerLat}
+                lon={markerLon}
+                onLocationSelect={(lat, lon) => {
+                  setMarkerLat(lat);
+                  setMarkerLon(lon);
+                  setTempLat(lat.toFixed(6));
+                  setTempLon(lon.toFixed(6));
+                }}
+              />
             </div>
+          )}
+          {activeTab === 'map' && (
+            <p className="text-xs text-slate-500 mt-2 text-center">
+              Click on the map or drag the marker to set coordinates — {markerLat.toFixed(4)}, {markerLon.toFixed(4)}
+            </p>
           )}
         </div>
 

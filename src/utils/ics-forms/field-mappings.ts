@@ -626,7 +626,7 @@ export const ICS_205_BLOCKS = {
   preparedByName: { x: 580, y: 88, maxWidth: 172, fontSize: 9 },
   preparedByDateTime: {
     date: { x: 580, y: 495, fontSize: 9 },
-    time: { x: 580, y: 520, fontSize: 9 },
+    time: { x: 580, y: 558, fontSize: 9 },
   },
 };
 
@@ -767,16 +767,22 @@ export const ICS_207_BLOCKS = {
     time: { x: 84, y: 563, fontSize: 8 },
   },
 
-  // Block 3 - Organization Chart (pending visual calibration in landscape orientation)
+  // Block 3 - Organization Chart
+  // Coordinate system: portrait_x = 612 − landscape_y, portrait_y = landscape_x
+  // (same mapping used by the confirmed-working header/footer fields above)
+  // All text drawn with rotate=90 to read correctly in landscape orientation.
   orgChart: {
-    incidentCommander:  { x: 340, y: 437, maxWidth: 120, fontSize: 8 },
-    liaisonOfficer:     { x: 548, y: 462, maxWidth: 90,  fontSize: 7 },
-    safetyOfficer:      { x: 548, y: 408, maxWidth: 90,  fontSize: 7 },
-    publicInfoOfficer:  { x: 548, y: 358, maxWidth: 90,  fontSize: 7 },
-    operationsChief:    { x: 100, y: 400, maxWidth: 120, fontSize: 8 },
-    planningChief:      { x: 240, y: 282, maxWidth: 100, fontSize: 8 },
-    logisticsChief:     { x: 370, y: 282, maxWidth: 100, fontSize: 8 },
-    financeChief:       { x: 500, y: 282, maxWidth:  95, fontSize: 8 },
+    // IC box: centered inside box → landscape (355, 472) → portrait (140, 355)
+    incidentCommander:  { x: 140, y: 355, maxWidth: 120, fontSize: 8 },
+    // Command staff column: right side of IC row → landscape (~80/200/330, 400) → portrait (212, y)
+    safetyOfficer:      { x: 212, y:  80, maxWidth: 90,  fontSize: 7 },
+    publicInfoOfficer:  { x: 212, y: 215, maxWidth: 90,  fontSize: 7 },
+    liaisonOfficer:     { x: 212, y: 355, maxWidth: 90,  fontSize: 7 },
+    // Section chiefs row: lower band — each box ~180pts wide across landscape_x 50-770
+    operationsChief:    { x: 179, y: 200, maxWidth: 120, fontSize: 8 },
+    planningChief:      { x: 305, y: 320, maxWidth: 100, fontSize: 8 },
+    logisticsChief:     { x: 305, y: 500, maxWidth: 100, fontSize: 8 },
+    financeChief:       { x: 305, y: 675, maxWidth:  95, fontSize: 8 },
   },
 
   // Block 4 - Prepared by (portrait right strip; landscape lx ~ 85-620 -> portrait y = 85-620)

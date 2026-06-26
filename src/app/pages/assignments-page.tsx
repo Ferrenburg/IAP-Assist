@@ -65,13 +65,6 @@ export function AssignmentsPage() {
   const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
   const sharedSynced = useRef(false);
 
-  useEffect(() => {
-    if (shared && !sharedSynced.current) {
-      sharedSynced.current = true;
-      setLocalPreparedByName(shared.preparedByName ?? '');
-      setLocalPreparedByTitle(shared.preparedByTitle ?? '');
-    }
-  }, [shared]);
 
   useEffect(() => {
     loadData();
@@ -95,6 +88,8 @@ export function AssignmentsPage() {
       setAssignments(loadedAssignments);
       if (prepData?.data?.[0]) {
         setFormPrep(prepData.data[0]);
+        setLocalPreparedByName(prepData.data[0].preparedByName || '');
+        setLocalPreparedByTitle(prepData.data[0].positionTitle || '');
       } else {
         setFormPrep({
           id: crypto.randomUUID(),
@@ -296,8 +291,8 @@ export function AssignmentsPage() {
       const iapData = {
         incidentName: shared.incidentName,
         incidentNumber: shared.incidentNumber,
-        preparedBy: shared.preparedByName,
-        preparedByPosition: shared.preparedByTitle,
+        preparedBy: localPreparedByName,
+        preparedByPosition: localPreparedByTitle,
         preparedDateTime: formPrep.dateTimePrepared
           ? formatPreparedDateTime(formPrep.dateTimePrepared)
           : new Date().toISOString(),
@@ -335,8 +330,8 @@ export function AssignmentsPage() {
           operationsSectionChiefContact: personnel?.operationsSectionChiefContact || '',
           branchDirector,
           branchDirectorContact,
-          preparedBy: shared.preparedByName,
-          preparedByPosition: shared.preparedByTitle,
+          preparedBy: localPreparedByName,
+          preparedByPosition: localPreparedByTitle,
           preparedDateTime: formatPreparedDateTime(formPrep.dateTimePrepared),
         };
 
@@ -717,7 +712,7 @@ export function AssignmentsPage() {
                 setLocalPreparedByName(e.target.value);
                 setFormPrep({ ...formPrep, preparedByName: e.target.value });
               }}
-              onBlur={(e) => void updateShared({ preparedByName: e.target.value })}
+              onBlur={saveFormPrep}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -730,7 +725,7 @@ export function AssignmentsPage() {
                 setLocalPreparedByTitle(e.target.value);
                 setFormPrep({ ...formPrep, positionTitle: e.target.value });
               }}
-              onBlur={(e) => void updateShared({ preparedByTitle: e.target.value })}
+              onBlur={saveFormPrep}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

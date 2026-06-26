@@ -33,15 +33,6 @@ export function ObjectivesPage() {
     loadData();
   }, [iapId, periodId]);
 
-  // Seed local state from shared context on first load so the input value is
-  // immediately correct without waiting for the form-specific KV fetch.
-  useEffect(() => {
-    if (shared && !sharedSynced.current) {
-      sharedSynced.current = true;
-      if (shared.preparedByName) setPreparedByName(shared.preparedByName);
-      if (shared.preparedByTitle) setPreparedByPosition(shared.preparedByTitle);
-    }
-  }, [shared]);
 
   useEffect(() => {
     // Auto-resize all textareas after objectives load
@@ -308,8 +299,8 @@ export function ObjectivesPage() {
         iapData: {
           incidentName: shared.incidentName,
           incidentNumber: shared.incidentNumber,
-          preparedBy: shared.preparedByName,
-          preparedByPosition: shared.preparedByTitle,
+          preparedBy: preparedByName,
+          preparedByPosition: preparedByPosition,
           preparedDateTime: preparedDateTime,
           incidentCommanderName: shared.incidentCommander,
           agencyName: shared.agencyName,
@@ -503,10 +494,7 @@ export function ObjectivesPage() {
             <input
               type="text"
               value={preparedByName}
-              onChange={(e) => {
-                setPreparedByName(e.target.value);
-                void updateShared({ preparedByName: e.target.value });
-              }}
+              onChange={(e) => setPreparedByName(e.target.value)}
               onBlur={() => savePreparedByData()}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -516,10 +504,7 @@ export function ObjectivesPage() {
             <input
               type="text"
               value={preparedByPosition}
-              onChange={(e) => {
-                setPreparedByPosition(e.target.value);
-                void updateShared({ preparedByTitle: e.target.value });
-              }}
+              onChange={(e) => setPreparedByPosition(e.target.value)}
               onBlur={() => savePreparedByData()}
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
