@@ -26,7 +26,9 @@ export function WorkspaceHeader() {
   const { user, logout } = useAuth();
   const [currentPeriod, setCurrentPeriod] = useState<any>(null);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadPeriodInfo();
@@ -37,13 +39,14 @@ export function WorkspaceHeader() {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowAccountMenu(false);
       }
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setShowSettingsMenu(false);
+      }
     };
 
-    if (showAccountMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showAccountMenu]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadPeriodInfo = async () => {
     if (!iapId || !periodId) return;
@@ -62,125 +65,132 @@ export function WorkspaceHeader() {
     router.push('/');
   };
 
-  const formatDateTime = (date: string, time: string) => {
-    const dateObj = new Date(`${date}T${time}`);
-    return dateObj.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
+  const formatPeriodRange = (period: any) => {
+    const fmt = (date: string, time: string) =>
+      new Date(`${date}T${time}`).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+    return `${fmt(period.fromDate, period.fromTime)} – ${fmt(period.toDate, period.toTime)}`;
   };
 
   return (
-    <header className="bg-slate-900 border-b border-slate-700">
-      {/* Top banner with logo and account */}
-      <div className="px-6 py-3 border-b border-slate-700 flex items-center justify-between bg-[#000000]">
-        <div className="flex items-center gap-3">
-          <img src={opLogo} alt="OpPeriod" className="h-6" />
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/team')}
-            className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors"
-          >
-            Team
-          </button>
-          <button
-            onClick={() => router.push('/defaults')}
-            className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors"
-          >
-            Defaults
-          </button>
-          <button
-            onClick={() => router.push('/templates')}
-            className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors"
-          >
-            Templates
-          </button>
-          <button
-            onClick={() => router.push('/utilities')}
-            className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors"
-          >
-            Utilities
-          </button>
-          <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setShowAccountMenu(!showAccountMenu)}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
-          >
-            <div className="w-7 h-7 bg-yellow-600 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-sm text-slate-300">{user?.user_metadata?.name || user?.name || 'User'}</span>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          </button>
-
-          {showAccountMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-slate-700">
-                <p className="text-sm font-medium text-white">{user?.user_metadata?.name || user?.name || 'User'}</p>
-                <p className="text-xs text-slate-400">{user?.email || ''}</p>
-              </div>
-              <div className="py-2">
-                <button
-                  onClick={() => {
-                    setShowAccountMenu(false);
-                    router.push('/account-settings');
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2"
-                >
-                  <Settings className="w-4 h-4" />
-                  Account Settings
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAccountMenu(false);
-                    handleSignOut();
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700 transition-colors flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </button>
-              </div>
-            </div>
+    <header className="bg-white border-b border-slate-200">
+      <div className="px-6 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 shrink-0">
+          <Link href="/" className="cursor-pointer">
+            <img src={opLogo} alt="OpPeriod" className="h-6" />
+          </Link>
+          {!iapId && (
+            <Link href="/" className="text-sm text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1.5">
+              ← All Incidents
+            </Link>
           )}
+        </div>
+
+        {currentPeriod && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full text-xs font-medium text-slate-600 border border-slate-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span>Period {currentPeriod.periodNumber}</span>
+            <span className="text-slate-400">·</span>
+            <span className="text-slate-500 font-normal">{formatPeriodRange(currentPeriod)}</span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          <div className="relative" ref={settingsMenuRef}>
+            <button
+              onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+              className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              title="Settings & utilities"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+
+            {showSettingsMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50">
+                <div className="py-1">
+                  {[
+                    { label: 'Team', path: '/team' },
+                    { label: 'Defaults', path: '/defaults' },
+                    { label: 'Templates', path: '/templates' },
+                    { label: 'Utilities', path: '/utilities' },
+                  ].map(({ label, path }) => (
+                    <button
+                      key={path}
+                      onClick={() => { setShowSettingsMenu(false); router.push(path); }}
+                      className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowAccountMenu(!showAccountMenu)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-sm text-slate-700 font-medium">{user?.user_metadata?.name || user?.name || 'User'}</span>
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            </button>
+
+            {showAccountMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <p className="text-sm font-semibold text-slate-900">{user?.user_metadata?.name || user?.name || 'User'}</p>
+                  <p className="text-xs text-slate-500">{user?.email || ''}</p>
+                </div>
+                <div className="py-1">
+                  <button
+                    onClick={() => { setShowAccountMenu(false); router.push('/account-settings'); }}
+                    className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  >
+                    <Settings className="w-4 h-4 text-slate-400" />
+                    Account Settings
+                  </button>
+                  <button
+                    onClick={() => { setShowAccountMenu(false); handleSignOut(); }}
+                    className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Period info banner */}
-      {currentPeriod && (
-        <div className="px-6 py-2 border-b border-slate-700 bg-slate-900/50">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Current Period:</span>
-            <span className="text-yellow-400 font-medium">Period {currentPeriod.periodNumber}</span>
-            <span className="text-slate-500">•</span>
-            <span className="text-slate-400">
-              {formatDateTime(currentPeriod.fromDate, currentPeriod.fromTime)} - {formatDateTime(currentPeriod.toDate, currentPeriod.toTime)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation tabs */}
-      <div className="flex gap-1 overflow-x-auto px-6">
+      {iapId && periodId && <div className="flex gap-0.5 overflow-x-auto px-4 border-t border-slate-100">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const fullPath = `/iap/${iapId}/period/${periodId}${tab.path}`;
+          const fullPath = iapId && periodId ? `/iap/${iapId}/period/${periodId}${tab.path}` : '#';
           const isActive = pathname === fullPath;
+          const isAssembly = tab.id === 'iap-assembly';
 
           return (
             <Link
               key={tab.id}
-              to={fullPath}
+              href={fullPath}
               className={`px-4 py-3 text-sm font-medium whitespace-nowrap flex items-center gap-2 border-b-2 transition-colors ${
                 isActive
-                  ? 'text-white border-yellow-500'
-                  : 'text-slate-400 border-transparent hover:text-slate-200'
+                  ? isAssembly
+                    ? 'text-emerald-700 border-emerald-500'
+                    : 'text-slate-900 border-emerald-500'
+                  : isAssembly
+                  ? 'text-emerald-600 border-transparent hover:text-emerald-700 hover:bg-emerald-50'
+                  : 'text-slate-500 border-transparent hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -188,7 +198,7 @@ export function WorkspaceHeader() {
             </Link>
           );
         })}
-      </div>
+      </div>}
     </header>
   );
 }

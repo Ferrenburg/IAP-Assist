@@ -13,7 +13,7 @@ export function Homepage() {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={opLogo} alt="OpPeriod" className="h-12" />
+            <img src={opLogo.src} alt="OpPeriod" className="h-12" />
           </div>
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-slate-600 hover:text-yellow-600 transition-colors">Features</a>
@@ -166,7 +166,7 @@ export function Homepage() {
         <div className="max-w-7xl mx-auto px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <img src={opLogo} alt="OpPeriod" className="h-8" />
+              <img src={opLogo.src} alt="OpPeriod" className="h-8" />
             </div>
             <p className="text-sm text-[#000000]">
               © 2026 OpPeriod. Incident Action Plan management for emergency response teams.

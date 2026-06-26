@@ -18,7 +18,7 @@ export function IAPWorkspaceLayout({
   const showSidebar = pathname.includes('/iap/');
 
   return (
-    <div className={`h-screen flex flex-col ${resolvedTheme === 'light' ? 'bg-slate-100' : 'bg-slate-800'}`}>
+    <div className={`h-screen flex flex-col ${resolvedTheme === 'light' ? 'bg-slate-50' : 'bg-slate-900'}`}>
       <WorkspaceHeader />
       <div className="flex-1 flex overflow-hidden">
         {showSidebar && <Sidebar />}

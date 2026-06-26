@@ -62,7 +62,7 @@ export function Pricing() {
       <header className="border-b border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={opLogo} alt="OpPeriod" className="h-12" />
+            <img src={opLogo.src} alt="OpPeriod" className="h-12" />
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -206,7 +206,7 @@ export function Pricing() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <img src={opLogo} alt="OpPeriod" className="h-8" />
+              <img src={opLogo.src} alt="OpPeriod" className="h-8" />
             </div>
             <p className="text-sm text-slate-600">
               © 2026 OpPeriod. IAP management for emergency response teams.

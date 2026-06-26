@@ -93,31 +93,32 @@ export function drawCheckbox(
   x: number,
   y: number,
   size: number,
-  checked: boolean
+  checked: boolean,
+  drawOutline = true
 ): void {
-  // Draw checkbox outline
-  page.drawRectangle({
-    x,
-    y,
-    width: size,
-    height: size,
-    borderColor: rgb(0, 0, 0),
-    borderWidth: 1,
-  });
+  if (drawOutline) {
+    page.drawRectangle({
+      x,
+      y,
+      width: size,
+      height: size,
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 1,
+    });
+  }
 
-  // Draw X if checked
   if (checked) {
-    const margin = size * 0.2;
+    const margin = size * 0.15;
     page.drawLine({
       start: { x: x + margin, y: y + margin },
       end: { x: x + size - margin, y: y + size - margin },
-      thickness: 2,
+      thickness: 1.5,
       color: rgb(0, 0, 0),
     });
     page.drawLine({
       start: { x: x + size - margin, y: y + margin },
       end: { x: x + margin, y: y + size - margin },
-      thickness: 2,
+      thickness: 1.5,
       color: rgb(0, 0, 0),
     });
   }
@@ -128,10 +129,15 @@ export function drawCheckbox(
  */
 export function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const year = date.getFullYear();
+  // Parse the date portion directly to avoid UTC-midnight → previous-day shift.
+  // isoDate() always hands us a YYYY-MM-DD string; split it instead of using
+  // new Date() which treats bare date strings as UTC and can roll back a day
+  // for users in negative-UTC-offset timezones.
+  const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const parts = datePart.split('-');
+  if (parts.length !== 3) return '';
+  const [year, month, day] = parts;
+  if (!year || !month || !day) return '';
   return `${month}/${day}/${year}`;
 }
 

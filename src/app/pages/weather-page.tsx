@@ -1,7 +1,24 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { Cloud, HelpCircle, MapPin, RefreshCw, X, Search, AlertTriangle } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { useParams } from 'next/navigation';
+import { Cloud, HelpCircle, MapPin, RefreshCw, X, Search, AlertTriangle, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { apiClient } from '../../utils/api-client';
+import { generateWeatherPDF, WeatherPeriod, WeatherAlert } from '../../utils/ics-forms/generators/weather-pdf';
+
+const LeafletMap = dynamic(
+  () => import('../components/leaflet-map').then((m) => m.LeafletMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+        Loading map…
+      </div>
+    ),
+  }
+);
 
 interface WeatherPoint {
   gridId: string;
@@ -17,30 +34,9 @@ interface WeatherPoint {
   radarStation: string;
 }
 
-interface WeatherPeriod {
-  name: string;
-  temperature: number;
-  temperatureUnit: string;
-  windSpeed: string;
-  windDirection: string;
-  shortForecast: string;
-  detailedForecast: string;
-  isDaytime: boolean;
-  icon: string;
-}
-
-interface WeatherAlert {
-  id: string;
-  event: string;
-  headline: string;
-  description: string;
-  severity: string;
-  urgency: string;
-  onset: string;
-  expires: string;
-}
-
 export function WeatherPage() {
+  const { iapId, periodId } = useParams<{ iapId: string; periodId: string }>();
+
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [locationName, setLocationName] = useState('');
@@ -50,10 +46,11 @@ export function WeatherPage() {
   const [hourlyForecast, setHourlyForecast] = useState<WeatherPeriod[]>([]);
   const [alerts, setAlerts] = useState<WeatherAlert[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
   const [showMapModal, setShowMapModal] = useState(false);
 
-  // Load saved location from localStorage on mount
+  // Load saved location + weather data on mount
   useEffect(() => {
     const savedLocation = localStorage.getItem('weatherLocation');
     if (savedLocation) {
@@ -62,22 +59,67 @@ export function WeatherPage() {
         setLatitude(lat || '');
         setLongitude(lon || '');
         setLocationName(name || '');
-      } catch (error) {
-        console.error('Failed to load saved location:', error);
+      } catch {
+        // ignore parse errors
       }
     }
-  }, []);
 
-  // Save location to localStorage whenever it changes
+    if (iapId && periodId) {
+      loadSavedWeather();
+    }
+  }, [iapId, periodId]);
+
+  // Persist location to localStorage whenever it changes
   useEffect(() => {
     if (latitude || longitude || locationName) {
-      localStorage.setItem('weatherLocation', JSON.stringify({
-        latitude,
-        longitude,
-        locationName,
-      }));
+      localStorage.setItem('weatherLocation', JSON.stringify({ latitude, longitude, locationName }));
     }
   }, [latitude, longitude, locationName]);
+
+  const loadSavedWeather = async () => {
+    if (!iapId || !periodId) return;
+    try {
+      const res = await apiClient.getData(iapId, `period-${periodId}-weather`);
+      const saved = res?.data?.[0];
+      if (!saved) return;
+      if (saved.forecast?.length) setForecast(saved.forecast);
+      if (saved.hourlyForecast?.length) setHourlyForecast(saved.hourlyForecast);
+      if (saved.alerts) setAlerts(saved.alerts);
+      if (saved.weatherPoint) setWeatherPoint(saved.weatherPoint);
+      if (saved.lastUpdated) setLastUpdated(saved.lastUpdated);
+      if (saved.locationName) setLocationName(saved.locationName);
+      if (saved.latitude) setLatitude(saved.latitude);
+      if (saved.longitude) setLongitude(saved.longitude);
+    } catch (err) {
+      console.error('Failed to load saved weather:', err);
+    }
+  };
+
+  const saveWeatherToKV = async (payload: {
+    forecast: WeatherPeriod[];
+    hourlyForecast: WeatherPeriod[];
+    alerts: WeatherAlert[];
+    weatherPoint: WeatherPoint | null;
+    locationName: string;
+    latitude: string;
+    longitude: string;
+    lastUpdated: string;
+  }) => {
+    if (!iapId || !periodId) return;
+    setSaving(true);
+    try {
+      const existing = await apiClient.getData(iapId, `period-${periodId}-weather`);
+      if (existing?.data?.[0]?.id) {
+        await apiClient.updateData(iapId, `period-${periodId}-weather`, existing.data[0].id, payload);
+      } else {
+        await apiClient.createData(iapId, `period-${periodId}-weather`, payload);
+      }
+    } catch (err) {
+      console.error('Failed to save weather data:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleGetWeather = async () => {
     if (!latitude || !longitude) {
@@ -85,18 +127,32 @@ export function WeatherPage() {
       return;
     }
 
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    if (isNaN(lat) || isNaN(lon)) {
+      toast.error('Invalid coordinates. Please enter decimal numbers, e.g. Latitude: 38.8977 and Longitude: -77.0365');
+      return;
+    }
+    if (lat < 24 || lat > 50 || lon < -125 || lon > -66) {
+      toast.error('These coordinates are outside the United States. The National Weather Service only covers US locations. Try a location like Washington DC (38.8977, -77.0365).');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Step 1: Get the point metadata
-      const pointResponse = await fetch(`https://api.weather.gov/points/${latitude},${longitude}`, {
-        headers: {
-          'User-Agent': '(OpPeriod, contact@example.com)',
-        },
-      });
-
+      const pointResponse = await fetch(
+        `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
+        { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } },
+      );
       if (!pointResponse.ok) {
-        throw new Error('Failed to fetch weather point data');
+        if (pointResponse.status === 404) {
+          throw new Error('These coordinates do not match a known NWS coverage area. Please verify your latitude and longitude and try again.');
+        }
+        if (pointResponse.status === 500 || pointResponse.status === 503) {
+          throw new Error('The National Weather Service is temporarily unavailable. Please try again in a few minutes.');
+        }
+        throw new Error('Unable to retrieve weather data for these coordinates. Please check your location and try again.');
       }
 
       const pointData = await pointResponse.json();
@@ -113,47 +169,26 @@ export function WeatherPage() {
         timeZone: pointData.properties.timeZone,
         radarStation: pointData.properties.radarStation,
       };
-
       setWeatherPoint(point);
 
-      // Step 2: Get the forecast
-      const forecastResponse = await fetch(point.forecast, {
-        headers: {
-          'User-Agent': '(OpPeriod, contact@example.com)',
-        },
-      });
+      const [forecastRes, hourlyRes, alertsRes] = await Promise.all([
+        fetch(point.forecast, { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } }),
+        fetch(point.forecastHourly, { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } }).catch(() => null),
+        fetch(`https://api.weather.gov/alerts/active?point=${latitude},${longitude}`, {
+          headers: { 'User-Agent': '(OpPeriod, contact@example.com)' },
+        }),
+      ]);
 
-      if (!forecastResponse.ok) {
-        throw new Error('Failed to fetch forecast data');
-      }
+      if (!forecastRes.ok) throw new Error('Weather forecast data is currently unavailable for this location. Please try again shortly.');
 
-      const forecastData = await forecastResponse.json();
-      setForecast(forecastData.properties.periods);
+      const forecastData = await forecastRes.json();
+      const periods: WeatherPeriod[] = forecastData.properties.periods;
+      const hourly: WeatherPeriod[] = (hourlyRes?.ok ? (await hourlyRes.json()).properties.periods : []);
 
-      // Step 3: Get hourly forecast
-      const hourlyResponse = await fetch(point.forecastHourly, {
-        headers: {
-          'User-Agent': '(OpPeriod, contact@example.com)',
-        },
-      });
-
-      if (!hourlyResponse.ok) {
-        throw new Error('Failed to fetch hourly forecast');
-      }
-
-      const hourlyData = await hourlyResponse.json();
-      setHourlyForecast(hourlyData.properties.periods);
-
-      // Step 4: Get alerts for the point
-      const alertsResponse = await fetch(`https://api.weather.gov/alerts/active?point=${latitude},${longitude}`, {
-        headers: {
-          'User-Agent': '(OpPeriod, contact@example.com)',
-        },
-      });
-
-      if (alertsResponse.ok) {
-        const alertsData = await alertsResponse.json();
-        setAlerts(alertsData.features.map((f: any) => ({
+      let fetchedAlerts: WeatherAlert[] = [];
+      if (alertsRes.ok) {
+        const alertsData = await alertsRes.json();
+        fetchedAlerts = alertsData.features.map((f: any) => ({
           id: f.id,
           event: f.properties.event,
           headline: f.properties.headline,
@@ -162,14 +197,36 @@ export function WeatherPage() {
           urgency: f.properties.urgency,
           onset: f.properties.onset,
           expires: f.properties.expires,
-        })));
+        }));
       }
 
-      setLastUpdated(new Date().toLocaleString());
-      toast.success('Weather data loaded');
+      const updatedAt = new Date().toLocaleString();
+      setForecast(periods);
+      setHourlyForecast(hourly);
+      setAlerts(fetchedAlerts);
+      setLastUpdated(updatedAt);
+
+      // Persist to KV so IAP Assembly can include it
+      await saveWeatherToKV({
+        forecast: periods,
+        hourlyForecast: hourly,
+        alerts: fetchedAlerts,
+        weatherPoint: point,
+        locationName,
+        latitude,
+        longitude,
+        lastUpdated: updatedAt,
+      });
+
+      toast.success('Weather data loaded and saved');
     } catch (error: any) {
       console.error('Weather fetch error:', error);
-      toast.error(error.message || 'Failed to fetch weather data');
+      const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+      toast.error(
+        isNetworkError
+          ? 'Unable to connect to the National Weather Service. Please check your internet connection and try again.'
+          : (error.message || 'Unable to load weather data. Please try again.')
+      );
     } finally {
       setLoading(false);
     }
@@ -182,166 +239,27 @@ export function WeatherPage() {
     }
 
     try {
-      const pdfDoc = await PDFDocument.create();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-      const page = pdfDoc.addPage([612, 792]); // Letter size
-      const { width, height } = page.getSize();
-
-      let yPosition = height - 50;
-
-      // Title
-      page.drawText('Weather Forecast Report', {
-        x: 50,
-        y: yPosition,
-        size: 18,
-        font: boldFont,
-        color: rgb(0, 0, 0),
+      const pdfBytes = await generateWeatherPDF({
+        locationName,
+        latitude,
+        longitude,
+        weatherPoint: weatherPoint
+          ? { gridId: weatherPoint.gridId, gridX: weatherPoint.gridX, gridY: weatherPoint.gridY }
+          : null,
+        forecast,
+        alerts,
+        generatedAt: lastUpdated || new Date().toLocaleString(),
       });
-      yPosition -= 30;
 
-      // Location info
-      page.drawText(`Location: ${locationName || `${latitude}, ${longitude}`}`, {
-        x: 50,
-        y: yPosition,
-        size: 12,
-        font: font,
-        color: rgb(0, 0, 0),
-      });
-      yPosition -= 20;
-
-      if (weatherPoint) {
-        page.drawText(`NWS Office: ${weatherPoint.gridId} (Grid ${weatherPoint.gridX}, ${weatherPoint.gridY})`, {
-          x: 50,
-          y: yPosition,
-          size: 10,
-          font: font,
-          color: rgb(0.3, 0.3, 0.3),
-        });
-        yPosition -= 20;
-      }
-
-      page.drawText(`Generated: ${lastUpdated || new Date().toLocaleString()}`, {
-        x: 50,
-        y: yPosition,
-        size: 10,
-        font: font,
-        color: rgb(0.3, 0.3, 0.3),
-      });
-      yPosition -= 40;
-
-      // Track current page for multi-page support
-      let currentPage = page;
-
-      // Alerts section
-      if (alerts.length > 0) {
-        currentPage.drawText('ACTIVE WEATHER ALERTS', {
-          x: 50,
-          y: yPosition,
-          size: 14,
-          font: boldFont,
-          color: rgb(0.8, 0, 0),
-        });
-        yPosition -= 25;
-
-        for (const alert of alerts.slice(0, 3)) {
-          currentPage.drawText(`${alert.event} - ${alert.severity}`, {
-            x: 60,
-            y: yPosition,
-            size: 11,
-            font: boldFont,
-            color: rgb(0.6, 0, 0),
-          });
-          yPosition -= 15;
-
-          const headlineLines = wrapText(alert.headline, font, 10, 500);
-          for (const line of headlineLines) {
-            currentPage.drawText(line, {
-              x: 60,
-              y: yPosition,
-              size: 10,
-              font: font,
-              color: rgb(0, 0, 0),
-            });
-            yPosition -= 12;
-          }
-          yPosition -= 10;
-
-          if (yPosition < 100) break;
-        }
-        yPosition -= 10;
-      }
-
-      // Extended Forecast
-      currentPage.drawText('Extended Forecast', {
-        x: 50,
-        y: yPosition,
-        size: 14,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-      yPosition -= 25;
-
-      for (const period of forecast.slice(0, 14)) {
-        if (yPosition < 100) {
-          // Add new page if we run out of space
-          currentPage = pdfDoc.addPage([612, 792]);
-          yPosition = height - 50;
-          currentPage.drawText('Weather Forecast Report (continued)', {
-            x: 50,
-            y: yPosition,
-            size: 14,
-            font: boldFont,
-            color: rgb(0, 0, 0),
-          });
-          yPosition -= 30;
-        }
-
-        // Period name and temperature
-        currentPage.drawText(`${period.name}: ${period.temperature}°${period.temperatureUnit}`, {
-          x: 60,
-          y: yPosition,
-          size: 11,
-          font: boldFont,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= 15;
-
-        // Wind info
-        currentPage.drawText(`Wind: ${period.windSpeed} ${period.windDirection}`, {
-          x: 60,
-          y: yPosition,
-          size: 10,
-          font: font,
-          color: rgb(0.2, 0.2, 0.2),
-        });
-        yPosition -= 15;
-
-        // Detailed forecast (wrapped)
-        const forecastLines = wrapText(period.detailedForecast, font, 9, 500);
-        for (const line of forecastLines.slice(0, 3)) {
-          currentPage.drawText(line, {
-            x: 60,
-            y: yPosition,
-            size: 9,
-            font: font,
-            color: rgb(0, 0, 0),
-          });
-          yPosition -= 12;
-        }
-        yPosition -= 10;
-      }
-
-      // Generate and download PDF
-      const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `weather-forecast-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
       link.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
 
       toast.success('PDF exported successfully');
     } catch (error: any) {
@@ -349,31 +267,6 @@ export function WeatherPage() {
       toast.error('Failed to export PDF');
     }
   };
-
-  // Helper function to wrap text
-  function wrapText(text: string, font: any, fontSize: number, maxWidth: number): string[] {
-    const words = text.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
-
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
-
-      if (testWidth > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    }
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-
-    return lines;
-  }
 
   return (
     <div className="space-y-6">
@@ -384,9 +277,6 @@ export function WeatherPage() {
           <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
             <HelpCircle className="w-4 h-4" />
             Tutorial
-          </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors">
-            Templates
           </button>
           <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors">
             Help
@@ -443,7 +333,7 @@ export function WeatherPage() {
               type="text"
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
-              placeholder="Auto-detected or manual"
+              placeholder="e.g. Washington, DC"
               className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -460,9 +350,23 @@ export function WeatherPage() {
         </div>
 
         {lastUpdated && (
-          <div className="mt-2 text-xs text-slate-400">
-            <p>Last updated: {lastUpdated}</p>
-            {weatherPoint && <p>NWS Office: {weatherPoint.gridId} (Grid {weatherPoint.gridX}, {weatherPoint.gridY})</p>}
+          <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+            <span>
+              Last updated: {lastUpdated}
+              {weatherPoint && `  |  NWS Office: ${weatherPoint.gridId} (Grid ${weatherPoint.gridX}, ${weatherPoint.gridY})`}
+            </span>
+            {saving && (
+              <span className="flex items-center gap-1 text-yellow-400">
+                <Save className="w-3 h-3" />
+                Saving…
+              </span>
+            )}
+            {!saving && forecast.length > 0 && (
+              <span className="flex items-center gap-1 text-green-400">
+                <Save className="w-3 h-3" />
+                Saved to IAP
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -473,62 +377,32 @@ export function WeatherPage() {
           <Cloud className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">No Weather Data</h3>
           <p className="text-slate-400 text-sm max-w-lg mx-auto">
-            Enter latitude and longitude coordinates above, then click "Get Weather" to fetch the current forecast from the National Weather Service.
+            Enter latitude and longitude coordinates above, then click "Get Weather" to fetch the current forecast from the National Weather Service. Weather data is automatically saved to this operational period so it can be included in the IAP export.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           {/* Tabs */}
           <div className="flex gap-2 border-b border-slate-700">
-            <button
-              onClick={() => setActiveTab('current')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'current'
-                  ? 'text-blue-400 border-b-2 border-blue-400'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <Cloud className="w-4 h-4" />
-                Current
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('hourly')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'hourly'
-                  ? 'text-blue-400 border-b-2 border-blue-400'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              Hourly
-            </button>
-            <button
-              onClick={() => setActiveTab('extended')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'extended'
-                  ? 'text-blue-400 border-b-2 border-blue-400'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              Extended
-            </button>
-            <button
-              onClick={() => setActiveTab('alerts')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'alerts'
-                  ? 'text-blue-400 border-b-2 border-blue-400'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              Alerts
-              {alerts.length > 0 && (
-                <span className="ml-2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">{alerts.length}</span>
-              )}
-            </button>
+            {(['current', 'hourly', 'extended', 'alerts'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 text-sm font-medium transition-colors capitalize flex items-center gap-2 ${
+                  activeTab === tab
+                    ? 'text-blue-400 border-b-2 border-blue-400'
+                    : 'text-slate-400 hover:text-slate-300'
+                }`}
+              >
+                {tab === 'current' && <Cloud className="w-4 h-4" />}
+                {tab}
+                {tab === 'alerts' && alerts.length > 0 && (
+                  <span className="ml-1 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">{alerts.length}</span>
+                )}
+              </button>
+            ))}
           </div>
 
-          {/* Weather Content */}
           <div className="bg-slate-900 rounded-lg border border-slate-700 p-8">
             {activeTab === 'current' && forecast[0] && (
               <div>
@@ -550,15 +424,15 @@ export function WeatherPage() {
             )}
 
             {activeTab === 'hourly' && (
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-3">
                 {hourlyForecast.map((period, idx) => (
                   <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0">
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-slate-400 w-32">{period.name}</span>
-                      <img src={period.icon} alt={period.shortForecast} className="w-8 h-8" />
-                      <span className="text-sm text-white">{period.shortForecast}</span>
+                    <div className="flex items-center gap-4 min-w-0">
+                      <span className="text-sm text-slate-400 w-32 shrink-0">{period.name}</span>
+                      <img src={period.icon} alt={period.shortForecast} className="w-8 h-8 shrink-0" />
+                      <span className="text-sm text-white truncate">{period.shortForecast}</span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0 ml-4">
                       <div className="text-lg font-semibold text-white">{period.temperature}°{period.temperatureUnit}</div>
                       <div className="text-xs text-slate-400">{period.windSpeed} {period.windDirection}</div>
                     </div>
@@ -595,9 +469,7 @@ export function WeatherPage() {
                 <div className="text-center py-12">
                   <AlertTriangle className="w-16 h-16 text-slate-500 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-white mb-2">No Active Weather Alerts</h3>
-                  <p className="text-slate-400 text-sm">
-                    There are no current weather alerts for this location.
-                  </p>
+                  <p className="text-slate-400 text-sm">There are no current weather alerts for this location.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -608,12 +480,8 @@ export function WeatherPage() {
                         <div className="flex-1">
                           <h3 className="font-semibold text-red-400 mb-1">{alert.event}</h3>
                           <p className="text-sm text-slate-300 mb-2">{alert.headline}</p>
-                          <p className="text-xs text-slate-400">
-                            Severity: {alert.severity} | Urgency: {alert.urgency}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            Expires: {new Date(alert.expires).toLocaleString()}
-                          </p>
+                          <p className="text-xs text-slate-400">Severity: {alert.severity} | Urgency: {alert.urgency}</p>
+                          <p className="text-xs text-slate-500 mt-1">Expires: {new Date(alert.expires).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -625,7 +493,6 @@ export function WeatherPage() {
         </div>
       )}
 
-      {/* Map Modal */}
       {showMapModal && (
         <MapPickerModal
           onClose={() => setShowMapModal(false)}
@@ -657,18 +524,11 @@ function MapPickerModal({
 
   const handleSearch = async () => {
     if (!searchQuery) return;
-
     try {
-      // Use Nominatim (OpenStreetMap) geocoding API
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`,
-        {
-          headers: {
-            'User-Agent': 'OpPeriod',
-          },
-        }
+        { headers: { 'User-Agent': 'OpPeriod' } },
       );
-
       const results = await response.json();
       if (results.length > 0) {
         const lat = parseFloat(results[0].lat);
@@ -681,8 +541,7 @@ function MapPickerModal({
       } else {
         toast.error('Location not found');
       }
-    } catch (error) {
-      console.error('Geocoding error:', error);
+    } catch {
       toast.error('Failed to search location');
     }
   };
@@ -700,37 +559,24 @@ function MapPickerModal({
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Pick Weather Location</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X className="w-5 h-5" />
-          </button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="p-6">
-          {/* Tabs */}
           <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setActiveTab('coordinates')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'coordinates'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Coordinates
-            </button>
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'map'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Map Location
-            </button>
+            {(['coordinates', 'map'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+                  activeTab === tab ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {tab === 'coordinates' ? 'Coordinates' : 'Map Location'}
+              </button>
+            ))}
           </div>
 
-          {/* Search */}
           <div className="mb-4">
             <div className="flex gap-2">
               <div className="flex-1 relative">
@@ -754,53 +600,53 @@ function MapPickerModal({
           </div>
 
           {activeTab === 'coordinates' && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
-                  <input
-                    type="text"
-                    value={tempLat}
-                    onChange={(e) => setTempLat(e.target.value)}
-                    placeholder="e.g., 38.8977"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
-                  <input
-                    type="text"
-                    value={tempLon}
-                    onChange={(e) => setTempLon(e.target.value)}
-                    placeholder="e.g., -77.0365"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
+                <input
+                  type="text"
+                  value={tempLat}
+                  onChange={(e) => setTempLat(e.target.value)}
+                  placeholder="e.g., 38.8977"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
+                <input
+                  type="text"
+                  value={tempLon}
+                  onChange={(e) => setTempLon(e.target.value)}
+                  placeholder="e.g., -77.0365"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
             </div>
           )}
 
           {activeTab === 'map' && (
-            <div className="bg-slate-100 rounded-lg p-4 h-96 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-                <p className="text-slate-600 text-sm">Interactive map would appear here</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Selected: {markerLat.toFixed(4)}, {markerLon.toFixed(4)}
-                </p>
-                <p className="text-xs text-slate-400 mt-4">
-                  © OpenStreetMap contributors
-                </p>
-              </div>
+            <div className="rounded-lg overflow-hidden h-96">
+              <LeafletMap
+                lat={markerLat}
+                lon={markerLon}
+                onLocationSelect={(lat, lon) => {
+                  setMarkerLat(lat);
+                  setMarkerLon(lon);
+                  setTempLat(lat.toFixed(6));
+                  setTempLon(lon.toFixed(6));
+                }}
+              />
             </div>
+          )}
+          {activeTab === 'map' && (
+            <p className="text-xs text-slate-500 mt-2 text-center">
+              Click on the map or drag the marker to set coordinates — {markerLat.toFixed(4)}, {markerLon.toFixed(4)}
+            </p>
           )}
         </div>
 
         <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
-          >
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
             Cancel
           </button>
           <button

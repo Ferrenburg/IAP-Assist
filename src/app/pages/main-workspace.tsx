@@ -130,7 +130,7 @@ export function MainWorkspace() {
       {/* Sidebar */}
       <div className="w-72 bg-slate-900 text-white flex flex-col">
         <div className="p-6 border-b border-slate-700 bg-[#000000]">
-          <img src={opLogo} alt="OpPeriod" className="h-8 mb-3" />
+          <img src={opLogo.src} alt="OpPeriod" className="h-8 mb-3" />
           <p className="text-sm text-slate-400">{user?.email}</p>
         </div>
 
@@ -449,28 +449,18 @@ function CreateIAPModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
         startTime: parsedStartTime,
       });
 
-      // Create initial operational period
-      const startDt = new Date(periodData.startDateTime);
-      const endDt = new Date(periodData.endDateTime);
-
-      const periodId = crypto.randomUUID();
-      const initialPeriod = {
-        id: periodId,
-        periodNumber: periodData.periodNumber,
-        periodName: periodData.periodName,
-        fromDate: startDt.toISOString().split('T')[0],
-        fromTime: `${String(startDt.getHours()).padStart(2, '0')}:${String(startDt.getMinutes()).padStart(2, '0')}`,
-        toDate: endDt.toISOString().split('T')[0],
-        toTime: `${String(endDt.getHours()).padStart(2, '0')}:${String(endDt.getMinutes()).padStart(2, '0')}`,
-      };
-
-      // Create the initial period
-      await apiClient.createData(iap.id, 'periods', initialPeriod);
-      console.log('Created initial period:', periodId);
+      // Create initial operational period via the SQL route, which returns the
+      // server-assigned UUID. Do NOT use a client-side UUID for navigation.
+      const { item: period } = await apiClient.createPeriod(iap.id, {
+        periodNumber: parseInt(periodData.periodNumber, 10) || 1,
+        startAt: new Date(periodData.startDateTime).toISOString(),
+        endAt: new Date(periodData.endDateTime).toISOString(),
+        status: 'active',
+      });
 
       onSuccess();
       onClose();
-      router.push(`/iap/${iap.id}/period/${periodId}/objectives`);
+      router.push(`/iap/${iap.id}/period/${period.id}/objectives`);
     } catch (err: any) {
       setError(err.message || 'Failed to create IAP');
       setLoading(false);

@@ -151,10 +151,10 @@ These are explicitly excluded from MVP. If the user asks for them, flag it as a 
 ## Branching & Commits
 
 - `main` — production (auto-deploys to Vercel)
-- `develop` — integration branch
+- `dev` — integration branch
 - `sprint-N/feature-name` — feature branches per sprint
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`
-- Merge to `develop` via PR. Merge to `main` only at sprint completion after client approval.
+- Merge to `dev` via PR. Merge to `main` only at sprint completion after client approval.
 
 ---
 
@@ -239,7 +239,7 @@ A sprint is "done" when **all** of these are true:
 
 - [ ] All deliverables in the sprint file are checked off.
 - [ ] All success criteria in the sprint file pass manual testing.
-- [ ] Code is merged to `develop` and deployed to a Vercel preview.
+- [ ] Code is merged to `dev` and deployed to a Vercel preview.
 - [ ] No critical bugs open against sprint scope.
 - [ ] Sprint file's "Progress Log" reflects what was actually built.
 - [ ] `PROGRESS.md` has a final entry summarizing the sprint.
