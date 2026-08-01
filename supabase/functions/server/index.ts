@@ -1281,11 +1281,203 @@ app.get("/admin/users", async (c) => {
       return c.json({ error: `Failed to fetch users: ${error.message}` }, 500);
     }
 
+    // Attach org memberships (org name + role) so the panel can show which
+    // account each user belongs to and who owns/administers it, in one call.
+    const { data: memberRows, error: memberErr } = await supabase
+      .from('org_members')
+      .select('user_id, role, organizations(id, name)');
+    if (memberErr) {
+      console.log(`Error fetching org memberships: ${memberErr.message}`);
+    }
+
+    const membershipsByUser = new Map<string, { id: string; name: string; role: string }[]>();
+    for (const row of memberRows ?? []) {
+      const org = row.organizations as unknown as { id: string; name: string } | null;
+      if (!org) continue;
+      const list = membershipsByUser.get(row.user_id) ?? [];
+      list.push({ id: org.id, name: org.name, role: row.role });
+      membershipsByUser.set(row.user_id, list);
+    }
+
+    const usersWithOrgs = users.map((u) => ({
+      ...u,
+      organizations: membershipsByUser.get(u.id) ?? [],
+    }));
+
     console.log(`Fetched ${users.length} users`);
-    return c.json(users);
+    return c.json(usersWithOrgs);
   } catch (error) {
     console.log(`Error fetching users: ${error}`);
     return c.json({ error: "Failed to fetch users" }, 500);
+  }
+});
+
+// List organizations (id + name) for the admin "create user" org picker.
+app.get("/admin/organizations", async (c) => {
+  try {
+    const user = await getAuthenticatedUser(c.req.raw);
+    if (!user || !isAdmin(user)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const supabase = getSupabaseClient(undefined, true);
+    const { data: rows, error } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .order('name', { ascending: true });
+    if (error) {
+      console.log(`Error fetching organizations: ${error.message}`);
+      return c.json({ error: "Failed to fetch organizations" }, 500);
+    }
+
+    return c.json(rows ?? []);
+  } catch (error) {
+    console.log(`Error fetching organizations: ${error}`);
+    return c.json({ error: "Failed to fetch organizations" }, 500);
+  }
+});
+
+// Create a user account. Adds the new user to an existing org (orgId) or a
+// brand-new one (organizationName), with the given role in that org.
+app.post("/admin/users", async (c) => {
+  try {
+    const requester = await getAuthenticatedUser(c.req.raw);
+    if (!requester || !isAdmin(requester)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const body = await c.req.json();
+    const { email, password, name, isAdmin: grantAdmin, orgId, organizationName, role } = body;
+
+    if (!email || !password || !name) {
+      return c.json({ error: "Email, password, and name are required" }, 400);
+    }
+    if (!orgId && !organizationName) {
+      return c.json({ error: "Either orgId or organizationName is required" }, 400);
+    }
+    const memberRole = ['owner', 'admin', 'member'].includes(role) ? role : 'member';
+
+    const supabase = getSupabaseClient(undefined, true);
+
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      user_metadata: { name, isAdmin: grantAdmin === true, ...(organizationName ? { organization: organizationName } : {}) },
+      email_confirm: true, // Auto-confirm; transactional email isn't configured.
+    });
+    if (error || !data?.user) {
+      console.log(`Admin user-create error for ${email}: ${error?.message ?? 'unknown'}`);
+      return c.json({ error: error?.message ?? 'Failed to create user' }, 400);
+    }
+
+    let resolvedOrgId: string | undefined = orgId;
+    if (!resolvedOrgId) {
+      const { data: org, error: orgErr } = await supabase
+        .from('organizations')
+        .insert({ name: organizationName })
+        .select('id')
+        .single();
+      if (orgErr || !org) {
+        console.log(`Org create failed while creating user ${data.user.id}: ${orgErr?.message}`);
+        return c.json({ user: data.user, warning: 'User created but organization creation failed' }, 201);
+      }
+      resolvedOrgId = org.id as string;
+    }
+
+    const { error: memberErr } = await supabase
+      .from('org_members')
+      .insert({ user_id: data.user.id, org_id: resolvedOrgId, role: memberRole });
+    if (memberErr) {
+      console.log(`org_members insert failed for new user ${data.user.id}: ${memberErr.message}`);
+      return c.json({ user: data.user, warning: 'User created but could not be added to the organization' }, 201);
+    }
+
+    console.log(`Admin ${requester.id} created user ${data.user.id} in org ${resolvedOrgId} as ${memberRole}`);
+    return c.json({ user: data.user });
+  } catch (error) {
+    console.log(`Error creating user: ${error}`);
+    return c.json({ error: "Failed to create user" }, 500);
+  }
+});
+
+// Delete a user account. Refuses to delete the caller, and refuses to delete
+// a user who still owns incidents (their org_members rows cascade-delete
+// automatically, but incidents.created_by has no cascade — deleting first
+// would either fail at the DB or silently orphan data).
+app.delete("/admin/users/:userId", async (c) => {
+  try {
+    const requester = await getAuthenticatedUser(c.req.raw);
+    if (!requester || !isAdmin(requester)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const userId = c.req.param("userId");
+    if (userId === requester.id) {
+      return c.json({ error: "You cannot delete your own account" }, 400);
+    }
+
+    const supabase = getSupabaseClient(undefined, true);
+
+    const { count, error: incErr } = await supabase
+      .from('incidents')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by', userId);
+    if (incErr) {
+      console.log(`Error checking incidents for user ${userId}: ${incErr.message}`);
+      return c.json({ error: "Failed to check user's incidents" }, 500);
+    }
+    if (count && count > 0) {
+      return c.json(
+        { error: `Cannot delete this user — they created ${count} incident(s). Reassign or delete those incidents first.` },
+        409,
+      );
+    }
+
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    if (error) {
+      console.log(`Error deleting user ${userId}: ${error.message}`);
+      return c.json({ error: error.message }, 500);
+    }
+
+    console.log(`Admin ${requester.id} deleted user ${userId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error deleting user: ${error}`);
+    return c.json({ error: "Failed to delete user" }, 500);
+  }
+});
+
+// Change a user's role (owner / admin / member) within one of their organizations.
+app.put("/admin/users/:userId/org-role", async (c) => {
+  try {
+    const requester = await getAuthenticatedUser(c.req.raw);
+    if (!requester || !isAdmin(requester)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const userId = c.req.param("userId");
+    const body = await c.req.json();
+    const { orgId, role } = body;
+    if (!orgId || !['owner', 'admin', 'member'].includes(role)) {
+      return c.json({ error: "orgId and a valid role (owner, admin, member) are required" }, 400);
+    }
+
+    const supabase = getSupabaseClient(undefined, true);
+    const { error } = await supabase
+      .from('org_members')
+      .update({ role })
+      .eq('user_id', userId)
+      .eq('org_id', orgId);
+    if (error) {
+      console.log(`Error updating org role for user ${userId}: ${error.message}`);
+      return c.json({ error: "Failed to update role" }, 500);
+    }
+
+    console.log(`Admin ${requester.id} set user ${userId} role to ${role} in org ${orgId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error updating org role: ${error}`);
+    return c.json({ error: "Failed to update role" }, 500);
   }
 });
 

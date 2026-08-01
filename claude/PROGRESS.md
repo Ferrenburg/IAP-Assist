@@ -10,14 +10,37 @@ A running log of work done across all sessions. Most recent entry at the top.
 
 - **Current sprint:** Sprint 6
 - **Sprint started:** 2026-06-01
-- **Last session:** 2026-06-04 — Sprint 6 session 2: 7 bug fixes across multiple pages + ICS 207 PDF coordinate calibration
-- **Next session focus:** End-to-end smoke test, cross-browser QA, final sprint review
+- **Last session:** 2026-08-01 — Sprint 6 session 3: admin backend for user account management (create/delete accounts, org visibility) — client-requested addition
+- **Next session focus:** Manual QA of the new admin user-management flows, then back to end-to-end smoke test, cross-browser QA, final sprint review
 
 ---
 
 ## Session Log
 
 <!-- Newest entries go here, at the top of the log. -->
+
+### 2026-08-01 — Sprint 6, Session 3 (Admin: User Account Management)
+
+**Worked on:** Client-requested addition (not in the original Sprint 6 deliverable list — logged here as a client-approved change order, requested directly by Sam) — backend + admin panel UI for employees to view, create, and delete user accounts, and see which organization each user belongs to and their role there.
+
+**Completed:**
+- `GET /admin/users` now joins `org_members` + `organizations` and returns each user's organization memberships (org name + role), so the panel shows who owns/administers each account, not just the platform-wide `isAdmin` flag.
+- New `GET /admin/organizations` — lists all orgs for the "create user" org picker.
+- New `POST /admin/users` — admin-only account creation. Adds the user to an existing org (`orgId`) or a brand-new one (`organizationName`), with a chosen `org_members.role` (owner/admin/member) and optional platform-admin grant.
+- New `DELETE /admin/users/:userId` — admin-only account deletion. Refuses to delete the caller, and refuses (409, with a clear message) to delete a user who still owns incidents (`incidents.created_by` has no cascade, unlike `org_members.user_id` which does) — the admin has to reassign/delete those incidents first rather than the delete silently failing or orphaning data.
+- New `PUT /admin/users/:userId/org-role` — change a member's role within one org.
+- Admin panel (`src/app/pages/admin.tsx`, Users tab): added an Organization column (org name + inline role selector per membership), a "Create User" dialog (shadcn `Dialog`/`Select`/`Input`), and a per-row Delete action (blocked for your own account).
+
+**Decisions made:**
+- Account deletion is blocked (not cascaded) when the target user has created incidents — losing incident data silently on account deletion was judged too risky for a production IAP tool; the admin must explicitly reassign/delete those incidents first.
+- Admins can't delete their own account from the panel.
+- Reused the existing `org_members.role` enum (`owner`/`admin`/`member`) from the Sprint 1 schema rather than introducing a new permissions concept — this is account/org administration visibility, not new end-user role-based permission logic (which stays out of MVP scope).
+
+**Blockers / open questions:**
+- None — no schema migration was needed; this only added edge function routes and reads/writes existing tables.
+
+**Next session should start with:**
+- Manual QA: as a platform admin, create a user into a new org, create a user into an existing org, change an org role inline, attempt to delete a user who owns an incident (expect a blocked 409), then delete a user with no incidents.
 
 ### 2026-06-04 — Sprint 6, Session 2 (Bug Fixes)
 

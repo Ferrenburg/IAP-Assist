@@ -1,11 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Users, Database, Loader2 } from 'lucide-react';
+import { Shield, Users, Database, Loader2, UserPlus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { projectId } from '../../utils/supabase-info';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 
 interface IAP {
   id: string;
@@ -13,6 +31,12 @@ interface IAP {
   incidentNumber: string;
   createdAt: string;
   userId: string;
+}
+
+interface OrgMembership {
+  id: string;
+  name: string;
+  role: 'owner' | 'admin' | 'member';
 }
 
 interface AdminUser {
@@ -23,9 +47,17 @@ interface AdminUser {
     isAdmin?: boolean;
   };
   created_at: string;
+  organizations: OrgMembership[];
+}
+
+interface Organization {
+  id: string;
+  name: string;
 }
 
 const SERVER_BASE = `https://${projectId}.supabase.co/functions/v1/server`;
+
+const NEW_ORG_VALUE = '__new__';
 
 export function Admin() {
   const router = useRouter();
@@ -33,8 +65,21 @@ export function Admin() {
   const [activeTab, setActiveTab] = useState<'users' | 'workspaces'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [iaps, setIaps] = useState<IAP[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    orgSelection: '',
+    newOrgName: '',
+    role: 'member' as 'owner' | 'admin' | 'member',
+    grantAdmin: false,
+  });
 
   if (!isAdmin) {
     return (
@@ -71,7 +116,7 @@ export function Admin() {
     setLoading(true);
     try {
       if (activeTab === 'users') {
-        await loadUsers();
+        await Promise.all([loadUsers(), loadOrganizations()]);
       } else {
         await loadAllIAPs();
       }
@@ -92,6 +137,17 @@ export function Admin() {
     }
     const data = await response.json();
     setUsers(data);
+  };
+
+  const loadOrganizations = async () => {
+    const response = await fetch(`${SERVER_BASE}/admin/organizations`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to load organizations');
+    }
+    const data = await response.json();
+    setOrgs(data);
   };
 
   const loadAllIAPs = async () => {
@@ -125,6 +181,118 @@ export function Admin() {
       toast.error('Failed to update admin status');
     } finally {
       setProcessing(null);
+    }
+  };
+
+  const handleChangeOrgRole = async (userId: string, orgId: string, role: string) => {
+    setProcessing(userId);
+    try {
+      const response = await fetch(`${SERVER_BASE}/admin/users/${userId}/org-role`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ orgId, role }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Failed to update role');
+      }
+      toast.success('Role updated');
+      await loadUsers();
+    } catch (err: any) {
+      console.error('Failed to update role:', err);
+      toast.error(err.message ?? 'Failed to update role');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleDeleteUser = async (targetUser: AdminUser) => {
+    if (targetUser.id === user?.id) {
+      toast.error('You cannot delete your own account');
+      return;
+    }
+    if (!confirm(`Permanently delete ${targetUser.email}? This cannot be undone.`)) return;
+
+    setProcessing(targetUser.id);
+    try {
+      const response = await fetch(`${SERVER_BASE}/admin/users/${targetUser.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Failed to delete user');
+      }
+      toast.success('User deleted');
+      await loadUsers();
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      toast.error(err.message ?? 'Failed to delete user');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const resetCreateForm = () => {
+    setCreateForm({
+      name: '',
+      email: '',
+      password: '',
+      orgSelection: '',
+      newOrgName: '',
+      role: 'member',
+      grantAdmin: false,
+    });
+  };
+
+  const handleCreateUser = async () => {
+    const { name, email, password, orgSelection, newOrgName, role, grantAdmin } = createForm;
+
+    if (!name.trim() || !email.trim() || !password) {
+      toast.error('Name, email, and password are required');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    const isNewOrg = orgSelection === NEW_ORG_VALUE;
+    if (!orgSelection || (isNewOrg && !newOrgName.trim())) {
+      toast.error('Choose an organization or name a new one');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const response = await fetch(`${SERVER_BASE}/admin/users`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role,
+          isAdmin: grantAdmin,
+          ...(isNewOrg ? { organizationName: newOrgName.trim() } : { orgId: orgSelection }),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Failed to create user');
+      }
+      if (data.warning) {
+        toast.warning(data.warning);
+      } else {
+        toast.success('User account created');
+      }
+      setCreateOpen(false);
+      resetCreateForm();
+      await Promise.all([loadUsers(), loadOrganizations()]);
+    } catch (err: any) {
+      console.error('Failed to create user:', err);
+      toast.error(err.message ?? 'Failed to create user');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -188,12 +356,18 @@ export function Admin() {
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-slate-900">All User Accounts</h2>
-              <button
-                onClick={() => loadUsers()}
-                className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
-              >
-                Refresh
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => loadUsers()}
+                  className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
+                >
+                  Refresh
+                </button>
+                <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Create User
+                </Button>
+              </div>
             </div>
 
             {users.length === 0 ? (
@@ -208,8 +382,9 @@ export function Admin() {
                     <tr>
                       <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Name</th>
                       <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Email</th>
+                      <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Organization</th>
                       <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Created</th>
-                      <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Admin</th>
+                      <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Platform Admin</th>
                       <th className="text-right px-6 py-3 text-sm font-semibold text-slate-900">Actions</th>
                     </tr>
                   </thead>
@@ -218,6 +393,29 @@ export function Admin() {
                       <tr key={u.id} className="hover:bg-slate-50">
                         <td className="px-6 py-4 text-sm text-slate-900">{u.user_metadata?.name || '-'}</td>
                         <td className="px-6 py-4 text-sm text-slate-900">{u.email}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">
+                          {u.organizations.length === 0 ? (
+                            <span className="text-slate-400">No organization</span>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {u.organizations.map((org) => (
+                                <div key={org.id} className="flex items-center gap-2">
+                                  <span className="text-slate-900">{org.name}</span>
+                                  <select
+                                    value={org.role}
+                                    disabled={processing === u.id}
+                                    onChange={(e) => handleChangeOrgRole(u.id, org.id, e.target.value)}
+                                    className="text-xs border border-slate-300 rounded px-1.5 py-0.5 bg-white disabled:opacity-50"
+                                  >
+                                    <option value="owner">owner</option>
+                                    <option value="admin">admin</option>
+                                    <option value="member">member</option>
+                                  </select>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
@@ -234,19 +432,30 @@ export function Admin() {
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => handleToggleAdmin(u.id, !!u.user_metadata?.isAdmin)}
-                            disabled={processing === u.id}
-                            className="text-sm text-yellow-600 hover:text-yellow-700 font-medium disabled:opacity-50"
-                          >
-                            {processing === u.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin inline" />
-                            ) : u.user_metadata?.isAdmin ? (
-                              'Remove Admin'
-                            ) : (
-                              'Make Admin'
-                            )}
-                          </button>
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => handleToggleAdmin(u.id, !!u.user_metadata?.isAdmin)}
+                              disabled={processing === u.id}
+                              className="text-sm text-yellow-600 hover:text-yellow-700 font-medium disabled:opacity-50"
+                            >
+                              {processing === u.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin inline" />
+                              ) : u.user_metadata?.isAdmin ? (
+                                'Remove Admin'
+                              ) : (
+                                'Make Admin'
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              disabled={processing === u.id || u.id === user?.id}
+                              title={u.id === user?.id ? "You can't delete your own account" : 'Delete user'}
+                              className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -296,6 +505,120 @@ export function Admin() {
           </div>
         )}
       </div>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create User Account</DialogTitle>
+            <DialogDescription>
+              Creates a login for this person and adds them to an organization.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="create-name">Name</Label>
+              <Input
+                id="create-name"
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Jane Smith"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-email">Email</Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="jane@agency.gov"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-password">Temporary Password</Label>
+              <Input
+                id="create-password"
+                type="text"
+                value={createForm.password}
+                onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="At least 6 characters"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Organization</Label>
+              <Select
+                value={createForm.orgSelection}
+                onValueChange={(value) => setCreateForm((f) => ({ ...f, orgSelection: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NEW_ORG_VALUE}>+ New organization</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createForm.orgSelection === NEW_ORG_VALUE && (
+              <div className="space-y-1.5">
+                <Label htmlFor="create-new-org">New Organization Name</Label>
+                <Input
+                  id="create-new-org"
+                  value={createForm.newOrgName}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, newOrgName: e.target.value }))}
+                  placeholder="Riverside Fire Department"
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Role in Organization</Label>
+              <Select
+                value={createForm.role}
+                onValueChange={(value) =>
+                  setCreateForm((f) => ({ ...f, role: value as 'owner' | 'admin' | 'member' }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="member">Member</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={createForm.grantAdmin}
+                onChange={(e) => setCreateForm((f) => ({ ...f, grantAdmin: e.target.checked }))}
+              />
+              Grant platform admin access (this admin panel)
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateUser} disabled={creating}>
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
