@@ -703,7 +703,7 @@ export function IAPAssemblyPage() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block w-8 h-8 border-4 border-yellow-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-slate-600">Loading IAP data...</p>
+          <p className="text-muted-foreground">Loading IAP data...</p>
         </div>
       </div>
     );
@@ -724,105 +724,105 @@ export function IAPAssemblyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">IAP Assembly</h1>
-        <p className="text-slate-600">Generate a complete Incident Action Plan with all selected forms</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">IAP Assembly</h1>
+        <p className="text-muted-foreground">Generate a complete Incident Action Plan with all selected forms</p>
       </div>
 
       {/* IAP Metadata */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">IAP Metadata</h2>
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">IAP Metadata</h2>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Incident Name</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Incident Name</label>
               <input
                 type="text"
                 value={iapData?.name || ''}
                 disabled
-                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-900"
+                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Operational Period</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Operational Period</label>
               <input
                 type="text"
                 value={periodData ? `${formatISODate(periodData.startAt)} - ${formatISODate(periodData.endAt)}` : ''}
                 disabled
-                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-900"
+                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Prepared by: Name</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Prepared by: Name</label>
               <input
                 type="text"
                 value={preparedByName}
                 onChange={(e) => setPreparedByName(e.target.value)}
                 placeholder="Enter your name"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Position/Title</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Position/Title</label>
               <input
                 type="text"
                 value={preparedByPosition}
                 onChange={(e) => setPreparedByPosition(e.target.value)}
                 placeholder="e.g., Planning Section Chief"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date Prepared</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Date Prepared</label>
               <input
                 type="date"
                 value={preparedDate}
                 onChange={(e) => setPreparedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Time Prepared</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Time Prepared</label>
               <input
                 type="time"
                 value={preparedTime}
                 onChange={(e) => setPreparedTime(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Approved by Incident Commander: Name</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Approved by Incident Commander: Name</label>
             <input
               type="text"
               value={approvedByName}
               onChange={(e) => setApprovedByName(e.target.value)}
               placeholder="Enter IC name"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
             />
           </div>
         </div>
       </div>
 
       {/* IAP Cover Section */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">IAP Cover</h2>
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">IAP Cover</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Agency Logo</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Agency Logo</label>
             <div className="flex items-center gap-4">
               <label className="cursor-pointer">
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors">
-                  <Upload className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-700">Upload Logo</span>
+                <div className="flex items-center gap-2 px-4 py-2 bg-muted border border-border rounded-lg hover:bg-accent transition-colors">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-foreground">Upload Logo</span>
                 </div>
                 <input
                   type="file"
@@ -832,14 +832,14 @@ export function IAPAssemblyPage() {
                 />
               </label>
               {logoFile && (
-                <span className="text-sm text-slate-600">{logoFile.name}</span>
+                <span className="text-sm text-muted-foreground">{logoFile.name}</span>
               )}
             </div>
           </div>
 
           {logoPreview && (
-            <div className="border border-slate-300 rounded-lg p-4 bg-slate-50">
-              <p className="text-sm font-medium text-slate-700 mb-2">Preview:</p>
+            <div className="border border-border rounded-lg p-4 bg-muted">
+              <p className="text-sm font-medium text-foreground mb-2">Preview:</p>
               <img src={logoPreview} alt="Logo preview" className="max-h-24 object-contain" />
             </div>
           )}
@@ -847,32 +847,32 @@ export function IAPAssemblyPage() {
       </div>
 
       {/* Form Selection */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Select Forms to Include</h2>
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Select Forms to Include</h2>
 
         <div className="space-y-3">
           {forms.map((form) => (
             <label
               key={form.id}
-              className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+              className="flex items-start gap-3 p-3 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
             >
               <input
                 type="checkbox"
                 checked={form.checked}
                 onChange={() => toggleForm(form.id)}
-                className="mt-1 w-4 h-4 rounded border-slate-300 text-yellow-600 focus:ring-yellow-500"
+                className="mt-1 w-4 h-4 rounded border-border text-mustard-hover focus:ring-sage"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-500" />
-                  <span className="font-medium text-slate-900">{form.title}</span>
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium text-foreground">{form.title}</span>
                   {form.id === 'weather' && weatherAvailable !== null && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${weatherAvailable ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${weatherAvailable ? 'bg-sage/20 text-sage-hover' : 'bg-blush text-mustard-hover'}`}>
                       {weatherAvailable ? 'Data ready' : 'No data — visit Weather page first'}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-slate-600 mt-1">{form.description}</p>
+                <p className="text-sm text-muted-foreground mt-1">{form.description}</p>
               </div>
               {form.checked && form.requiresData && (
                 <CheckCircle2 className="w-5 h-5 text-green-600 mt-1" />
@@ -883,20 +883,20 @@ export function IAPAssemblyPage() {
       </div>
 
       {/* QR Code Option */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
             checked={includeQRCode}
             onChange={(e) => setIncludeQRCode(e.target.checked)}
-            className="mt-1 w-4 h-4 rounded border-slate-300 text-yellow-600 focus:ring-yellow-500"
+            className="mt-1 w-4 h-4 rounded border-border text-mustard-hover focus:ring-sage"
           />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <QrCode className="w-4 h-4 text-slate-600" />
-              <span className="font-medium text-slate-900">Include QR Code for Public Access</span>
+              <QrCode className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium text-foreground">Include QR Code for Public Access</span>
             </div>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               When enabled, the IAP will be uploaded to public storage and a QR code will be added to the cover page for mobile access.
             </p>
           </div>
@@ -904,13 +904,13 @@ export function IAPAssemblyPage() {
 
         {includeQRCode && (
           <div className="mt-4">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Public URL (optional)</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Public URL (optional)</label>
             <input
               type="url"
               value={publicUrl}
               onChange={(e) => setPublicUrl(e.target.value)}
               placeholder="https://example.com/iap/..."
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
             />
           </div>
         )}
@@ -921,7 +921,7 @@ export function IAPAssemblyPage() {
         <button
           onClick={generateIAP}
           disabled={generating || forms.every(f => !f.checked)}
-          className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="bg-mustard text-white px-6 py-3 rounded-lg font-medium hover:bg-mustard-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {generating ? (
             <>
@@ -937,7 +937,7 @@ export function IAPAssemblyPage() {
         </button>
 
         {forms.every(f => !f.checked) && (
-          <div className="flex items-center gap-2 text-amber-600">
+          <div className="flex items-center gap-2 text-mustard-hover">
             <AlertCircle className="w-5 h-5" />
             <span className="text-sm">Select at least one form to generate</span>
           </div>
@@ -946,8 +946,8 @@ export function IAPAssemblyPage() {
 
       {/* Progress indicator */}
       {progress && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-blue-900">{progress}</p>
+        <div className="bg-sage/10 border border-sage/30 rounded-lg p-4">
+          <p className="text-sm font-medium text-sage-hover">{progress}</p>
         </div>
       )}
     </div>

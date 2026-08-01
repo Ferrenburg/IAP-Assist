@@ -57,9 +57,9 @@ export function Pricing() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={opLogo.src} alt="OpPeriod" className="h-12" />
@@ -67,14 +67,14 @@ export function Pricing() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/')}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 flex items-center gap-2"
+              className="px-4 py-2 text-sm font-medium text-foreground hover:text-foreground flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Home
             </button>
             <button
               onClick={() => router.push('/login')}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-foreground hover:text-foreground border border-border rounded-lg hover:bg-background transition-colors"
             >
               Log In
             </button>
@@ -85,8 +85,8 @@ export function Pricing() {
       {/* Pricing Content */}
       <div className="max-w-7xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-slate-900 mb-4">Simple, transparent pricing</h1>
-          <p className="text-xl text-slate-600 mb-8">
+          <h1 className="text-5xl font-bold text-foreground mb-4">Simple, transparent pricing</h1>
+          <p className="text-xl text-muted-foreground mb-8">
             Choose the plan that works best for your team size
           </p>
         </div>
@@ -96,20 +96,20 @@ export function Pricing() {
           {tiers.map((tier) => (
             <div
               key={tier.name}
-              className={`bg-white rounded-xl shadow-lg overflow-hidden ${
-                tier.recommended ? 'border-2 border-yellow-600 ring-2 ring-yellow-100' : 'border border-slate-200'
+              className={`bg-card rounded-xl shadow-lg overflow-hidden ${
+                tier.recommended ? 'border-2 border-mustard ring-2 ring-blush' : 'border border-border'
               }`}
             >
               {tier.recommended && (
-                <div className="bg-yellow-600 text-white text-xs font-semibold text-center py-1">
+                <div className="bg-mustard text-white text-xs font-semibold text-center py-1">
                   MOST POPULAR
                 </div>
               )}
-              <div className={`px-6 py-4 ${tier.recommended ? 'bg-yellow-600' : 'bg-slate-100'}`}>
-                <h3 className={`text-xl font-bold ${tier.recommended ? 'text-white' : 'text-slate-900'}`}>
+              <div className={`px-6 py-4 ${tier.recommended ? 'bg-mustard' : 'bg-muted'}`}>
+                <h3 className={`text-xl font-bold ${tier.recommended ? 'text-white' : 'text-foreground'}`}>
                   {tier.name}
                 </h3>
-                <p className={`text-sm ${tier.recommended ? 'text-yellow-100' : 'text-slate-600'}`}>
+                <p className={`text-sm ${tier.recommended ? 'text-foreground/70' : 'text-muted-foreground'}`}>
                   {tier.description}
                 </p>
               </div>
@@ -117,23 +117,23 @@ export function Pricing() {
               <div className="p-6">
                 <div className="mb-4">
                   <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-4xl font-bold text-slate-900">
+                    <span className="text-4xl font-bold text-foreground">
                       ${tier.priceYearly.toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-600">{tier.priceUnit}</p>
-                  <p className="text-xs text-slate-500 mt-1">{tier.totalYearly}</p>
+                  <p className="text-sm text-muted-foreground">{tier.priceUnit}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{tier.totalYearly}</p>
                 </div>
 
-                <div className="mb-6 pb-6 border-b border-slate-200">
-                  <p className="text-sm font-semibold text-slate-700 mb-2">{tier.seats}</p>
+                <div className="mb-6 pb-6 border-b border-border">
+                  <p className="text-sm font-semibold text-foreground mb-2">{tier.seats}</p>
                 </div>
 
                 <ul className="space-y-3 mb-6">
                   {features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-2">
-                      <Check className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm text-slate-700">{feature}</span>
+                      <Check className="w-4 h-4 text-mustard-hover flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-foreground">{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -142,8 +142,8 @@ export function Pricing() {
                   onClick={() => router.push('/login')}
                   className={`w-full px-6 py-3 rounded-lg font-semibold transition-colors ${
                     tier.recommended
-                      ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                      : 'bg-slate-100 text-slate-900 hover:bg-slate-200'
+                      ? 'bg-mustard text-white hover:bg-mustard-hover'
+                      : 'bg-muted text-foreground hover:bg-accent'
                   }`}
                 >
                   {tier.name === 'Complex' ? 'Contact Sales' : 'Get Started'}
@@ -155,45 +155,45 @@ export function Pricing() {
 
         {/* Additional Info */}
         <div className="text-center">
-          <p className="text-sm text-slate-600 mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             All plans include the same features. Choose based on your team size.
           </p>
-          <p className="text-xs text-slate-500">
-            Need help choosing? <a href="mailto:support@opperiod.com" className="text-yellow-600 hover:text-yellow-700">Contact us</a>
+          <p className="text-xs text-muted-foreground">
+            Need help choosing? <a href="mailto:support@opperiod.com" className="text-mustard-hover hover:text-mustard">Contact us</a>
           </p>
         </div>
 
         {/* FAQ Section */}
         <div className="mt-16">
-          <h3 className="text-2xl font-bold text-slate-900 text-center mb-8">Frequently Asked Questions</h3>
+          <h3 className="text-2xl font-bold text-foreground text-center mb-8">Frequently Asked Questions</h3>
           <div className="max-w-2xl mx-auto space-y-6">
-            <div className="bg-white rounded-lg p-6 border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-2">Can I cancel anytime?</h4>
-              <p className="text-slate-600">
+            <div className="bg-card rounded-lg p-6 border border-border">
+              <h4 className="font-semibold text-foreground mb-2">Can I cancel anytime?</h4>
+              <p className="text-muted-foreground">
                 Yes, you can cancel your subscription at any time. Your access will continue until the end of your annual billing period. Contact us for assistance with cancellation.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-2">Is there a free trial?</h4>
-              <p className="text-slate-600">
+            <div className="bg-card rounded-lg p-6 border border-border">
+              <h4 className="font-semibold text-foreground mb-2">Is there a free trial?</h4>
+              <p className="text-muted-foreground">
                 Contact us to discuss trial options for your team. We want to make sure OpPeriod is the right fit for your organization.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-2">Are the ICS forms FEMA-compliant?</h4>
-              <p className="text-slate-600">
+            <div className="bg-card rounded-lg p-6 border border-border">
+              <h4 className="font-semibold text-foreground mb-2">Are the ICS forms FEMA-compliant?</h4>
+              <p className="text-muted-foreground">
                 Yes, all forms are based on official FEMA ICS templates and meet NIMS requirements.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-2">How many team members can use one account?</h4>
-              <p className="text-slate-600">
+            <div className="bg-card rounded-lg p-6 border border-border">
+              <h4 className="font-semibold text-foreground mb-2">How many team members can use one account?</h4>
+              <p className="text-muted-foreground">
                 Each plan includes a specific number of users: Type 3 (up to 5), Type 2 (up to 15), Type 1 (up to 30), or Complex (30+). All users get access to the same features.
               </p>
             </div>
-            <div className="bg-white rounded-lg p-6 border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-2">Can I upgrade my plan later?</h4>
-              <p className="text-slate-600">
+            <div className="bg-card rounded-lg p-6 border border-border">
+              <h4 className="font-semibold text-foreground mb-2">Can I upgrade my plan later?</h4>
+              <p className="text-muted-foreground">
                 Yes, you can upgrade to a larger plan at any time as your team grows. Contact us for assistance with plan changes.
               </p>
             </div>
@@ -202,13 +202,13 @@ export function Pricing() {
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 py-8 bg-white">
+      <footer className="border-t border-border py-8 bg-card">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <img src={opLogo.src} alt="OpPeriod" className="h-8" />
             </div>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               © 2026 OpPeriod. IAP management for emergency response teams.
             </p>
           </div>

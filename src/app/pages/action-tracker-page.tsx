@@ -182,7 +182,7 @@ export function ActionTrackerPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -192,30 +192,30 @@ export function ActionTrackerPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Action Tracker (ICS-233)</h1>
-          <p className="text-sm text-slate-400 mt-1">Track tasks and actions that don't rise to the level of Incident Objectives</p>
+          <h1 className="text-2xl font-bold text-foreground">Action Tracker (ICS-233)</h1>
+          <p className="text-sm text-muted-foreground mt-1">Track tasks and actions that don't rise to the level of Incident Objectives</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <History className="w-4 h-4" />
             History
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Templates
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             Tutorial
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <CircleHelp className="w-4 h-4" />
             Help
           </button>
           <button
             onClick={handleGenerateICS233}
             disabled={generating}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generating ? (
               <>
@@ -233,12 +233,12 @@ export function ActionTrackerPage() {
       </div>
 
       {/* Action Items */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-white">Action Items</h2>
+          <h2 className="text-lg font-semibold text-foreground">Action Items</h2>
           <button
             onClick={addAction}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-sage hover:bg-sage-hover text-white text-sm rounded-lg transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add Action
@@ -247,33 +247,33 @@ export function ActionTrackerPage() {
 
         <div className="space-y-6">
           {actionItems.map((action) => (
-            <div key={action.id} className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <div key={action.id} className="bg-muted rounded-lg border border-border p-4">
               {/* Top Row: Number, Item, For/POC, Briefed POC, Delete */}
               <div className="grid grid-cols-12 gap-4 mb-4">
                 <div className="col-span-1">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">No.</label>
-                  <div className="px-3 py-2 bg-slate-700 rounded-lg text-white text-sm">
+                  <label className="block text-xs font-medium text-muted-foreground mb-2">No.</label>
+                  <div className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">
                     {action.number}
                   </div>
                 </div>
                 <div className="col-span-5">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">Item</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-2">Item</label>
                   <input
                     type="text"
                     value={action.item}
                     onChange={(e) => updateAction(action.id, 'item', e.target.value)}
                     placeholder="Short description of task/action"
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-4">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">For/POC</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-2">For/POC</label>
                   <input
                     type="text"
                     value={action.forPoc}
                     onChange={(e) => updateAction(action.id, 'forPoc', e.target.value)}
                     placeholder="Responsible person/section"
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-1 flex items-end">
@@ -282,15 +282,15 @@ export function ActionTrackerPage() {
                       type="checkbox"
                       checked={action.briefedPoc}
                       onChange={(e) => updateAction(action.id, 'briefedPoc', e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 rounded border-border bg-muted text-sage focus:ring-sage"
                     />
-                    <span className="text-xs text-slate-400">Briefed POC</span>
+                    <span className="text-xs text-muted-foreground">Briefed POC</span>
                   </label>
                 </div>
                 <div className="col-span-1 flex items-end justify-end">
                   <button
                     onClick={() => deleteAction(action.id)}
-                    className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                    className="p-2 text-coral hover:text-coral transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -300,20 +300,20 @@ export function ActionTrackerPage() {
               {/* Bottom Row: Dates, Status, Included in Print */}
               <div className="grid grid-cols-12 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">Start Date</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-2">Start Date</label>
                   <input
                     type="date"
                     value={action.startDate}
                     onChange={(e) => updateAction(action.id, 'startDate', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">Status</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-2">Status</label>
                   <select
                     value={action.status}
                     onChange={(e) => updateAction(action.id, 'status', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   >
                     <option value="Open">Open</option>
                     <option value="In Progress">In Progress</option>
@@ -323,21 +323,21 @@ export function ActionTrackerPage() {
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">Target Date</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-2">Target Date</label>
                   <input
                     type="date"
                     value={action.targetDate}
                     onChange={(e) => updateAction(action.id, 'targetDate', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-400 mb-2">Actual Date</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-2">Actual Date</label>
                   <input
                     type="date"
                     value={action.actualDate}
                     onChange={(e) => updateAction(action.id, 'actualDate', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-4 flex items-end">
@@ -346,7 +346,7 @@ export function ActionTrackerPage() {
                       type="checkbox"
                       checked={action.includedInPrint}
                       onChange={(e) => updateAction(action.id, 'includedInPrint', e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-green-600 focus:ring-green-500"
+                      className="w-4 h-4 rounded border-border bg-muted text-green-600 focus:ring-green-500"
                     />
                     <span className="text-xs text-green-400">Included in print</span>
                   </label>
@@ -357,15 +357,15 @@ export function ActionTrackerPage() {
 
           {actionItems.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-slate-500 text-sm">No action items yet. Click "Add Action" to create one.</p>
+              <p className="text-muted-foreground text-sm">No action items yet. Click "Add Action" to create one.</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Note */}
-      <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
-        <p className="text-sm text-blue-300">
+      <div className="bg-sage/10 border border-sage/30 rounded-lg p-4">
+        <p className="text-sm text-sage-hover">
           <strong>Note:</strong> Action items are associated with the incident and will automatically carry over to all operational periods.
           Items with status "Cancelled" or "Closed" will not appear in the printed ICS-233 form.
         </p>

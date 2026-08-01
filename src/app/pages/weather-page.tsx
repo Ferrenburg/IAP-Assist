@@ -13,7 +13,7 @@ const LeafletMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+      <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
         Loading map…
       </div>
     ),
@@ -272,18 +272,18 @@ export function WeatherPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Weather Forecast</h1>
+        <h1 className="text-2xl font-bold text-foreground">Weather Forecast</h1>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <HelpCircle className="w-4 h-4" />
             Tutorial
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors">
             Help
           </button>
           <button
             onClick={handleExportPDF}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             Export PDF
           </button>
@@ -291,15 +291,15 @@ export function WeatherPage() {
       </div>
 
       {/* Location Coordinates */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-slate-400" />
-            <h2 className="text-lg font-semibold text-white">Location Coordinates</h2>
+            <MapPin className="w-5 h-5 text-muted-foreground" />
+            <h2 className="text-lg font-semibold text-foreground">Location Coordinates</h2>
           </div>
           <button
             onClick={() => setShowMapModal(true)}
-            className="text-blue-400 hover:text-blue-300 text-sm transition-colors flex items-center gap-2"
+            className="text-sage hover:text-sage-hover text-sm transition-colors flex items-center gap-2"
           >
             <MapPin className="w-4 h-4" />
             Pick on Map
@@ -308,40 +308,40 @@ export function WeatherPage() {
 
         <div className="grid grid-cols-4 gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Latitude</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Latitude</label>
             <input
               type="text"
               value={latitude}
               onChange={(e) => setLatitude(e.target.value)}
               placeholder="e.g. 38.8977"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Longitude</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Longitude</label>
             <input
               type="text"
               value={longitude}
               onChange={(e) => setLongitude(e.target.value)}
               placeholder="e.g. -77.0365"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Location Name</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Location Name</label>
             <input
               type="text"
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
               placeholder="e.g. Washington, DC"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
             <button
               onClick={handleGetWeather}
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-sage hover:bg-sage-hover disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'Loading...' : 'Get Weather'}
@@ -350,13 +350,13 @@ export function WeatherPage() {
         </div>
 
         {lastUpdated && (
-          <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
             <span>
               Last updated: {lastUpdated}
               {weatherPoint && `  |  NWS Office: ${weatherPoint.gridId} (Grid ${weatherPoint.gridX}, ${weatherPoint.gridY})`}
             </span>
             {saving && (
-              <span className="flex items-center gap-1 text-yellow-400">
+              <span className="flex items-center gap-1 text-mustard-hover">
                 <Save className="w-3 h-3" />
                 Saving…
               </span>
@@ -373,50 +373,50 @@ export function WeatherPage() {
 
       {/* Weather Data Area */}
       {forecast.length === 0 ? (
-        <div className="bg-slate-900 rounded-lg border border-slate-700 p-16 text-center">
-          <Cloud className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">No Weather Data</h3>
-          <p className="text-slate-400 text-sm max-w-lg mx-auto">
+        <div className="bg-card rounded-lg border border-border p-16 text-center">
+          <Cloud className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Weather Data</h3>
+          <p className="text-muted-foreground text-sm max-w-lg mx-auto">
             Enter latitude and longitude coordinates above, then click "Get Weather" to fetch the current forecast from the National Weather Service. Weather data is automatically saved to this operational period so it can be included in the IAP export.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           {/* Tabs */}
-          <div className="flex gap-2 border-b border-slate-700">
+          <div className="flex gap-2 border-b border-border">
             {(['current', 'hourly', 'extended', 'alerts'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium transition-colors capitalize flex items-center gap-2 ${
                   activeTab === tab
-                    ? 'text-blue-400 border-b-2 border-blue-400'
-                    : 'text-slate-400 hover:text-slate-300'
+                    ? 'text-sage border-b-2 border-sage'
+                    : 'text-muted-foreground hover:text-foreground/80'
                 }`}
               >
                 {tab === 'current' && <Cloud className="w-4 h-4" />}
                 {tab}
                 {tab === 'alerts' && alerts.length > 0 && (
-                  <span className="ml-1 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">{alerts.length}</span>
+                  <span className="ml-1 bg-coral text-white text-xs px-2 py-0.5 rounded-full">{alerts.length}</span>
                 )}
               </button>
             ))}
           </div>
 
-          <div className="bg-slate-900 rounded-lg border border-slate-700 p-8">
+          <div className="bg-card rounded-lg border border-border p-8">
             {activeTab === 'current' && forecast[0] && (
               <div>
                 <div className="text-center mb-8">
-                  <div className="text-6xl font-bold text-white mb-2">{forecast[0].temperature}°{forecast[0].temperatureUnit}</div>
-                  <p className="text-slate-400 mb-2">{forecast[0].shortForecast}</p>
-                  <p className="text-sm text-slate-500">{forecast[0].detailedForecast}</p>
+                  <div className="text-6xl font-bold text-foreground mb-2">{forecast[0].temperature}°{forecast[0].temperatureUnit}</div>
+                  <p className="text-muted-foreground mb-2">{forecast[0].shortForecast}</p>
+                  <p className="text-sm text-muted-foreground">{forecast[0].detailedForecast}</p>
                 </div>
                 <div className="grid grid-cols-6 gap-4">
                   {forecast.slice(0, 6).map((period, idx) => (
                     <div key={idx} className="text-center">
-                      <div className="text-sm text-slate-400 mb-2">{period.name}</div>
+                      <div className="text-sm text-muted-foreground mb-2">{period.name}</div>
                       <img src={period.icon} alt={period.shortForecast} className="w-12 h-12 mx-auto mb-2" />
-                      <div className="text-sm text-white">{period.temperature}°</div>
+                      <div className="text-sm text-foreground">{period.temperature}°</div>
                     </div>
                   ))}
                 </div>
@@ -426,15 +426,15 @@ export function WeatherPage() {
             {activeTab === 'hourly' && (
               <div className="space-y-2 max-h-[600px] overflow-y-auto pr-3">
                 {hourlyForecast.map((period, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-3 border-b border-slate-700 last:border-0">
+                  <div key={idx} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                     <div className="flex items-center gap-4 min-w-0">
-                      <span className="text-sm text-slate-400 w-32 shrink-0">{period.name}</span>
+                      <span className="text-sm text-muted-foreground w-32 shrink-0">{period.name}</span>
                       <img src={period.icon} alt={period.shortForecast} className="w-8 h-8 shrink-0" />
-                      <span className="text-sm text-white truncate">{period.shortForecast}</span>
+                      <span className="text-sm text-foreground truncate">{period.shortForecast}</span>
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                      <div className="text-lg font-semibold text-white">{period.temperature}°{period.temperatureUnit}</div>
-                      <div className="text-xs text-slate-400">{period.windSpeed} {period.windDirection}</div>
+                      <div className="text-lg font-semibold text-foreground">{period.temperature}°{period.temperatureUnit}</div>
+                      <div className="text-xs text-muted-foreground">{period.windSpeed} {period.windDirection}</div>
                     </div>
                   </div>
                 ))}
@@ -444,21 +444,21 @@ export function WeatherPage() {
             {activeTab === 'extended' && (
               <div className="space-y-4">
                 {forecast.map((period, idx) => (
-                  <div key={idx} className="border-b border-slate-700 pb-4 last:border-0">
+                  <div key={idx} className="border-b border-border pb-4 last:border-0">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <img src={period.icon} alt={period.shortForecast} className="w-12 h-12" />
                         <div>
-                          <h3 className="font-semibold text-white">{period.name}</h3>
-                          <p className="text-sm text-slate-400">{period.shortForecast}</p>
+                          <h3 className="font-semibold text-foreground">{period.name}</h3>
+                          <p className="text-sm text-muted-foreground">{period.shortForecast}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-white">{period.temperature}°{period.temperatureUnit}</div>
-                        <div className="text-xs text-slate-400">{period.windSpeed} {period.windDirection}</div>
+                        <div className="text-2xl font-bold text-foreground">{period.temperature}°{period.temperatureUnit}</div>
+                        <div className="text-xs text-muted-foreground">{period.windSpeed} {period.windDirection}</div>
                       </div>
                     </div>
-                    <p className="text-sm text-slate-400">{period.detailedForecast}</p>
+                    <p className="text-sm text-muted-foreground">{period.detailedForecast}</p>
                   </div>
                 ))}
               </div>
@@ -467,21 +467,21 @@ export function WeatherPage() {
             {activeTab === 'alerts' && (
               alerts.length === 0 ? (
                 <div className="text-center py-12">
-                  <AlertTriangle className="w-16 h-16 text-slate-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">No Active Weather Alerts</h3>
-                  <p className="text-slate-400 text-sm">There are no current weather alerts for this location.</p>
+                  <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No Active Weather Alerts</h3>
+                  <p className="text-muted-foreground text-sm">There are no current weather alerts for this location.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {alerts.map((alert) => (
-                    <div key={alert.id} className="bg-red-900/20 border border-red-700 rounded-lg p-4">
+                    <div key={alert.id} className="bg-coral/10 border border-coral/40 rounded-lg p-4">
                       <div className="flex items-start gap-3">
-                        <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+                        <AlertTriangle className="w-6 h-6 text-coral flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
-                          <h3 className="font-semibold text-red-400 mb-1">{alert.event}</h3>
-                          <p className="text-sm text-slate-300 mb-2">{alert.headline}</p>
-                          <p className="text-xs text-slate-400">Severity: {alert.severity} | Urgency: {alert.urgency}</p>
-                          <p className="text-xs text-slate-500 mt-1">Expires: {new Date(alert.expires).toLocaleString()}</p>
+                          <h3 className="font-semibold text-coral mb-1">{alert.event}</h3>
+                          <p className="text-sm text-foreground/80 mb-2">{alert.headline}</p>
+                          <p className="text-xs text-muted-foreground">Severity: {alert.severity} | Urgency: {alert.urgency}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Expires: {new Date(alert.expires).toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -557,9 +557,9 @@ function MapPickerModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Pick Weather Location</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Pick Weather Location</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-muted-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="p-6">
@@ -569,7 +569,7 @@ function MapPickerModal({
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
-                  activeTab === tab ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  activeTab === tab ? 'bg-sage text-white' : 'bg-muted text-muted-foreground hover:bg-accent'
                 }`}
               >
                 {tab === 'coordinates' ? 'Coordinates' : 'Map Location'}
@@ -580,19 +580,19 @@ function MapPickerModal({
           <div className="mb-4">
             <div className="flex gap-2">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   placeholder="Search (e.g., Washington, DC)"
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <button
                 onClick={handleSearch}
-                className="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
+                className="px-4 py-2 bg-muted text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
               >
                 Search
               </button>
@@ -602,23 +602,23 @@ function MapPickerModal({
           {activeTab === 'coordinates' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Latitude</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Latitude</label>
                 <input
                   type="text"
                   value={tempLat}
                   onChange={(e) => setTempLat(e.target.value)}
                   placeholder="e.g., 38.8977"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Longitude</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Longitude</label>
                 <input
                   type="text"
                   value={tempLon}
                   onChange={(e) => setTempLon(e.target.value)}
                   placeholder="e.g., -77.0365"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             </div>
@@ -639,19 +639,19 @@ function MapPickerModal({
             </div>
           )}
           {activeTab === 'map' && (
-            <p className="text-xs text-slate-500 mt-2 text-center">
+            <p className="text-xs text-muted-foreground mt-2 text-center">
               Click on the map or drag the marker to set coordinates — {markerLat.toFixed(4)}, {markerLon.toFixed(4)}
             </p>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
+        <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-foreground/80 hover:text-foreground transition-colors">
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="bg-sage text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-sage-hover transition-colors"
           >
             Save Location
           </button>
