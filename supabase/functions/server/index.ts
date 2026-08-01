@@ -113,11 +113,14 @@ const getAuthenticatedUser = async (req: Request) => {
   return null;
 };
 
-// Helper to check if user is admin. Admin status lives entirely in
-// auth.users.user_metadata.isAdmin — flip it via Supabase Studio
-// (Authentication → Users → row → "User Metadata") to grant access.
+// Helper to check if user is admin. Admin status lives in
+// auth.users.app_metadata.isAdmin — NOT user_metadata. app_metadata can only
+// be written with the service-role key (via this server or Supabase Studio's
+// "Raw App Meta Data" field); user_metadata can be rewritten by the user
+// themselves via the client SDK, so an admin flag stored there would let any
+// signed-in user grant themselves admin access.
 const isAdmin = (user: any): boolean => {
-  return !!user && user.user_metadata?.isAdmin === true;
+  return !!user && user.app_metadata?.isAdmin === true;
 };
 
 // Resolve the user's primary organization, creating one on first use.
@@ -1267,7 +1270,7 @@ app.get("/admin/users", async (c) => {
     }
 
     if (!isAdmin(user)) {
-      console.log('User is not admin:', user.email, 'metadata:', user.user_metadata);
+      console.log('User is not admin:', user.email, 'app_metadata:', user.app_metadata);
       return c.json({ error: "Unauthorized - Admin access required" }, 403);
     }
 
@@ -1362,7 +1365,8 @@ app.post("/admin/users", async (c) => {
     const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,
-      user_metadata: { name, isAdmin: grantAdmin === true, ...(organizationName ? { organization: organizationName } : {}) },
+      user_metadata: { name, ...(organizationName ? { organization: organizationName } : {}) },
+      app_metadata: { isAdmin: grantAdmin === true },
       email_confirm: true, // Auto-confirm; transactional email isn't configured.
     });
     if (error || !data?.user) {
@@ -1497,9 +1501,17 @@ app.post("/admin/toggle-admin", async (c) => {
 
     const supabase = getSupabaseClient(undefined, true);
 
-    // Update user metadata
+    const { data: existing, error: fetchErr } = await supabase.auth.admin.getUserById(userId);
+    if (fetchErr || !existing?.user) {
+      console.log(`Error fetching user ${userId} for admin toggle: ${fetchErr?.message}`);
+      return c.json({ error: "User not found" }, 404);
+    }
+
+    // app_metadata, not user_metadata — see the isAdmin() helper comment above
+    // for why. updateUserById replaces app_metadata wholesale, so merge in the
+    // existing values rather than clobbering them.
     const { data, error } = await supabase.auth.admin.updateUserById(userId, {
-      user_metadata: { isAdmin: isAdminStatus },
+      app_metadata: { ...existing.user.app_metadata, isAdmin: isAdminStatus },
     });
 
     if (error) {

@@ -44,6 +44,8 @@ interface AdminUser {
   email: string;
   user_metadata: {
     name?: string;
+  };
+  app_metadata: {
     isAdmin?: boolean;
   };
   created_at: string;
@@ -420,7 +422,7 @@ export function Admin() {
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
-                          {u.user_metadata?.isAdmin ? (
+                          {u.app_metadata?.isAdmin ? (
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                               <Shield className="w-3 h-3 mr-1" />
                               Admin
@@ -434,13 +436,13 @@ export function Admin() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-3">
                             <button
-                              onClick={() => handleToggleAdmin(u.id, !!u.user_metadata?.isAdmin)}
+                              onClick={() => handleToggleAdmin(u.id, !!u.app_metadata?.isAdmin)}
                               disabled={processing === u.id}
                               className="text-sm text-yellow-600 hover:text-yellow-700 font-medium disabled:opacity-50"
                             >
                               {processing === u.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin inline" />
-                              ) : u.user_metadata?.isAdmin ? (
+                              ) : u.app_metadata?.isAdmin ? (
                                 'Remove Admin'
                               ) : (
                                 'Make Admin'
