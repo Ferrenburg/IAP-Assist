@@ -4,7 +4,6 @@ import { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { Sidebar } from '../components/sidebar';
 import { WorkspaceHeader } from '../components/workspace-header';
-import { useTheme } from '../../contexts/theme-context';
 
 export function IAPWorkspaceLayout({
   fullHeight,
@@ -14,11 +13,10 @@ export function IAPWorkspaceLayout({
   children: ReactNode;
 }) {
   const pathname = usePathname() ?? '';
-  const { resolvedTheme } = useTheme();
   const showSidebar = pathname.includes('/iap/');
 
   return (
-    <div className={`h-screen flex flex-col ${resolvedTheme === 'light' ? 'bg-slate-50' : 'bg-slate-900'}`}>
+    <div className="h-screen flex flex-col bg-background">
       <WorkspaceHeader />
       <div className="flex-1 flex overflow-hidden">
         {showSidebar && <Sidebar />}

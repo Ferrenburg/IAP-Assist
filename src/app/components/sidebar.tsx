@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../utils/api-client';
 import { toast } from 'sonner';
-import { useTheme } from '../../contexts/theme-context';
 
 interface IAP {
   id: string;
@@ -30,7 +29,6 @@ interface OperationalPeriod {
 export function Sidebar() {
   const { iapId, periodId } = useParams();
   const router = useRouter();
-  const { resolvedTheme } = useTheme();
   const [currentIAP, setCurrentIAP] = useState<IAP | null>(null);
   const [operationalPeriods, setOperationalPeriods] = useState<OperationalPeriod[]>([]);
   const [showCreatePeriodModal, setShowCreatePeriodModal] = useState(false);
@@ -90,47 +88,34 @@ export function Sidebar() {
     setDeletingPeriodId(null);
   };
 
-  const lightMode = resolvedTheme === 'light';
-
   return (
     <>
-      <aside className={`w-72 flex flex-col border-r ${
-        lightMode
-          ? 'bg-card text-foreground border-border'
-          : 'bg-slate-900 text-white border-slate-800'
-      }`}>
-        <div className={`px-5 pt-5 pb-4 border-b ${lightMode ? 'border-border' : 'border-slate-800'}`}>
+      {/* Persistent dark rail — Apple's global-nav is always black regardless
+          of light/dark mode; this carries the same idea into a left rail so
+          the light parchment workspace has a tile to alternate against. */}
+      <aside className="w-72 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+        <div className="px-5 pt-5 pb-4 border-b border-sidebar-border">
           <button
             onClick={() => router.push('/')}
-            className={`flex items-center gap-1.5 text-xs font-medium mb-3 transition-colors ${
-              lightMode ? 'text-muted-foreground hover:text-foreground' : 'text-slate-500 hover:text-slate-300'
-            }`}
+            className="flex items-center gap-1.5 text-xs font-medium mb-3 text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             All Workspaces
           </button>
-          <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${
-            lightMode ? 'text-muted-foreground' : 'text-slate-500'
-          }`}>Incident</p>
-          <h1 className={`text-base font-bold leading-tight ${lightMode ? 'text-foreground' : 'text-white'}`}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1 text-sidebar-foreground/60">Incident</p>
+          <h1 className="text-base font-semibold leading-tight text-sidebar-foreground">
             {currentIAP?.name || 'Loading...'}
           </h1>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
-            <p className={`text-xs font-semibold uppercase tracking-wider ${
-              lightMode ? 'text-muted-foreground' : 'text-slate-500'
-            }`}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">
               Operational Periods
             </p>
             <button
               onClick={() => setShowCreatePeriodModal(true)}
-              className={`p-1 rounded-full transition-colors ${
-                lightMode
-                  ? 'text-sage hover:text-sage-hover hover:bg-accent'
-                  : 'text-emerald-500 hover:text-emerald-400 hover:bg-emerald-900/20'
-              }`}
+              className="p-1 rounded-full text-sidebar-primary hover:brightness-125 hover:bg-sidebar-accent transition-colors active:scale-95"
               title="Add period"
             >
               <Plus className="w-4 h-4" />
@@ -153,25 +138,21 @@ export function Sidebar() {
               return (
                 <div
                   key={period.id}
-                  className={`px-3 py-2.5 rounded-2xl cursor-pointer transition-colors relative group ${
-                    isActive
-                      ? 'bg-sage shadow-sm'
-                      : lightMode
-                      ? 'hover:bg-accent'
-                      : 'hover:bg-slate-800'
+                  className={`px-3 py-2.5 rounded-lg cursor-pointer transition-colors relative group ${
+                    isActive ? 'bg-sidebar-primary' : 'hover:bg-sidebar-accent'
                   }`}
                   onMouseEnter={() => setHoveredPeriodId(period.id)}
                   onMouseLeave={() => setHoveredPeriodId(null)}
                   onClick={() => router.push(`/iap/${iapId}/period/${period.id}/objectives`)}
                 >
                   <div className={`flex items-center gap-2 mb-0.5 ${
-                    isActive ? 'text-white' : lightMode ? 'text-foreground' : 'text-slate-200'
+                    isActive ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground'
                   }`}>
                     <Clock className="w-3.5 h-3.5 shrink-0" />
                     <span className="text-sm font-medium">Period {period.periodNumber}</span>
                   </div>
                   <div className={`text-xs pl-5 ${
-                    isActive ? 'text-white/80' : lightMode ? 'text-muted-foreground' : 'text-slate-500'
+                    isActive ? 'text-sidebar-primary-foreground/80' : 'text-sidebar-foreground/60'
                   }`}>
                     {fmt(period.fromDate, period.fromTime)} – {fmt(period.toDate, period.toTime)}
                   </div>
@@ -180,12 +161,10 @@ export function Sidebar() {
                     <div className="absolute top-2 right-2 flex gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingPeriod(period); }}
-                        className={`p-1.5 rounded-full transition-colors ${
+                        className={`p-1.5 rounded-full transition-colors active:scale-95 ${
                           isActive
-                            ? 'bg-sage-hover hover:brightness-95 text-white'
-                            : lightMode
-                            ? 'bg-accent hover:bg-blush text-foreground'
-                            : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                            ? 'bg-white/15 hover:bg-white/25 text-sidebar-primary-foreground'
+                            : 'bg-sidebar-accent hover:brightness-125 text-sidebar-foreground'
                         }`}
                         title="Edit period"
                       >
@@ -193,12 +172,10 @@ export function Sidebar() {
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeletingPeriodId(period.id); }}
-                        className={`p-1.5 rounded-full transition-colors ${
+                        className={`p-1.5 rounded-full transition-colors active:scale-95 ${
                           isActive
-                            ? 'bg-sage-hover hover:brightness-95 text-white'
-                            : lightMode
-                            ? 'bg-accent hover:bg-blush text-coral'
-                            : 'bg-slate-700 hover:bg-slate-600 text-red-400'
+                            ? 'bg-white/15 hover:bg-white/25 text-sidebar-primary-foreground'
+                            : 'bg-sidebar-accent hover:brightness-125 text-coral'
                         }`}
                         title="Delete period"
                       >
@@ -211,7 +188,7 @@ export function Sidebar() {
             })}
 
             {operationalPeriods.length === 0 && (
-              <p className={`text-xs px-2 py-2 ${lightMode ? 'text-muted-foreground' : 'text-slate-500'}`}>
+              <p className="text-xs px-2 py-2 text-sidebar-foreground/60">
                 No periods yet
               </p>
             )}

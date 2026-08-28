@@ -1,0 +1,4 @@
+/* Inter stands in for SF Pro Display/Text off-Apple platforms. Weight 300 is
+   pulled in deliberately for the rare "airy" reads the Apple-style redesign
+   uses (see theme.css `--font-weight-light` and the login hero lead copy). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');

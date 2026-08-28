@@ -111,7 +111,7 @@ export function WorkspaceHeader() {
             </button>
 
             {showSettingsMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-popover border border-border rounded-2xl shadow-lg overflow-hidden z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50">
                 <div className="py-1">
                   {[
                     { label: 'Team', path: '/team' },
@@ -145,7 +145,7 @@ export function WorkspaceHeader() {
             </button>
 
             {showAccountMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-popover border border-border rounded-2xl shadow-lg overflow-hidden z-50">
+              <div className="absolute right-0 mt-2 w-56 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50">
                 <div className="px-4 py-3 border-b border-border">
                   <p className="text-sm font-semibold text-foreground">{user?.user_metadata?.name || user?.name || 'User'}</p>
                   <p className="text-xs text-muted-foreground">{user?.email || ''}</p>

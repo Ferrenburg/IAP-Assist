@@ -8,7 +8,7 @@ export function Homepage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="legacy-warm-theme min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
