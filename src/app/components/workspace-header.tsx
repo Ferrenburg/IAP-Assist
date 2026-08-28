@@ -116,7 +116,6 @@ export function WorkspaceHeader() {
                   {[
                     { label: 'Team', path: '/team' },
                     { label: 'Defaults', path: '/defaults' },
-                    { label: 'Templates', path: '/templates' },
                     { label: 'Utilities', path: '/utilities' },
                   ].map(({ label, path }) => (
                     <button

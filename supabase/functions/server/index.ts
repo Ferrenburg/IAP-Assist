@@ -1717,4 +1717,121 @@ app.post("/org/logo", async (c) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Org-scoped generic data store (defaults libraries, reusable content).
+//
+// Deliberately distinct from the IAP-scoped `/iaps/:iapId/:dataType` routes
+// below in TWO ways:
+//   1. Keyed by orgId, not iapId — these records are reusable across every
+//      incident, which is the whole point of a "defaults" library.
+//   2. Keyed by orgId, not user.id — the IAP-scoped routes namespace by
+//      `user.id`, so teammates in one org cannot see each other's records.
+//      Defaults are an org asset, so they key on the org instead.
+//
+// Registered after `POST /org/logo` so that exact route still wins the match;
+// RESERVED_ORG_SEGMENTS is defense-in-depth if these are ever reordered.
+// ---------------------------------------------------------------------------
+const RESERVED_ORG_SEGMENTS = new Set(["logo"]);
+
+const orgDataKeyPrefix = (orgId: string, dataType: string) =>
+  `orgdata:${orgId}:${dataType}:`;
+
+// Resolves the caller's org, or returns an error response to send back.
+const resolveOrgScope = async (c: any, dataType: string) => {
+  const user = await getAuthenticatedUser(c.req.raw);
+  if (!user) return { error: c.json({ error: "Unauthorized" }, 401) };
+
+  if (RESERVED_ORG_SEGMENTS.has(dataType)) {
+    return { error: c.json({ error: `Reserved dataType: ${dataType}` }, 400) };
+  }
+
+  const supabase = getSupabaseClient(undefined, true);
+  const orgId = await getOrCreateUserOrg(supabase, user);
+  return { orgId };
+};
+
+app.get("/org/:dataType", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    const data = await kv.getByPrefix(orgDataKeyPrefix(orgId!, dataType));
+    return c.json({ data: data || [] });
+  } catch (error) {
+    console.log(`Error fetching org data: ${error}`);
+    return c.json({ error: "Failed to fetch org data" }, 500);
+  }
+});
+
+app.post("/org/:dataType", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    const body = await c.req.json();
+    const itemId = body.id || crypto.randomUUID();
+
+    const item = {
+      ...body,
+      id: itemId,
+      orgId,
+      createdAt: new Date().toISOString(),
+    };
+
+    await kv.set(`${orgDataKeyPrefix(orgId!, dataType)}${itemId}`, item);
+    return c.json({ item });
+  } catch (error) {
+    console.log(`Error creating org data: ${error}`);
+    return c.json({ error: "Failed to create org data" }, 500);
+  }
+});
+
+app.put("/org/:dataType/:itemId", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const itemId = c.req.param("itemId");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    const key = `${orgDataKeyPrefix(orgId!, dataType)}${itemId}`;
+    const existing = await kv.get(key);
+    if (!existing) {
+      return c.json({ error: "Item not found" }, 404);
+    }
+
+    // `id`/`orgId` are re-applied after the body spread so a client payload
+    // cannot reassign a record to another org or item.
+    const item = {
+      ...existing,
+      ...(await c.req.json()),
+      id: itemId,
+      orgId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(key, item);
+    return c.json({ item });
+  } catch (error) {
+    console.log(`Error updating org data: ${error}`);
+    return c.json({ error: "Failed to update org data" }, 500);
+  }
+});
+
+app.delete("/org/:dataType/:itemId", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const itemId = c.req.param("itemId");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    await kv.del(`${orgDataKeyPrefix(orgId!, dataType)}${itemId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error deleting org data: ${error}`);
+    return c.json({ error: "Failed to delete org data" }, 500);
+  }
+});
+
 Deno.serve(app.fetch);
