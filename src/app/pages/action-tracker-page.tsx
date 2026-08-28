@@ -263,7 +263,7 @@ export function ActionTrackerPage() {
                     value={action.item}
                     onChange={(e) => updateAction(action.id, 'item', e.target.value)}
                     placeholder="Short description of task/action"
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-4">
@@ -273,7 +273,7 @@ export function ActionTrackerPage() {
                     value={action.forPoc}
                     onChange={(e) => updateAction(action.id, 'forPoc', e.target.value)}
                     placeholder="Responsible person/section"
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-1 flex items-end">
@@ -305,7 +305,7 @@ export function ActionTrackerPage() {
                     type="date"
                     value={action.startDate}
                     onChange={(e) => updateAction(action.id, 'startDate', e.target.value)}
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-2">
@@ -313,7 +313,7 @@ export function ActionTrackerPage() {
                   <select
                     value={action.status}
                     onChange={(e) => updateAction(action.id, 'status', e.target.value)}
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   >
                     <option value="Open">Open</option>
                     <option value="In Progress">In Progress</option>
@@ -328,7 +328,7 @@ export function ActionTrackerPage() {
                     type="date"
                     value={action.targetDate}
                     onChange={(e) => updateAction(action.id, 'targetDate', e.target.value)}
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-2">
@@ -337,7 +337,7 @@ export function ActionTrackerPage() {
                     type="date"
                     value={action.actualDate}
                     onChange={(e) => updateAction(action.id, 'actualDate', e.target.value)}
-                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-sage"
+                    className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                 </div>
                 <div className="col-span-4 flex items-end">

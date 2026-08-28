@@ -508,7 +508,7 @@ export function PersonnelPage() {
                 }}
                 onBlur={(e) => handleInputBlur(e.target.value)}
                 placeholder="Select or type name"
-                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
             </div>
             <div>
@@ -519,7 +519,7 @@ export function PersonnelPage() {
                 onFocus={(e) => handleInputFocus(e.target.value)}
                 onChange={(e) => updateField('incidentCommanderContact', e.target.value)}
                 onBlur={(e) => handleInputBlur(e.target.value)}
-                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
             </div>
           </div>
@@ -554,7 +554,7 @@ export function PersonnelPage() {
                   }}
                   onBlur={() => saveData()}
                   placeholder="Commander Name"
-                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
                 <div className="flex gap-2">
                   <input
@@ -567,7 +567,7 @@ export function PersonnelPage() {
                     }}
                     onBlur={() => saveData()}
                     placeholder="Contact"
-                    className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                    className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                   <button
                     onClick={async () => {
@@ -603,7 +603,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('deputyIncidentCommanderName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -614,7 +614,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('deputyIncidentCommanderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -626,7 +626,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('safetyOfficerName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -637,7 +637,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('safetyOfficerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -649,7 +649,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('publicInfoOfficerName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -660,7 +660,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('publicInfoOfficerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -672,7 +672,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('liaisonOfficerName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -683,7 +683,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('liaisonOfficerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
@@ -705,7 +705,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('operationsSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -716,7 +716,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('operationsSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -728,7 +728,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('operationsDeputyChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -739,7 +739,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('operationsDeputyChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -751,7 +751,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('stagingAreaManager', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -762,7 +762,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('stagingAreaManagerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
@@ -784,7 +784,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('planningSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -795,7 +795,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('planningSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -807,7 +807,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('planningDeputy', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -818,7 +818,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('planningDeputyContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -830,7 +830,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('resourcesUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -841,7 +841,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('resourcesUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -853,7 +853,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('situationUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -864,7 +864,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('situationUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -876,7 +876,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('documentationUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -887,7 +887,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('documentationUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -899,7 +899,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('demobilizationUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -910,7 +910,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('demobilizationUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
@@ -945,7 +945,7 @@ export function PersonnelPage() {
                 }}
                 onBlur={() => saveData()}
                 placeholder="Select or type name"
-                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
               <div className="flex gap-2">
                 <input
@@ -958,7 +958,7 @@ export function PersonnelPage() {
                   }}
                   onBlur={() => saveData()}
                   placeholder="e.g., Hazmat, Weather, GIS"
-                  className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                  className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
                 <button
                   onClick={async () => {
@@ -993,7 +993,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('logisticsSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1004,7 +1004,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('logisticsSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1016,7 +1016,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('logisticsDeputy', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1027,7 +1027,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('logisticsDeputyContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1039,7 +1039,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('supportBranchDirector', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1050,7 +1050,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('supportBranchDirectorContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1062,7 +1062,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('supplyUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1073,7 +1073,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('supplyUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1085,7 +1085,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('facilitiesUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1096,7 +1096,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('facilitiesUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1108,7 +1108,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('groundSupportUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1119,7 +1119,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('groundSupportUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1131,7 +1131,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('serviceBranchDirector', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1142,7 +1142,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('serviceBranchDirectorContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1154,7 +1154,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('communicationsUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1165,7 +1165,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('communicationsUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1177,7 +1177,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('medicalUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1188,7 +1188,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('medicalUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1200,7 +1200,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('foodUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1211,7 +1211,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('foodUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
@@ -1233,7 +1233,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('financeSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1244,7 +1244,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('financeSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1256,7 +1256,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('financeDeputy', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1267,7 +1267,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('financeDeputyContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1279,7 +1279,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('timeUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1290,7 +1290,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('timeUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1302,7 +1302,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('procurementUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1313,7 +1313,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('procurementUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1325,7 +1325,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('compensationClaimsUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1336,7 +1336,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('compensationClaimsUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1348,7 +1348,7 @@ export function PersonnelPage() {
               onChange={(e) => updateField('costUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1359,7 +1359,7 @@ export function PersonnelPage() {
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('costUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
@@ -1398,7 +1398,7 @@ export function PersonnelPage() {
               }}
               onBlur={() => saveData()}
               placeholder="Agency/Organization"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
             <div className="flex gap-2">
               <input
@@ -1411,7 +1411,7 @@ export function PersonnelPage() {
                 }}
                 onBlur={() => saveData()}
                 placeholder="Representative Name"
-                className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
               <button
                 onClick={async () => {
@@ -1446,7 +1446,7 @@ export function PersonnelPage() {
                 updateField('preparedByName', e.target.value);
               }}
               onBlur={() => saveData()}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1459,7 +1459,7 @@ export function PersonnelPage() {
                 updateField('preparedByPosition', e.target.value);
               }}
               onBlur={() => saveData()}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -1469,7 +1469,7 @@ export function PersonnelPage() {
               value={personnelData.preparedDateTime || ''}
               onChange={(e) => updateField('preparedDateTime', e.target.value)}
               onBlur={() => saveData()}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>

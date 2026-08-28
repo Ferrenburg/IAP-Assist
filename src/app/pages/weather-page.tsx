@@ -314,7 +314,7 @@ export function WeatherPage() {
               value={latitude}
               onChange={(e) => setLatitude(e.target.value)}
               placeholder="e.g. 38.8977"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -324,7 +324,7 @@ export function WeatherPage() {
               value={longitude}
               onChange={(e) => setLongitude(e.target.value)}
               placeholder="e.g. -77.0365"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -334,7 +334,7 @@ export function WeatherPage() {
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
               placeholder="e.g. Washington, DC"
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>

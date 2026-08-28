@@ -479,7 +479,7 @@ export function CommunicationsPage() {
                               value={channel[field] as string}
                               onChange={(e) => updateChannel(channel.id, field, e.target.value)}
                               onBlur={() => saveChannel(channel.id)}
-                              className="w-full px-2 py-1 bg-muted border border-border rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-sage"
+                              className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                             />
                           </td>
                         ))}
@@ -504,7 +504,7 @@ export function CommunicationsPage() {
               onChange={(e) => { commDataRef.current = { ...commDataRef.current, specialInstructions: e.target.value }; setCommData(commDataRef.current); }}
               onBlur={() => saveCommData(false)}
               placeholder="Any special instructions..."
-              className="w-full h-32 px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
+              className="w-full h-32 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
             />
           </div>
 
@@ -520,7 +520,7 @@ export function CommunicationsPage() {
                   onChange={(e) => { setIcs205PreparedByName(e.target.value); commDataRef.current = { ...commDataRef.current, preparedByName: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Preparer name"
-                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
@@ -531,7 +531,7 @@ export function CommunicationsPage() {
                   onChange={(e) => { setIcs205PreparedByTitle(e.target.value); commDataRef.current = { ...commDataRef.current, preparedByTitle: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Position or title"
-                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
@@ -541,7 +541,7 @@ export function CommunicationsPage() {
                   value={commData.dateTimePrepared}
                   onChange={(e) => { commDataRef.current = { ...commDataRef.current, dateTimePrepared: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
-                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-sage"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             </div>
@@ -592,7 +592,7 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'role', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="e.g. Operations Chief"
-                            className="w-full px-2 py-1 bg-muted border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
@@ -602,7 +602,7 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'name', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="Full name"
-                            className="w-full px-2 py-1 bg-muted border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
@@ -612,7 +612,7 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'phone', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="555-0100"
-                            className="w-full px-2 py-1 bg-muted border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
@@ -622,7 +622,7 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'radio', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="Channel / freq"
-                            className="w-full px-2 py-1 bg-muted border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
@@ -650,7 +650,7 @@ export function CommunicationsPage() {
                   onChange={(e) => { setIcs205aPreparedByName(e.target.value); commDataRef.current = { ...commDataRef.current, ics205aPreparedByName: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Preparer name"
-                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
@@ -661,7 +661,7 @@ export function CommunicationsPage() {
                   onChange={(e) => { setIcs205aPreparedByTitle(e.target.value); commDataRef.current = { ...commDataRef.current, ics205aPreparedByTitle: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Position or title"
-                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             </div>

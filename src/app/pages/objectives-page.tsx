@@ -463,7 +463,7 @@ export function ObjectivesPage() {
           onChange={(e) => setCommandEmphasis(e.target.value)}
           onBlur={saveCommandEmphasis}
           placeholder="Enter command emphasis, which may include tactical priorities, general weather forecast, and Incident Command priorities..."
-          className="w-full h-32 bg-muted border border-border rounded-lg px-4 py-3 text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent resize-none"
+          className="w-full h-32 bg-muted border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent resize-none"
         />
       </div>
 
@@ -478,7 +478,7 @@ export function ObjectivesPage() {
           onChange={(e) => setSituationConditions(e.target.value)}
           onBlur={saveSituationConditions}
           placeholder="This can include weather, incident conditions, or safety message..."
-          className="w-full h-32 bg-muted border border-border rounded-lg px-4 py-3 text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent resize-none"
+          className="w-full h-32 bg-muted border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent resize-none"
         />
       </div>
 
@@ -496,7 +496,7 @@ export function ObjectivesPage() {
               value={preparedByName}
               onChange={(e) => setPreparedByName(e.target.value)}
               onBlur={() => savePreparedByData()}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -506,7 +506,7 @@ export function ObjectivesPage() {
               value={preparedByPosition}
               onChange={(e) => setPreparedByPosition(e.target.value)}
               onBlur={() => savePreparedByData()}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -516,7 +516,7 @@ export function ObjectivesPage() {
               value={preparedDateTime}
               onChange={(e) => setPreparedDateTime(e.target.value)}
               onBlur={() => savePreparedByData()}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>

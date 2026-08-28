@@ -473,7 +473,7 @@ export function AssignmentsPage() {
                       <select
                         value={assignment.divisionGroupType}
                         onChange={(e) => updateAssignment(assignment.id, 'divisionGroupType', e.target.value)}
-                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-sage"
+                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                       >
                         <option value="branch">Branch</option>
                         <option value="division">Division</option>
@@ -488,7 +488,7 @@ export function AssignmentsPage() {
                         value={assignment.name}
                         onChange={(e) => updateAssignment(assignment.id, 'name', e.target.value)}
                         placeholder="Identifier..."
-                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                       />
                     </div>
                     <div>
@@ -500,7 +500,7 @@ export function AssignmentsPage() {
                         value={assignment.supervisorName || ''}
                         onChange={(e) => updateAssignment(assignment.id, 'supervisorName', e.target.value)}
                         placeholder="Enter name..."
-                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                       />
                     </div>
                     <div>
@@ -512,7 +512,7 @@ export function AssignmentsPage() {
                         value={assignment.supervisorContact || ''}
                         onChange={(e) => updateAssignment(assignment.id, 'supervisorContact', e.target.value)}
                         placeholder="Phone / radio channel..."
-                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                       />
                     </div>
                     <div>
@@ -522,7 +522,7 @@ export function AssignmentsPage() {
                         value={assignment.reportingLocation}
                         onChange={(e) => updateAssignment(assignment.id, 'reportingLocation', e.target.value)}
                         placeholder="Enter location..."
-                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                       />
                     </div>
                   </div>
@@ -533,7 +533,7 @@ export function AssignmentsPage() {
                       <select
                         value={assignment.branch || ''}
                         onChange={(e) => updateAssignment(assignment.id, 'branch', e.target.value)}
-                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-sage"
+                        className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                       >
                         <option value="">None (Direct to Operations)</option>
                         {assignments.filter(a => a.divisionGroupType === 'branch').map(branch => (
@@ -571,19 +571,19 @@ export function AssignmentsPage() {
                             {assignment.resources.map((resource) => (
                               <tr key={resource.id} className="border-b border-border last:border-0">
                                 <td className="px-3 py-2">
-                                  <input type="text" value={resource.name} onChange={(e) => updateResource(assignment.id, resource.id, 'name', e.target.value)} placeholder="Resource name..." className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={resource.name} onChange={(e) => updateResource(assignment.id, resource.id, 'name', e.target.value)} placeholder="Resource name..." className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
-                                  <input type="text" value={resource.leaderName} onChange={(e) => updateResource(assignment.id, resource.id, 'leaderName', e.target.value)} placeholder="Leader..." className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={resource.leaderName} onChange={(e) => updateResource(assignment.id, resource.id, 'leaderName', e.target.value)} placeholder="Leader..." className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
-                                  <input type="text" value={resource.numPersons} onChange={(e) => updateResource(assignment.id, resource.id, 'numPersons', e.target.value)} placeholder="#" className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={resource.numPersons} onChange={(e) => updateResource(assignment.id, resource.id, 'numPersons', e.target.value)} placeholder="#" className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
-                                  <input type="text" value={resource.contact} onChange={(e) => updateResource(assignment.id, resource.id, 'contact', e.target.value)} placeholder="Contact..." className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={resource.contact} onChange={(e) => updateResource(assignment.id, resource.id, 'contact', e.target.value)} placeholder="Contact..." className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
-                                  <input type="text" value={resource.notes} onChange={(e) => updateResource(assignment.id, resource.id, 'notes', e.target.value)} placeholder="Notes..." className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={resource.notes} onChange={(e) => updateResource(assignment.id, resource.id, 'notes', e.target.value)} placeholder="Notes..." className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
                                   <button onClick={() => deleteResource(assignment.id, resource.id)} className="text-coral hover:text-coral transition-colors"><X className="w-4 h-4" /></button>
@@ -607,7 +607,7 @@ export function AssignmentsPage() {
                       value={assignment.workAssignments}
                       onChange={(e) => updateAssignment(assignment.id, 'workAssignments', e.target.value)}
                       placeholder="Describe the work assignments for this division/group/team..."
-                      className="w-full h-24 px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
+                      className="w-full h-24 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
                     />
                   </div>
 
@@ -618,7 +618,7 @@ export function AssignmentsPage() {
                       value={assignment.specialInstructions}
                       onChange={(e) => updateAssignment(assignment.id, 'specialInstructions', e.target.value)}
                       placeholder="Safety information, special instructions, reporting requirements..."
-                      className="w-full h-20 px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
+                      className="w-full h-20 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
                     />
                   </div>
 
@@ -648,13 +648,13 @@ export function AssignmentsPage() {
                             {assignment.contacts.map((contact) => (
                               <tr key={contact.id} className="border-b border-border last:border-0">
                                 <td className="px-3 py-2">
-                                  <input type="text" value={contact.function} onChange={(e) => updateContact(assignment.id, contact.id, 'function', e.target.value)} placeholder="Function..." className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={contact.function} onChange={(e) => updateContact(assignment.id, contact.id, 'function', e.target.value)} placeholder="Function..." className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
-                                  <input type="text" value={contact.name} onChange={(e) => updateContact(assignment.id, contact.id, 'name', e.target.value)} placeholder="Name..." className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={contact.name} onChange={(e) => updateContact(assignment.id, contact.id, 'name', e.target.value)} placeholder="Name..." className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
-                                  <input type="text" value={contact.contact} onChange={(e) => updateContact(assignment.id, contact.id, 'contact', e.target.value)} placeholder="Contact info..." className="w-full px-2 py-1 bg-card border border-border rounded text-white text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
+                                  <input type="text" value={contact.contact} onChange={(e) => updateContact(assignment.id, contact.id, 'contact', e.target.value)} placeholder="Contact info..." className="w-full px-2 py-1 bg-card border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage" />
                                 </td>
                                 <td className="px-3 py-2">
                                   <button onClick={() => deleteContact(assignment.id, contact.id)} className="text-coral hover:text-coral transition-colors"><X className="w-4 h-4" /></button>
@@ -713,7 +713,7 @@ export function AssignmentsPage() {
                 setFormPrep({ ...formPrep, preparedByName: e.target.value });
               }}
               onBlur={saveFormPrep}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -726,7 +726,7 @@ export function AssignmentsPage() {
                 setFormPrep({ ...formPrep, positionTitle: e.target.value });
               }}
               onBlur={saveFormPrep}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
@@ -736,7 +736,7 @@ export function AssignmentsPage() {
               value={formPrep.dateTimePrepared}
               onChange={(e) => setFormPrep({ ...formPrep, dateTimePrepared: e.target.value })}
               onBlur={saveFormPrep}
-              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-white placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
