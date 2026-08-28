@@ -116,30 +116,30 @@ export function MainWorkspace() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-8 h-8 border-4 border-yellow-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-slate-600">Loading workspace...</p>
+          <div className="inline-block w-8 h-8 border-4 border-mustard border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-muted-foreground">Loading workspace...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <div className="w-72 bg-slate-900 text-white flex flex-col">
-        <div className="p-6 border-b border-slate-700 bg-[#000000]">
+      <div className="w-72 bg-card text-foreground flex flex-col border-r border-border">
+        <div className="p-6 border-b border-border">
           <img src={opLogo.src} alt="OpPeriod" className="h-8 mb-3" />
-          <p className="text-sm text-slate-400">{user?.email}</p>
+          <p className="text-sm text-muted-foreground">{user?.email}</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-[#000000]">
+        <div className="flex-1 overflow-y-auto">
           <div className="p-4">
             <div className="mb-6">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="w-full bg-yellow-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-yellow-700 transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-mustard text-foreground px-4 py-2.5 rounded-full font-medium hover:bg-mustard-hover transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="w-5 h-5" />
                 Create New IAP
@@ -147,7 +147,7 @@ export function MainWorkspace() {
             </div>
 
             <div className="mb-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Active IAPs</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Active IAPs</p>
               <div className="space-y-1">
                 {iaps.map((iap) => (
                   <div
@@ -158,7 +158,7 @@ export function MainWorkspace() {
                   >
                     <button
                       onClick={() => handleOpenIAP(iap.id)}
-                      className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors text-slate-300 hover:bg-slate-800"
+                      className="w-full text-left px-3 py-2.5 rounded-2xl text-sm transition-colors text-foreground hover:bg-accent"
                     >
                       <div className="font-medium truncate">{iap.name}</div>
                       <div className="text-xs opacity-75 truncate">{iap.incidentNumber}</div>
@@ -170,7 +170,7 @@ export function MainWorkspace() {
                           e.stopPropagation();
                           handleArchiveIAP(iap);
                         }}
-                        className="absolute top-2 right-2 p-1.5 rounded bg-amber-600 hover:bg-amber-700 transition-colors"
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-mustard-hover hover:brightness-95 transition-colors"
                         title="Archive IAP"
                       >
                         <Archive className="w-3.5 h-3.5 text-white" />
@@ -179,7 +179,7 @@ export function MainWorkspace() {
                   </div>
                 ))}
                 {iaps.length === 0 && (
-                  <p className="text-sm text-slate-500 px-3 py-2">No active IAPs</p>
+                  <p className="text-sm text-muted-foreground px-3 py-2">No active IAPs</p>
                 )}
               </div>
             </div>
@@ -188,7 +188,7 @@ export function MainWorkspace() {
               <div className="mb-4">
                 <button
                   onClick={() => setShowArchived(!showArchived)}
-                  className="w-full flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 hover:text-slate-300 transition-colors"
+                  className="w-full flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 hover:text-foreground transition-colors"
                 >
                   <span>Archived IAPs ({archivedIaps.length})</span>
                   <ChevronRight className={`w-4 h-4 transition-transform ${showArchived ? 'rotate-90' : ''}`} />
@@ -204,7 +204,7 @@ export function MainWorkspace() {
                       >
                         <button
                           onClick={() => handleOpenIAP(iap.id)}
-                          className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors text-slate-500 hover:bg-slate-800"
+                          className="w-full text-left px-3 py-2.5 rounded-2xl text-sm transition-colors text-muted-foreground hover:bg-accent"
                         >
                           <div className="font-medium truncate">{iap.name}</div>
                           <div className="text-xs opacity-75 truncate">{iap.incidentNumber}</div>
@@ -217,7 +217,7 @@ export function MainWorkspace() {
                                 e.stopPropagation();
                                 handleUnarchiveIAP(iap);
                               }}
-                              className="p-1.5 rounded bg-yellow-600 hover:bg-yellow-700 transition-colors"
+                              className="p-1.5 rounded-full bg-mustard hover:bg-mustard-hover transition-colors"
                               title="Restore IAP"
                             >
                               <ArchiveRestore className="w-3.5 h-3.5 text-white" />
@@ -227,7 +227,7 @@ export function MainWorkspace() {
                                 e.stopPropagation();
                                 setDeleteConfirmIAP(iap);
                               }}
-                              className="p-1.5 rounded bg-red-600 hover:bg-red-700 transition-colors"
+                              className="p-1.5 rounded-full bg-coral hover:bg-coral-hover transition-colors"
                               title="Delete IAP"
                             >
                               <Trash2 className="w-3.5 h-3.5 text-white" />
@@ -243,11 +243,11 @@ export function MainWorkspace() {
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-700 space-y-2 bg-[#000000]">
+        <div className="p-4 border-t border-border space-y-2">
           {isAdmin && (
             <button
               onClick={() => router.push('/admin')}
-              className="w-full px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800 rounded-lg flex items-center gap-2 transition-colors"
+              className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-accent rounded-full flex items-center gap-2 transition-colors"
             >
               <Shield className="w-4 h-4" />
               Admin Panel
@@ -255,7 +255,7 @@ export function MainWorkspace() {
           )}
           <button
             onClick={handleLogout}
-            className="w-full px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800 rounded-lg flex items-center gap-2 transition-colors"
+            className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-accent rounded-full flex items-center gap-2 transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -268,14 +268,14 @@ export function MainWorkspace() {
         <div className="max-w-5xl mx-auto p-8">
           {/* Header */}
           <div className="mb-12">
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome to OpPeriod</h1>
-            <p className="text-lg text-slate-600">Streamline your incident action plan creation and management</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Welcome to OpPeriod</h1>
+            <p className="text-lg text-muted-foreground">Streamline your incident action plan creation and management</p>
           </div>
 
           {iaps.length > 0 ? (
-            <div className="bg-white rounded-lg border border-slate-200 p-8">
-              <h2 className="text-2xl font-semibold text-slate-900 mb-3">Your Active IAPs</h2>
-              <p className="text-slate-600 mb-6">
+            <div className="bg-card rounded-2xl border border-border p-8">
+              <h2 className="text-2xl font-semibold text-foreground mb-3">Your Active IAPs</h2>
+              <p className="text-muted-foreground mb-6">
                 Click on any IAP in the sidebar to open its workspace and manage operational periods.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,28 +283,28 @@ export function MainWorkspace() {
                   <button
                     key={iap.id}
                     onClick={() => handleOpenIAP(iap.id)}
-                    className="text-left p-4 border border-slate-200 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-colors"
+                    className="text-left p-4 border border-border rounded-2xl hover:border-mustard hover:bg-accent transition-colors"
                   >
-                    <div className="font-semibold text-slate-900 mb-1">{iap.name}</div>
-                    <div className="text-sm text-slate-600">{iap.incidentNumber}</div>
-                    <div className="text-xs text-slate-500 mt-2">{iap.jurisdiction}</div>
+                    <div className="font-semibold text-foreground mb-1">{iap.name}</div>
+                    <div className="text-sm text-muted-foreground">{iap.incidentNumber}</div>
+                    <div className="text-xs text-muted-foreground mt-2">{iap.jurisdiction}</div>
                   </button>
                 ))}
               </div>
               {iaps.length > 4 && (
-                <p className="text-sm text-slate-500 mt-4">
+                <p className="text-sm text-muted-foreground mt-4">
                   And {iaps.length - 4} more IAP{iaps.length - 4 > 1 ? 's' : ''} in the sidebar
                 </p>
               )}
             </div>
           ) : (
-            <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
-              <FileText className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">No Active IAPs</h2>
-              <p className="text-slate-600 mb-6">Create your first Incident Action Plan to get started</p>
+            <div className="bg-card rounded-2xl border border-border p-12 text-center">
+              <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-foreground mb-2">No Active IAPs</h2>
+              <p className="text-muted-foreground mb-6">Create your first Incident Action Plan to get started</p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-yellow-700 transition-colors inline-flex items-center gap-2"
+                className="bg-mustard text-foreground px-6 py-3 rounded-full font-medium hover:bg-mustard-hover transition-colors inline-flex items-center gap-2"
               >
                 <Plus className="w-5 h-5" />
                 Create New IAP
@@ -340,30 +340,30 @@ function DeleteConfirmModal({
 }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onCancel}>
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-semibold text-slate-900">Delete IAP</h2>
+      <div className="bg-card rounded-2xl shadow-xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Delete IAP</h2>
         </div>
 
         <div className="px-6 py-6">
-          <p className="text-slate-700 mb-2">
-            Are you sure you want to delete <strong className="text-slate-900">"{iapName}"</strong>?
+          <p className="text-foreground mb-2">
+            Are you sure you want to delete <strong className="text-foreground">"{iapName}"</strong>?
           </p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted-foreground">
             This will permanently delete all operational periods and data associated with this IAP. This action cannot be undone.
           </p>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3">
+        <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-3">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            className="bg-coral text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-coral-hover transition-colors"
           >
             Delete IAP
           </button>
@@ -469,154 +469,154 @@ function CreateIAPModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="px-6 py-4 border-b border-slate-200">
-          <h2 className="text-xl font-semibold text-slate-900">Create New IAP</h2>
-          <p className="text-sm text-slate-600 mt-1">Set up a new Incident Action Plan workspace</p>
+      <div className="bg-card rounded-2xl shadow-xl max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Create New IAP</h2>
+          <p className="text-sm text-muted-foreground mt-1">Set up a new Incident Action Plan workspace</p>
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Incident Name*</label>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Incident Name*</label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Willow Creek Fire"
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Incident Number*</label>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Incident Number*</label>
             <input
               type="text"
               required
               value={formData.incidentNumber}
               onChange={(e) => setFormData({ ...formData, incidentNumber: e.target.value })}
               placeholder="e.g., CA-SHF-000123"
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Jurisdiction*</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Jurisdiction*</label>
               <input
                 type="text"
                 required
                 value={formData.jurisdiction}
                 onChange={(e) => setFormData({ ...formData, jurisdiction: e.target.value })}
                 placeholder="e.g., Shasta County"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Incident Commander</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Incident Commander</label>
               <input
                 type="text"
                 value={formData.incidentCommander}
                 onChange={(e) => setFormData({ ...formData, incidentCommander: e.target.value })}
                 placeholder="e.g., John Smith"
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Incident Start Date/Time</label>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Incident Start Date/Time</label>
             <input
               type="datetime-local"
               value={formData.startDate}
               onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Notes</label>
             <textarea
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Optional incident description or notes..."
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none"
+              className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent resize-none"
             />
           </div>
 
           {/* Operational Period Section */}
-          <div className="pt-4 border-t border-slate-200">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Initial Operational Period</h3>
+          <div className="pt-4 border-t border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Initial Operational Period</h3>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Period Name</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Period Name</label>
                 <input
                   type="text"
                   value={periodData.periodName}
                   onChange={(e) => setPeriodData({ ...periodData, periodName: e.target.value })}
                   placeholder="e.g., Initial Response"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Period Number</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Period Number</label>
                 <input
                   type="text"
                   value={periodData.periodNumber}
                   onChange={(e) => setPeriodData({ ...periodData, periodNumber: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Start Date/Time*</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">Start Date/Time*</label>
                 <input
                   type="datetime-local"
                   required
                   value={periodData.startDateTime}
                   onChange={(e) => handleStartDateTimeChange(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">End Date/Time*</label>
+                <label className="block text-sm font-medium text-foreground mb-1.5">End Date/Time*</label>
                 <input
                   type="datetime-local"
                   required
                   value={periodData.endDateTime}
                   onChange={(e) => setPeriodData({ ...periodData, endDateTime: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-border rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent"
                 />
               </div>
             </div>
 
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-muted-foreground mt-2">
               End date/time defaults to 12 hours after start, but can be adjusted
             </p>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-800">{error}</p>
+            <div className="bg-coral/10 border border-coral/30 rounded-2xl p-3">
+              <p className="text-sm text-coral">{error}</p>
             </div>
           )}
 
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+          <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-mustard text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-mustard-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating...' : 'Create IAP Workspace'}
             </button>

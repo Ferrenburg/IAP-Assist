@@ -2,80 +2,204 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
+
+  /* ---------------------------------------------------------------------
+     Apple-style design system (see the apple-design-analysis skill).
+     Photography-first, near-invisible chrome: pure white / parchment
+     canvases, near-black ink, a single blue accent carrying every
+     interactive element. Replaces the previous warm mustard/sage/coral
+     "vibe" palette as the app-wide default — homepage.tsx and pricing.tsx
+     opt back OUT of this via the `.legacy-warm-theme` scope below, since
+     those two surfaces were kept out of the redesign's scope.
+     --------------------------------------------------------------------- */
+
+  /* Brand accent — the one interactive color in the whole system. */
+  --color-apple-blue: #0066cc;
+  --color-apple-blue-hover: #0055ad;
+  --color-apple-blue-focus: #0071e3;
+  --color-apple-sky: #2997ff; /* inline links on dark tiles, where blue disappears */
+
+  /* Surfaces */
+  --color-apple-canvas: #ffffff;
+  --color-apple-parchment: #f5f5f7;
+  --color-apple-pearl: #fafafc;
+  --color-apple-tile-1: #272729;
+  --color-apple-tile-2: #2a2a2c;
+  --color-apple-tile-3: #252527;
+  --color-apple-black: #000000;
+
+  /* Ink */
+  --color-apple-ink: #1d1d1f;
+  --color-apple-ink-muted-80: #333333;
+  --color-apple-ink-muted-48: #7a7a7a;
+  --color-apple-body-muted: #cccccc; /* secondary copy on dark tiles */
+
+  /* Hairlines */
+  --color-apple-hairline: #e0e0e0;
+  --color-apple-divider: #f0f0f0;
+  --color-apple-chip: #d2d2d7;
+
+  /* The retired "brand palette" hex vars stay defined (hundreds of call
+     sites across the app still reference bg-mustard/text-sage/etc.) but now
+     resolve to the Apple system so every one of those call sites re-skins
+     automatically instead of needing a per-file rewrite. */
+  --color-mustard: var(--color-apple-blue);
+  --color-mustard-hover: var(--color-apple-blue-hover);
+  --color-cream: var(--color-apple-parchment);
+  --color-blush: var(--color-apple-pearl);
+  --color-blush-hover: var(--color-apple-divider);
+  --color-sage: var(--color-apple-blue);
+  --color-sage-hover: var(--color-apple-blue-hover);
+  --color-coral: #ff3b30; /* Apple system red — not in the skill's documented
+                              palette (error states are a "known gap" there);
+                              chosen to stay in-family for destructive actions. */
+  --color-coral-hover: #d70015;
+
+  --background: var(--color-apple-parchment);
+  --foreground: var(--color-apple-ink);
+  --card: var(--color-apple-canvas);
+  --card-foreground: var(--color-apple-ink);
+  --popover: var(--color-apple-canvas);
+  --popover-foreground: var(--color-apple-ink);
+  --primary: var(--color-apple-blue);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-apple-pearl);
+  --secondary-foreground: var(--color-apple-ink);
+  --muted: var(--color-apple-divider);
+  --muted-foreground: var(--color-apple-ink-muted-48);
+  --accent: var(--color-apple-divider);
+  --accent-foreground: var(--color-apple-ink);
+  --destructive: var(--color-coral);
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: var(--color-apple-hairline);
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --input-background: var(--color-apple-canvas);
+  --switch-background: var(--color-apple-chip);
+  --font-weight-light: 300;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --ring: var(--color-apple-blue-focus);
+  --chart-1: var(--color-apple-blue);
+  --chart-2: var(--color-apple-ink);
+  --chart-3: var(--color-coral);
+  --chart-4: var(--color-apple-sky);
+  --chart-5: var(--color-apple-ink-muted-48);
+  --radius: 1.125rem; /* 18px — Apple's utility-card radius */
+
+  /* Sidebar is treated as a persistent dark "global-nav" rail (Apple's own
+     top nav is pure black) so the light parchment workspace has somewhere
+     to alternate against, the same tile-vs-tile rhythm the marketing tiles
+     use, just turned 90 degrees into a rail. */
+  --sidebar: var(--color-apple-tile-1);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--color-apple-blue);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--color-apple-ink-muted-80);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: var(--color-apple-ink-muted-80);
+  --sidebar-ring: var(--color-apple-blue-focus);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  /* Apple's own docs don't formalize a dark counterpart for utility cards
+     ("Known Gaps"), so this extrapolates from Apple's own dark-tile
+     language (tile-1/2/3, pure black, ink-muted-80) rather than inventing
+     an unrelated palette. Note: nothing in this codebase currently adds
+     the `.dark` class to <html>/<body> (theme-context.tsx tracks
+     resolvedTheme in React state but never toggles it), so this block is
+     presently inert — kept in sync for whenever that gets wired up. */
+  --background: var(--color-apple-black);
+  --foreground: #ffffff;
+  --card: var(--color-apple-tile-1);
+  --card-foreground: #ffffff;
+  --popover: var(--color-apple-tile-1);
+  --popover-foreground: #ffffff;
+  --primary: var(--color-apple-blue);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-apple-tile-2);
+  --secondary-foreground: #ffffff;
+  --muted: var(--color-apple-tile-1);
+  --muted-foreground: var(--color-apple-body-muted);
+  --accent: var(--color-apple-ink-muted-80);
+  --accent-foreground: #ffffff;
+  --destructive: #ff453a;
+  --destructive-foreground: #ffffff;
+  --border: var(--color-apple-ink-muted-80);
+  --input: var(--color-apple-tile-1);
+  --input-background: var(--color-apple-tile-1);
+  --switch-background: var(--color-apple-ink-muted-80);
+  --font-weight-light: 300;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --ring: var(--color-apple-sky);
+  --chart-1: var(--color-apple-blue);
+  --chart-2: #ffffff;
+  --chart-3: #ff453a;
+  --chart-4: var(--color-apple-sky);
+  --chart-5: var(--color-apple-body-muted);
+  --sidebar: var(--color-apple-black);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--color-apple-blue);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--color-apple-tile-1);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: var(--color-apple-tile-2);
+  --sidebar-ring: var(--color-apple-sky);
+}
+
+/* ---------------------------------------------------------------------
+   Legacy warm theme — scopes the ORIGINAL mustard/sage/coral/blush palette
+   back in for the two surfaces deliberately left out of the Apple-style
+   redesign (homepage.tsx, pricing.tsx). Wrap a page root in
+   `className="legacy-warm-theme"` to opt it back out of the new default.
+   --------------------------------------------------------------------- */
+.legacy-warm-theme {
+  --color-mustard: #f6bd60;
+  --color-mustard-hover: #eaa83e;
+  --color-cream: #f7ede2;
+  --color-blush: #f5cac3;
+  --color-blush-hover: #edb0a7;
+  --color-sage: #84a59d;
+  --color-sage-hover: #6c8f86;
+  --color-coral: #f28482;
+  --color-coral-hover: #eb6663;
+
+  --background: #fdf8f3;
+  --foreground: #3d3229;
+  --card: #ffffff;
+  --card-foreground: #3d3229;
+  --popover: #ffffff;
+  --popover-foreground: #3d3229;
+  --primary: var(--color-mustard);
+  --primary-foreground: #3d3229;
+  --secondary: var(--color-blush);
+  --secondary-foreground: #3d3229;
+  --muted: var(--color-cream);
+  --muted-foreground: #8a7c6f;
+  --accent: #fbe4c4;
+  --accent-foreground: #3d3229;
+  --destructive: var(--color-coral);
+  --destructive-foreground: #ffffff;
+  --border: #efe2d3;
+  --input: transparent;
+  --input-background: #fbf3ea;
+  --switch-background: #e8dccb;
+  --ring: var(--color-sage);
+  --chart-1: var(--color-mustard);
+  --chart-2: var(--color-sage);
+  --chart-3: var(--color-coral);
+  --chart-4: var(--color-blush);
+  --chart-5: #5f8478;
+  --radius: 1.5rem;
+  --sidebar: var(--color-cream);
+  --sidebar-foreground: #3d3229;
+  --sidebar-primary: var(--color-mustard);
+  --sidebar-primary-foreground: #3d3229;
+  --sidebar-accent: var(--color-blush);
+  --sidebar-accent-foreground: #3d3229;
+  --sidebar-border: #efe2d3;
+  --sidebar-ring: var(--color-sage);
+  font-family: var(--font-sans-legacy, system-ui, -apple-system, sans-serif);
 }
 
 @theme inline {
@@ -117,6 +241,38 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-mustard: var(--color-mustard);
+  --color-mustard-hover: var(--color-mustard-hover);
+  --color-cream: var(--color-cream);
+  --color-blush: var(--color-blush);
+  --color-blush-hover: var(--color-blush-hover);
+  --color-sage: var(--color-sage);
+  --color-sage-hover: var(--color-sage-hover);
+  --color-coral: var(--color-coral);
+  --color-coral-hover: var(--color-coral-hover);
+
+  /* Apple-system tokens, exposed directly for bespoke tile sections
+     (login hero panel, marketing tiles) that need the real names rather
+     than the repurposed brand-color aliases above. */
+  --color-apple-blue: var(--color-apple-blue);
+  --color-apple-blue-hover: var(--color-apple-blue-hover);
+  --color-apple-blue-focus: var(--color-apple-blue-focus);
+  --color-apple-sky: var(--color-apple-sky);
+  --color-apple-canvas: var(--color-apple-canvas);
+  --color-apple-parchment: var(--color-apple-parchment);
+  --color-apple-pearl: var(--color-apple-pearl);
+  --color-apple-tile-1: var(--color-apple-tile-1);
+  --color-apple-tile-2: var(--color-apple-tile-2);
+  --color-apple-tile-3: var(--color-apple-tile-3);
+  --color-apple-black: var(--color-apple-black);
+  --color-apple-ink: var(--color-apple-ink);
+  --color-apple-ink-muted-80: var(--color-apple-ink-muted-80);
+  --color-apple-ink-muted-48: var(--color-apple-ink-muted-48);
+  --color-apple-body-muted: var(--color-apple-body-muted);
+  --color-apple-hairline: var(--color-apple-hairline);
+  --color-apple-divider: var(--color-apple-divider);
+  --color-apple-chip: var(--color-apple-chip);
+  --font-weight-light: var(--font-weight-light);
 }
 
 @layer base {
@@ -126,11 +282,14 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   /**
   * Default typography styles for HTML elements (h1-h4, p, label, button, input).
   * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  * Negative letter-spacing on headings is the "Apple tight" display cadence
+  * (see apple-design-analysis skill, Typography > Principles).
   */
 
   html {
@@ -139,26 +298,29 @@
 
   h1 {
     font-size: var(--text-2xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
   }
 
   h2 {
     font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
   }
 
   h3 {
     font-size: var(--text-lg);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
   }
 
   h4 {
     font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.3;
   }
 
   label {
@@ -176,6 +338,16 @@
   input {
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+
+  /* legacy-warm-theme keeps the original, wider heading tracking instead of
+     the Apple-tight negative letter-spacing above. */
+  .legacy-warm-theme h1,
+  .legacy-warm-theme h2,
+  .legacy-warm-theme h3,
+  .legacy-warm-theme h4 {
+    letter-spacing: normal;
     line-height: 1.5;
   }
 }

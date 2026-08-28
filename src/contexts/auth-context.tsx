@@ -24,8 +24,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const sessionCheckAttempted = useRef(false);
 
-  // Admin status is owned entirely by user_metadata.isAdmin (no hardcoded emails).
-  const isAdmin = user?.user_metadata?.isAdmin === true;
+  // Admin status is owned entirely by app_metadata.isAdmin (no hardcoded emails).
+  // Deliberately NOT user_metadata: that object is writable by the user
+  // themselves via the client SDK, so an admin flag stored there would let
+  // any signed-in user grant themselves admin access.
+  const isAdmin = user?.app_metadata?.isAdmin === true;
 
   // Debug logging
   useEffect(() => {

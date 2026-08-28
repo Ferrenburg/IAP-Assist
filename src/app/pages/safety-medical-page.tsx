@@ -523,7 +523,7 @@ export function SafetyMedicalPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -537,8 +537,8 @@ export function SafetyMedicalPage() {
     <div className="space-y-6">
       {/* Incident info banner */}
       {shared?.incidentName && (
-        <div className="text-sm text-slate-400 flex items-center gap-3">
-          <span className="text-slate-200 font-medium">{shared.incidentName}</span>
+        <div className="text-sm text-muted-foreground flex items-center gap-3">
+          <span className="text-foreground font-medium">{shared.incidentName}</span>
           {shared.periodNumber && <><span>·</span><span>Period {shared.periodNumber}</span></>}
           {(shared.startAt || shared.endAt) && (
             <><span>·</span><span>{formatBannerDate(shared.startAt)} – {formatBannerDate(shared.endAt)}</span></>
@@ -549,33 +549,33 @@ export function SafetyMedicalPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <ShieldAlert className="w-8 h-8 text-red-500" />
+          <ShieldAlert className="w-8 h-8 text-coral" />
           <div>
-            <h1 className="text-2xl font-bold text-white">Safety</h1>
-            <p className="text-sm text-slate-400">ICS 206 Medical Plan & ICS 208 Safety Message/Plan</p>
+            <h1 className="text-2xl font-bold text-foreground">Safety</h1>
+            <p className="text-sm text-muted-foreground">ICS 206 Medical Plan & ICS 208 Safety Message/Plan</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <History className="w-4 h-4" />
             History
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Templates
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             Tutorial
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <CircleHelp className="w-4 h-4" />
             Help
           </button>
           <button
             onClick={handleGenerateICS206}
             disabled={generating}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {generating && <Loader2 className="w-4 h-4 animate-spin" />}
             ICS 206
@@ -583,7 +583,7 @@ export function SafetyMedicalPage() {
           <button
             onClick={handleGenerateICS208}
             disabled={generating}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {generating && <Loader2 className="w-4 h-4 animate-spin" />}
             ICS 208
@@ -597,8 +597,8 @@ export function SafetyMedicalPage() {
           onClick={() => setActiveTab('medical')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'medical'
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              ? 'bg-sage text-white'
+              : 'bg-muted text-foreground/80 hover:bg-accent'
           }`}
         >
           ICS 206 - Medical Plan
@@ -607,8 +607,8 @@ export function SafetyMedicalPage() {
           onClick={() => setActiveTab('safety')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'safety'
-              ? 'bg-blue-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              ? 'bg-sage text-white'
+              : 'bg-muted text-foreground/80 hover:bg-accent'
           }`}
         >
           ICS 208 - Safety Message/Plan
@@ -619,8 +619,8 @@ export function SafetyMedicalPage() {
       {activeTab === 'safety' && (
         <div className="space-y-6">
           {/* Safety Message */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+          <div className="bg-card rounded-lg border border-border p-6">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Safety Message/Expanded Safety Message, Safety Plan, Site Safety Plan
             </label>
             <textarea
@@ -628,14 +628,14 @@ export function SafetyMedicalPage() {
               onChange={(e) => setSafetyData({ ...safetyData, safetyMessage: e.target.value })}
               onBlur={() => saveSafetyData()}
               placeholder="Enter clear, concise statements for safety message(s), priorities, and key command emphasis/decisions/directions. Enter information such as known safety hazards and specific precautions to be observed during this operational period..."
-              className="w-full h-64 px-4 py-2 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full h-64 px-4 py-2 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
             />
           </div>
 
           {/* Site Safety Plan Required */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-3">Site Safety Plan Required?</label>
+              <label className="block text-sm font-medium text-foreground mb-3">Site Safety Plan Required?</label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -645,9 +645,9 @@ export function SafetyMedicalPage() {
                       setSafetyData({ ...safetyData, siteSafetyPlanRequired: true });
                       saveSafetyData({ siteSafetyPlanRequired: true });
                     }}
-                    className="w-4 h-4 text-blue-600"
+                    className="w-4 h-4 text-sage"
                   />
-                  <span className="text-sm text-slate-700">Yes</span>
+                  <span className="text-sm text-foreground">Yes</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -657,34 +657,34 @@ export function SafetyMedicalPage() {
                       setSafetyData({ ...safetyData, siteSafetyPlanRequired: false });
                       saveSafetyData({ siteSafetyPlanRequired: false });
                     }}
-                    className="w-4 h-4 text-blue-600"
+                    className="w-4 h-4 text-sage"
                   />
-                  <span className="text-sm text-slate-700">No</span>
+                  <span className="text-sm text-foreground">No</span>
                 </label>
               </div>
             </div>
 
             {safetyData.siteSafetyPlanRequired && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Approved Site Safety Plan(s) Located At:</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Approved Site Safety Plan(s) Located At:</label>
                 <input
                   type="text"
                   value={safetyData.siteSafetyPlanLocation}
                   onChange={(e) => setSafetyData({ ...safetyData, siteSafetyPlanLocation: e.target.value })}
                   onBlur={() => saveSafetyData()}
                   placeholder="Enter location of approved site safety plan(s)"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             )}
           </div>
 
           {/* Prepared By */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Prepared by</h2>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Prepared by</h2>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Name</label>
                 <input
                   type="text"
                   value={ics208PreparedByName}
@@ -693,11 +693,11 @@ export function SafetyMedicalPage() {
                     setSafetyData({ ...safetyData, preparedByName: e.target.value });
                   }}
                   onBlur={() => saveSafetyData()}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Position/Title</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Position/Title</label>
                 <input
                   type="text"
                   value={ics208PreparedByTitle}
@@ -706,20 +706,20 @@ export function SafetyMedicalPage() {
                     setSafetyData({ ...safetyData, positionTitle: e.target.value });
                   }}
                   onBlur={() => saveSafetyData()}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Date/Time Prepared</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Date/Time Prepared</label>
               <input
                 type="datetime-local"
                 value={safetyData.dateTimePrepared}
                 onChange={(e) => setSafetyData({ ...safetyData, dateTimePrepared: e.target.value })}
                 onBlur={() => saveSafetyData()}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
-              <p className="text-xs text-slate-500 mt-1">Time shown in America/Chicago</p>
+              <p className="text-xs text-muted-foreground mt-1">Time shown in America/Chicago</p>
             </div>
           </div>
         </div>
@@ -729,15 +729,15 @@ export function SafetyMedicalPage() {
       {activeTab === 'medical' && (
         <div className="space-y-6">
           {/* Medical Aid Stations */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-slate-900">Medical Aid Stations</h2>
-                <HelpCircle className="w-4 h-4 text-slate-400" />
+                <h2 className="text-lg font-semibold text-foreground">Medical Aid Stations</h2>
+                <HelpCircle className="w-4 h-4 text-muted-foreground" />
               </div>
               <button
                 onClick={addMedicalStation}
-                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-mustard hover:bg-mustard-hover text-white text-sm rounded-lg transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Station
@@ -745,55 +745,55 @@ export function SafetyMedicalPage() {
             </div>
 
             {medicalStations.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
+              <div className="text-center py-12 text-muted-foreground">
                 No medical aid stations added. Click "Add Station" to add one.
               </div>
             ) : (
               <div className="space-y-4">
                 {medicalStations.map((station, index) => (
-                  <div key={station.id} className="border border-slate-200 rounded-lg p-4">
+                  <div key={station.id} className="border border-border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-slate-700">Station {index + 1}</h3>
+                      <h3 className="text-sm font-medium text-foreground">Station {index + 1}</h3>
                       <button
                         onClick={() => deleteMedicalStation(station.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-coral hover:text-coral"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Name</label>
                         <input
                           type="text"
                           value={station.name}
                           onChange={(e) => updateMedicalStation(station.id, 'name', e.target.value)}
                           onBlur={() => saveMedicalStation(station.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Location</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Location</label>
                         <input
                           type="text"
                           value={station.location}
                           onChange={(e) => updateMedicalStation(station.id, 'location', e.target.value)}
                           onBlur={() => saveMedicalStation(station.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Contact Number(s)/Frequency</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Contact Number(s)/Frequency</label>
                         <input
                           type="text"
                           value={station.contact}
                           onChange={(e) => updateMedicalStation(station.id, 'contact', e.target.value)}
                           onBlur={() => saveMedicalStation(station.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">Paramedics on Site?</label>
+                        <label className="block text-sm font-medium text-foreground mb-3">Paramedics on Site?</label>
                         <div className="flex gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -803,9 +803,9 @@ export function SafetyMedicalPage() {
                                 updateMedicalStation(station.id, 'paramedicsOnSite', true);
                                 saveMedicalStation(station.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">Yes</span>
+                            <span className="text-sm text-foreground">Yes</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -815,9 +815,9 @@ export function SafetyMedicalPage() {
                                 updateMedicalStation(station.id, 'paramedicsOnSite', false);
                                 saveMedicalStation(station.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">No</span>
+                            <span className="text-sm text-foreground">No</span>
                           </label>
                         </div>
                       </div>
@@ -829,15 +829,15 @@ export function SafetyMedicalPage() {
           </div>
 
           {/* Transportation */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-slate-900">Transportation (indicate air or ground)</h2>
-                <HelpCircle className="w-4 h-4 text-slate-400" />
+                <h2 className="text-lg font-semibold text-foreground">Transportation (indicate air or ground)</h2>
+                <HelpCircle className="w-4 h-4 text-muted-foreground" />
               </div>
               <button
                 onClick={addTransportation}
-                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-mustard hover:bg-mustard-hover text-white text-sm rounded-lg transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Transportation
@@ -845,55 +845,55 @@ export function SafetyMedicalPage() {
             </div>
 
             {transportation.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
+              <div className="text-center py-12 text-muted-foreground">
                 No transportation added. Click "Add Transportation" to add one.
               </div>
             ) : (
               <div className="space-y-4">
                 {transportation.map((transport, index) => (
-                  <div key={transport.id} className="border border-slate-200 rounded-lg p-4">
+                  <div key={transport.id} className="border border-border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-slate-700">Transport {index + 1}</h3>
+                      <h3 className="text-sm font-medium text-foreground">Transport {index + 1}</h3>
                       <button
                         onClick={() => deleteTransportation(transport.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-coral hover:text-coral"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Ambulance Service</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Ambulance Service</label>
                         <input
                           type="text"
                           value={transport.ambulanceService}
                           onChange={(e) => updateTransportation(transport.id, 'ambulanceService', e.target.value)}
                           onBlur={() => saveTransportation(transport.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Location</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Location</label>
                         <input
                           type="text"
                           value={transport.location}
                           onChange={(e) => updateTransportation(transport.id, 'location', e.target.value)}
                           onBlur={() => saveTransportation(transport.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Contact Number(s)/Frequency</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Contact Number(s)/Frequency</label>
                         <input
                           type="text"
                           value={transport.contact}
                           onChange={(e) => updateTransportation(transport.id, 'contact', e.target.value)}
                           onBlur={() => saveTransportation(transport.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">Level of Service</label>
+                        <label className="block text-sm font-medium text-foreground mb-3">Level of Service</label>
                         <div className="flex gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -903,9 +903,9 @@ export function SafetyMedicalPage() {
                                 updateTransportation(transport.id, 'levelOfService', 'ALS');
                                 saveTransportation(transport.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">ALS</span>
+                            <span className="text-sm text-foreground">ALS</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -915,9 +915,9 @@ export function SafetyMedicalPage() {
                                 updateTransportation(transport.id, 'levelOfService', 'BLS');
                                 saveTransportation(transport.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">BLS</span>
+                            <span className="text-sm text-foreground">BLS</span>
                           </label>
                         </div>
                       </div>
@@ -929,15 +929,15 @@ export function SafetyMedicalPage() {
           </div>
 
           {/* Hospitals */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-slate-900">Hospitals</h2>
-                <HelpCircle className="w-4 h-4 text-slate-400" />
+                <h2 className="text-lg font-semibold text-foreground">Hospitals</h2>
+                <HelpCircle className="w-4 h-4 text-muted-foreground" />
               </div>
               <button
                 onClick={addHospital}
-                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-mustard hover:bg-mustard-hover text-white text-sm rounded-lg transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Add Hospital
@@ -945,89 +945,89 @@ export function SafetyMedicalPage() {
             </div>
 
             {hospitals.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
+              <div className="text-center py-12 text-muted-foreground">
                 No hospitals added. Click "Add Hospital" to add one.
               </div>
             ) : (
               <div className="space-y-4">
                 {hospitals.map((hospital, index) => (
-                  <div key={hospital.id} className="border border-slate-200 rounded-lg p-4">
+                  <div key={hospital.id} className="border border-border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-medium text-slate-700">Hospital {index + 1}</h3>
+                      <h3 className="text-sm font-medium text-foreground">Hospital {index + 1}</h3>
                       <button
                         onClick={() => deleteHospital(hospital.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-coral hover:text-coral"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Hospital Name</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Hospital Name</label>
                         <input
                           type="text"
                           value={hospital.hospitalName}
                           onChange={(e) => updateHospital(hospital.id, 'hospitalName', e.target.value)}
                           onBlur={() => saveHospital(hospital.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Address</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Address</label>
                         <input
                           type="text"
                           value={hospital.address}
                           onChange={(e) => updateHospital(hospital.id, 'address', e.target.value)}
                           onBlur={() => saveHospital(hospital.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Latitude & Longitude (if Helipad)</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Latitude & Longitude (if Helipad)</label>
                         <input
                           type="text"
                           value={hospital.latitude}
                           onChange={(e) => updateHospital(hospital.id, 'latitude', e.target.value)}
                           onBlur={() => saveHospital(hospital.id)}
                           placeholder="e.g., 40.7128, -74.0060"
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Contact Number(s)/Frequency</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Contact Number(s)/Frequency</label>
                         <input
                           type="text"
                           value={hospital.contact}
                           onChange={(e) => updateHospital(hospital.id, 'contact', e.target.value)}
                           onBlur={() => saveHospital(hospital.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Travel Time - Air</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Travel Time - Air</label>
                         <input
                           type="text"
                           value={hospital.travelTimeAir}
                           onChange={(e) => updateHospital(hospital.id, 'travelTimeAir', e.target.value)}
                           onBlur={() => saveHospital(hospital.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Travel Time - Ground</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Travel Time - Ground</label>
                         <input
                           type="text"
                           value={hospital.travelTimeGround}
                           onChange={(e) => updateHospital(hospital.id, 'travelTimeGround', e.target.value)}
                           onBlur={() => saveHospital(hospital.id)}
-                          className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                         />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-4 gap-4 mt-4">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Trauma Center?</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Trauma Center?</label>
                         <div className="flex items-center gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1037,9 +1037,9 @@ export function SafetyMedicalPage() {
                                 updateHospital(hospital.id, 'traumaCenter', true);
                                 saveHospital(hospital.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">Yes</span>
+                            <span className="text-sm text-foreground">Yes</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1052,27 +1052,27 @@ export function SafetyMedicalPage() {
                                 setHospitals(updated);
                                 saveHospital(hospital.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">No</span>
+                            <span className="text-sm text-foreground">No</span>
                           </label>
                         </div>
                       </div>
                       {hospital.traumaCenter && (
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-2">Trauma Level</label>
+                          <label className="block text-sm font-medium text-foreground mb-2">Trauma Level</label>
                           <input
                             type="text"
                             value={hospital.traumaCenterLevel}
                             onChange={(e) => updateHospital(hospital.id, 'traumaCenterLevel', e.target.value)}
                             onBlur={() => saveHospital(hospital.id)}
                             placeholder="e.g., I, II, III"
-                            className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </div>
                       )}
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Burn Center?</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Burn Center?</label>
                         <div className="flex items-center gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1082,9 +1082,9 @@ export function SafetyMedicalPage() {
                                 updateHospital(hospital.id, 'burnCenter', true);
                                 saveHospital(hospital.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">Yes</span>
+                            <span className="text-sm text-foreground">Yes</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1094,14 +1094,14 @@ export function SafetyMedicalPage() {
                                 updateHospital(hospital.id, 'burnCenter', false);
                                 saveHospital(hospital.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">No</span>
+                            <span className="text-sm text-foreground">No</span>
                           </label>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">Helipad?</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Helipad?</label>
                         <div className="flex items-center gap-4">
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1111,9 +1111,9 @@ export function SafetyMedicalPage() {
                                 updateHospital(hospital.id, 'helipad', true);
                                 saveHospital(hospital.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">Yes</span>
+                            <span className="text-sm text-foreground">Yes</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -1123,9 +1123,9 @@ export function SafetyMedicalPage() {
                                 updateHospital(hospital.id, 'helipad', false);
                                 saveHospital(hospital.id);
                               }}
-                              className="w-4 h-4 text-blue-600"
+                              className="w-4 h-4 text-sage"
                             />
-                            <span className="text-sm text-slate-700">No</span>
+                            <span className="text-sm text-foreground">No</span>
                           </label>
                         </div>
                       </div>
@@ -1137,23 +1137,23 @@ export function SafetyMedicalPage() {
           </div>
 
           {/* Special Medical Emergency Procedures */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-2">Special Medical Emergency Procedures</h2>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-2">Special Medical Emergency Procedures</h2>
             <textarea
               value={medicalData.specialProcedures}
               onChange={(e) => setMedicalData({ ...medicalData, specialProcedures: e.target.value })}
               onBlur={() => saveMedicalData()}
               placeholder="Note any special emergency instructions for use by incident personnel..."
-              className="w-full h-32 px-4 py-2 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full h-32 px-4 py-2 border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
             />
           </div>
 
           {/* Prepared By */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Prepared by</h2>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Prepared by</h2>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Name</label>
                 <input
                   type="text"
                   value={ics206PreparedByName}
@@ -1162,11 +1162,11 @@ export function SafetyMedicalPage() {
                     setMedicalData({ ...medicalData, preparedByName: e.target.value });
                   }}
                   onBlur={() => saveMedicalData()}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Position/Title</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Position/Title</label>
                 <input
                   type="text"
                   value={ics206PreparedByTitle}
@@ -1175,20 +1175,20 @@ export function SafetyMedicalPage() {
                     setMedicalData({ ...medicalData, positionTitle: e.target.value });
                   }}
                   onBlur={() => saveMedicalData()}
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Date/Time Prepared</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Date/Time Prepared</label>
               <input
                 type="datetime-local"
                 value={medicalData.dateTimePrepared}
                 onChange={(e) => setMedicalData({ ...medicalData, dateTimePrepared: e.target.value })}
                 onBlur={() => saveMedicalData()}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
-              <p className="text-xs text-slate-500 mt-1">Time shown in America/Chicago</p>
+              <p className="text-xs text-muted-foreground mt-1">Time shown in America/Chicago</p>
             </div>
           </div>
         </div>
