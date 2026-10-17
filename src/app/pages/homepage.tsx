@@ -2,18 +2,19 @@
 
 import { useRouter } from 'next/navigation';
 import { FileText, Users, Shield, Clock, CheckCircle, ArrowRight, Radio, Heart, Calendar, Cloud, ClipboardList, Target } from 'lucide-react';
-import opLogo from '../../imports/No_Background_OP_Logo.png';
+import opLogo from '../../imports/iapassist-logo-primary.png';
+import opLogoReversed from '../../imports/iapassist-logo-reversed.png';
 
 export function Homepage() {
   const router = useRouter();
 
   return (
-    <div className="legacy-warm-theme min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={opLogo.src} alt="OpPeriod" className="h-12" />
+            <img src={opLogo.src} alt="IAPAssist" className="h-12 w-auto" />
           </div>
           <nav className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-mustard-hover transition-colors">Features</a>
@@ -33,7 +34,7 @@ export function Homepage() {
             </button>
             <button
               onClick={() => router.push('/pricing')}
-              className="px-5 py-2 text-sm font-medium text-foreground bg-mustard hover:bg-mustard-hover rounded-full transition-colors flex items-center gap-2"
+              className="px-5 py-2 text-sm font-medium text-white bg-mustard hover:bg-mustard-hover rounded-full transition-colors flex items-center gap-2"
             >
               Get Started
               <ArrowRight className="w-4 h-4" />
@@ -50,13 +51,13 @@ export function Homepage() {
               Streamline Your Incident Action Plans
             </h1>
             <p className="text-xl text-muted-foreground mb-10 max-w-3xl mx-auto">
-              Build professional ICS-compliant IAPs in minutes. OpPeriod simplifies form generation,
+              Build professional ICS-compliant IAPs in minutes. IAPAssist simplifies form generation,
               team coordination, and operational planning for emergency management teams.
             </p>
             <div className="flex items-center justify-center gap-4">
               <button
                 onClick={() => router.push('/pricing')}
-                className="px-8 py-3.5 text-base font-semibold text-foreground bg-mustard hover:bg-mustard-hover rounded-full transition-colors flex items-center gap-2 shadow-sm"
+                className="px-8 py-3.5 text-base font-semibold text-white bg-mustard hover:bg-mustard-hover rounded-full transition-colors flex items-center gap-2 shadow-sm"
               >
                 Get Started
                 <ArrowRight className="w-5 h-5" />
@@ -83,7 +84,7 @@ export function Homepage() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-card p-6 border border-border rounded-2xl hover:border-blush hover:shadow-sm transition-all">
               <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-4">
-                <Target className="w-6 h-6 text-coral" />
+                <Target className="w-6 h-6 text-brand-orange" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Objectives & Planning</h3>
               <p className="text-sm text-muted-foreground">
@@ -93,7 +94,7 @@ export function Homepage() {
 
             <div className="bg-card p-6 border border-border rounded-2xl hover:border-blush hover:shadow-sm transition-all">
               <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-4">
-                <Users className="w-6 h-6 text-coral" />
+                <Users className="w-6 h-6 text-brand-orange" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Personnel Management</h3>
               <p className="text-sm text-muted-foreground">
@@ -103,7 +104,7 @@ export function Homepage() {
 
             <div className="bg-card p-6 border border-border rounded-2xl hover:border-blush hover:shadow-sm transition-all">
               <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-4">
-                <ClipboardList className="w-6 h-6 text-coral" />
+                <ClipboardList className="w-6 h-6 text-brand-orange" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Work Assignments</h3>
               <p className="text-sm text-muted-foreground">
@@ -113,7 +114,7 @@ export function Homepage() {
 
             <div className="bg-card p-6 border border-border rounded-2xl hover:border-blush hover:shadow-sm transition-all">
               <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-4">
-                <Radio className="w-6 h-6 text-coral" />
+                <Radio className="w-6 h-6 text-brand-orange" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Communications Plan</h3>
               <p className="text-sm text-muted-foreground">
@@ -123,7 +124,7 @@ export function Homepage() {
 
             <div className="bg-card p-6 border border-border rounded-2xl hover:border-blush hover:shadow-sm transition-all">
               <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-4">
-                <Heart className="w-6 h-6 text-coral" />
+                <Heart className="w-6 h-6 text-brand-orange" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Safety & Medical</h3>
               <p className="text-sm text-muted-foreground">
@@ -133,7 +134,7 @@ export function Homepage() {
 
             <div className="bg-card p-6 border border-border rounded-2xl hover:border-blush hover:shadow-sm transition-all">
               <div className="w-12 h-12 bg-blush rounded-2xl flex items-center justify-center mb-4">
-                <Cloud className="w-6 h-6 text-coral" />
+                <Cloud className="w-6 h-6 text-brand-orange" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Weather Integration</h3>
               <p className="text-sm text-muted-foreground">
@@ -149,11 +150,11 @@ export function Homepage() {
         <div className="max-w-4xl mx-auto px-8 text-center">
           <h2 className="text-4xl font-bold text-foreground mb-4">Ready to Streamline Your IAP Workflow?</h2>
           <p className="text-xl text-muted-foreground mb-8">
-            Join incident management teams using OpPeriod to respond faster and more effectively.
+            Join incident management teams using IAPAssist to respond faster and more effectively.
           </p>
           <button
             onClick={() => router.push('/pricing')}
-            className="px-8 py-3.5 text-base font-semibold text-foreground bg-mustard hover:bg-mustard-hover rounded-full transition-colors inline-flex items-center gap-2 shadow-sm"
+            className="px-8 py-3.5 text-base font-semibold text-white bg-mustard hover:bg-mustard-hover rounded-full transition-colors inline-flex items-center gap-2 shadow-sm"
           >
             Get Started Today
             <ArrowRight className="w-5 h-5" />
@@ -166,10 +167,10 @@ export function Homepage() {
         <div className="max-w-7xl mx-auto px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <img src={opLogo.src} alt="OpPeriod" className="h-8" />
+              <img src={opLogoReversed.src} alt="IAPAssist" className="h-8 w-auto" />
             </div>
             <p className="text-sm text-background/70">
-              © 2026 OpPeriod. Incident Action Plan management for emergency response teams.
+              © 2026 IAPAssist. Incident Action Plan management for emergency response teams.
             </p>
           </div>
         </div>

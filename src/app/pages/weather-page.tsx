@@ -143,7 +143,7 @@ export function WeatherPage() {
     try {
       const pointResponse = await fetch(
         `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
-        { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } },
+        { headers: { 'User-Agent': '(IAPAssist, contact@example.com)' } },
       );
       if (!pointResponse.ok) {
         if (pointResponse.status === 404) {
@@ -172,10 +172,10 @@ export function WeatherPage() {
       setWeatherPoint(point);
 
       const [forecastRes, hourlyRes, alertsRes] = await Promise.all([
-        fetch(point.forecast, { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } }),
-        fetch(point.forecastHourly, { headers: { 'User-Agent': '(OpPeriod, contact@example.com)' } }).catch(() => null),
+        fetch(point.forecast, { headers: { 'User-Agent': '(IAPAssist, contact@example.com)' } }),
+        fetch(point.forecastHourly, { headers: { 'User-Agent': '(IAPAssist, contact@example.com)' } }).catch(() => null),
         fetch(`https://api.weather.gov/alerts/active?point=${latitude},${longitude}`, {
-          headers: { 'User-Agent': '(OpPeriod, contact@example.com)' },
+          headers: { 'User-Agent': '(IAPAssist, contact@example.com)' },
         }),
       ]);
 
@@ -527,7 +527,7 @@ function MapPickerModal({
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`,
-        { headers: { 'User-Agent': 'OpPeriod' } },
+        { headers: { 'User-Agent': 'IAPAssist' } },
       );
       const results = await response.json();
       if (results.length > 0) {

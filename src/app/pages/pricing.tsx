@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, Check, ArrowLeft } from 'lucide-react';
-import opLogo from '../../imports/No_Background_OP_Logo.png';
+import opLogo from '../../imports/iapassist-logo-primary.png';
 
 export function Pricing() {
   const router = useRouter();
@@ -57,12 +57,12 @@ export function Pricing() {
   ];
 
   return (
-    <div className="legacy-warm-theme min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={opLogo.src} alt="OpPeriod" className="h-12" />
+            <img src={opLogo.src} alt="IAPAssist" className="h-12 w-auto" />
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -176,7 +176,7 @@ export function Pricing() {
             <div className="bg-card rounded-lg p-6 border border-border">
               <h4 className="font-semibold text-foreground mb-2">Is there a free trial?</h4>
               <p className="text-muted-foreground">
-                Contact us to discuss trial options for your team. We want to make sure OpPeriod is the right fit for your organization.
+                Contact us to discuss trial options for your team. We want to make sure IAPAssist is the right fit for your organization.
               </p>
             </div>
             <div className="bg-card rounded-lg p-6 border border-border">
@@ -206,10 +206,10 @@ export function Pricing() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
-              <img src={opLogo.src} alt="OpPeriod" className="h-8" />
+              <img src={opLogo.src} alt="IAPAssist" className="h-8 w-auto" />
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2026 OpPeriod. IAP management for emergency response teams.
+              © 2026 IAPAssist. IAP management for emergency response teams.
             </p>
           </div>
         </div>

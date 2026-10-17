@@ -8,7 +8,7 @@ import { useAuth } from '../../contexts/auth-context';
 import { useTheme } from '../../contexts/theme-context';
 import { projectId, publishableKey } from '../../utils/supabase-info';
 import { toast } from 'sonner';
-import opLogo from '../../imports/OP_Logo.png';
+import opLogo from '../../imports/iapassist-logo-primary.png';
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
 
@@ -202,7 +202,7 @@ export function AccountSettings() {
       <header className="border-b border-border bg-card">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <img src={opLogo.src} alt="OpPeriod" className="h-8" />
+            <img src={opLogo.src} alt="IAPAssist" className="h-8 w-auto" />
           </div>
           <button
             onClick={() => router.push('/')}

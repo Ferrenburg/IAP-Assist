@@ -6,7 +6,7 @@ import { usePathname, useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../../utils/api-client';
 import { useAuth } from '../../contexts/auth-context';
-import opLogo from '../../imports/OP_Logo.png';
+import opLogo from '../../imports/iapassist-logo-primary.png';
 
 const tabs = [
   { id: 'objectives', label: 'Objectives', icon: Target, path: '/objectives' },
@@ -82,7 +82,7 @@ export function WorkspaceHeader() {
       <div className="px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 shrink-0">
           <Link href="/" className="cursor-pointer">
-            <img src={opLogo} alt="OpPeriod" className="h-6" />
+            <img src={opLogo.src} alt="IAPAssist" className="h-6 w-auto" />
           </Link>
           {!iapId && (
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5">

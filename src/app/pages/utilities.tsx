@@ -68,7 +68,7 @@ export function Utilities() {
         <div className={`rounded-lg p-6 ${cardClass}`}>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-blush rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-coral" />
+              <FileText className="w-5 h-5 text-brand-orange" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">PDF Tools</h2>

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/auth-context';
 import { apiClient } from '../../utils/api-client';
 import { toast } from 'sonner';
-import opLogo from '../../imports/OP_Logo.png';
+import opLogo from '../../imports/iapassist-logo-primary.png';
 
 interface IAP {
   id: string;
@@ -130,7 +130,7 @@ export function MainWorkspace() {
       {/* Sidebar */}
       <div className="w-72 bg-card text-foreground flex flex-col border-r border-border">
         <div className="p-6 border-b border-border">
-          <img src={opLogo.src} alt="OpPeriod" className="h-8 mb-3" />
+          <img src={opLogo.src} alt="IAPAssist" className="h-8 w-auto mb-3" />
           <p className="text-sm text-muted-foreground">{user?.email}</p>
         </div>
 
@@ -139,7 +139,7 @@ export function MainWorkspace() {
             <div className="mb-6">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="w-full bg-mustard text-foreground px-4 py-2.5 rounded-full font-medium hover:bg-mustard-hover transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-mustard text-white px-4 py-2.5 rounded-full font-medium hover:bg-mustard-hover transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="w-5 h-5" />
                 Create New IAP
@@ -268,7 +268,7 @@ export function MainWorkspace() {
         <div className="max-w-5xl mx-auto p-8">
           {/* Header */}
           <div className="mb-12">
-            <h1 className="text-4xl font-bold text-foreground mb-2">Welcome to OpPeriod</h1>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Welcome to IAPAssist</h1>
             <p className="text-lg text-muted-foreground">Streamline your incident action plan creation and management</p>
           </div>
 
@@ -304,7 +304,7 @@ export function MainWorkspace() {
               <p className="text-muted-foreground mb-6">Create your first Incident Action Plan to get started</p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-mustard text-foreground px-6 py-3 rounded-full font-medium hover:bg-mustard-hover transition-colors inline-flex items-center gap-2"
+                className="bg-mustard text-white px-6 py-3 rounded-full font-medium hover:bg-mustard-hover transition-colors inline-flex items-center gap-2"
               >
                 <Plus className="w-5 h-5" />
                 Create New IAP
@@ -616,7 +616,7 @@ function CreateIAPModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
             <button
               type="submit"
               disabled={loading}
-              className="bg-mustard text-foreground px-4 py-2 rounded-full text-sm font-medium hover:bg-mustard-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-mustard text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-mustard-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating...' : 'Create IAP Workspace'}
             </button>
