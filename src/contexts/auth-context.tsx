@@ -8,7 +8,12 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name?: string) => Promise<void>;
+  signup: (
+    email: string,
+    password: string,
+    name: string,
+    organizationName: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -19,8 +24,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const sessionCheckAttempted = useRef(false);
 
-  // Check if user is admin
-  const isAdmin = user?.user_metadata?.isAdmin === true || user?.email === 'sam@ferrenburg.com';
+  // Admin status is owned entirely by app_metadata.isAdmin (no hardcoded emails).
+  // Deliberately NOT user_metadata: that object is writable by the user
+  // themselves via the client SDK, so an admin flag stored there would let
+  // any signed-in user grant themselves admin access.
+  const isAdmin = user?.app_metadata?.isAdmin === true;
 
   // Debug logging
   useEffect(() => {
@@ -96,10 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, name?: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    name: string,
+    organizationName: string,
+  ) => {
     try {
-      await apiClient.signup(email, password, name);
-      // After signup, automatically log in
+      await apiClient.signup(email, password, name, organizationName);
       await login(email, password);
     } catch (error) {
       console.error('Signup failed:', error);

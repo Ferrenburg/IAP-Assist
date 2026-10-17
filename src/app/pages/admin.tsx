@@ -1,62 +1,99 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Users, Inbox, Database, CheckCircle, XCircle, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Shield, Users, Database, Loader2, UserPlus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { projectId } from '../../utils/supabase-info';
-
-interface AccountRequest {
-  id: string;
-  email: string;
-  name: string;
-  organization: string;
-  created_at: string;
-  status: 'pending' | 'approved' | 'rejected';
-}
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 
 interface IAP {
   id: string;
-  incidentName: string;
+  name: string;
   incidentNumber: string;
-  created_at: string;
-  user_id: string;
+  createdAt: string;
+  userId: string;
 }
 
-interface User {
+interface OrgMembership {
+  id: string;
+  name: string;
+  role: 'owner' | 'admin' | 'member';
+}
+
+interface AdminUser {
   id: string;
   email: string;
   user_metadata: {
     name?: string;
+  };
+  app_metadata: {
     isAdmin?: boolean;
   };
   created_at: string;
+  organizations: OrgMembership[];
 }
+
+interface Organization {
+  id: string;
+  name: string;
+}
+
+const SERVER_BASE = `https://${projectId}.supabase.co/functions/v1/server`;
+
+const NEW_ORG_VALUE = '__new__';
 
 export function Admin() {
   const router = useRouter();
   const { user, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'requests' | 'create' | 'users' | 'workspaces'>('requests');
-  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'workspaces'>('users');
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [iaps, setIaps] = useState<IAP[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
 
-  // Check admin access
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    orgSelection: '',
+    newOrgName: '',
+    role: 'member' as 'owner' | 'admin' | 'member',
+    grantAdmin: false,
+  });
+
   if (!isAdmin) {
-    console.log('Admin check failed for user:', user?.email, 'isAdmin:', isAdmin);
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
-          <p className="text-slate-600 mb-2">You do not have permission to access the admin panel.</p>
-          <p className="text-xs text-slate-500 mb-6">Logged in as: {user?.email}</p>
+          <Shield className="w-16 h-16 text-coral mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
+          <p className="text-muted-foreground mb-2">You do not have permission to access the admin panel.</p>
+          <p className="text-xs text-muted-foreground mb-6">Logged in as: {user?.email}</p>
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700"
+            className="px-6 py-2 bg-mustard text-white rounded-lg font-medium hover:bg-mustard-hover"
           >
             Return to Workspace
           </button>
@@ -65,25 +102,24 @@ export function Admin() {
     );
   }
 
-  console.log('Admin access granted for user:', user?.email);
-
-  // Create account form
-  const [newAccountEmail, setNewAccountEmail] = useState('');
-  const [newAccountPassword, setNewAccountPassword] = useState('');
-  const [newAccountName, setNewAccountName] = useState('');
-
   useEffect(() => {
     loadData();
   }, [activeTab]);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('access_token');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
-      if (activeTab === 'requests') {
-        await loadAccountRequests();
-      } else if (activeTab === 'users') {
-        await loadUsers();
-      } else if (activeTab === 'workspaces') {
+      if (activeTab === 'users') {
+        await Promise.all([loadUsers(), loadOrganizations()]);
+      } else {
         await loadAllIAPs();
       }
     } catch (err) {
@@ -94,165 +130,37 @@ export function Admin() {
     }
   };
 
-  const supabaseUrl = `https://${projectId}.supabase.co`;
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('access_token');
-    console.log('Getting auth headers, token exists:', !!token);
-    if (!token) {
-      console.error('No access token found in localStorage');
-    }
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    };
-  };
-
-  const loadAccountRequests = async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/make-server-897e0759/admin/account-requests`, {
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to load account requests');
-    }
-
-    const data = await response.json();
-    setAccountRequests(data);
-  };
-
   const loadUsers = async () => {
-    const url = `${supabaseUrl}/functions/v1/make-server-897e0759/admin/users`;
-    console.log('Fetching users from:', url);
-
-    const response = await fetch(url, {
+    const response = await fetch(`${SERVER_BASE}/admin/users`, {
       headers: getAuthHeaders(),
     });
-
-    console.log('Response status:', response.status, 'Content-Type:', response.headers.get('content-type'));
-
     if (!response.ok) {
-      const text = await response.text();
-      console.error('Failed to load users. Status:', response.status);
-      console.error('Response body:', text.substring(0, 500));
       throw new Error(`Failed to load users: ${response.status}`);
     }
+    const data = await response.json();
+    setUsers(data);
+  };
 
-    const text = await response.text();
-    console.log('Response text preview:', text.substring(0, 200));
-
-    try {
-      const data = JSON.parse(text);
-      console.log('Loaded users:', data);
-      setUsers(data);
-    } catch (e) {
-      console.error('Failed to parse JSON:', e);
-      console.error('Response was:', text.substring(0, 500));
-      throw new Error('Invalid JSON response from server');
+  const loadOrganizations = async () => {
+    const response = await fetch(`${SERVER_BASE}/admin/organizations`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to load organizations');
     }
+    const data = await response.json();
+    setOrgs(data);
   };
 
   const loadAllIAPs = async () => {
-    const response = await fetch(`${supabaseUrl}/functions/v1/make-server-897e0759/admin/all-iaps`, {
+    const response = await fetch(`${SERVER_BASE}/admin/all-iaps`, {
       headers: getAuthHeaders(),
     });
-
     if (!response.ok) {
       throw new Error('Failed to load IAPs');
     }
-
     const data = await response.json();
     setIaps(data);
-  };
-
-  const handleApproveRequest = async (request: AccountRequest) => {
-    if (!confirm(`Approve account for ${request.email}?`)) return;
-
-    setProcessing(request.id);
-    try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/make-server-897e0759/admin/approve-request`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          requestId: request.id,
-          email: request.email,
-          name: request.name,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to approve request');
-      }
-
-      toast.success(`Account created for ${request.email}`);
-      await loadAccountRequests();
-    } catch (err) {
-      console.error('Failed to approve request:', err);
-      toast.error('Failed to approve request');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  const handleRejectRequest = async (requestId: string) => {
-    if (!confirm('Reject this account request?')) return;
-
-    setProcessing(requestId);
-    try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/make-server-897e0759/admin/reject-request`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ requestId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to reject request');
-      }
-
-      toast.success('Request rejected');
-      await loadAccountRequests();
-    } catch (err) {
-      console.error('Failed to reject request:', err);
-      toast.error('Failed to reject request');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  const handleCreateAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newAccountEmail || !newAccountPassword || !newAccountName) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setProcessing('create');
-    try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/make-server-897e0759/admin/create-account`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          email: newAccountEmail,
-          password: newAccountPassword,
-          name: newAccountName,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create account');
-      }
-
-      toast.success(`Account created for ${newAccountEmail}`);
-      setNewAccountEmail('');
-      setNewAccountPassword('');
-      setNewAccountName('');
-    } catch (err) {
-      console.error('Failed to create account:', err);
-      toast.error('Failed to create account');
-    } finally {
-      setProcessing(null);
-    }
   };
 
   const handleToggleAdmin = async (userId: string, currentStatus: boolean) => {
@@ -260,19 +168,14 @@ export function Admin() {
 
     setProcessing(userId);
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/make-server-897e0759/admin/toggle-admin`, {
+      const response = await fetch(`${SERVER_BASE}/admin/toggle-admin`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          userId,
-          isAdmin: !currentStatus,
-        }),
+        body: JSON.stringify({ userId, isAdmin: !currentStatus }),
       });
-
       if (!response.ok) {
         throw new Error('Failed to update admin status');
       }
-
       toast.success(`Admin access ${!currentStatus ? 'granted' : 'removed'}`);
       await loadUsers();
     } catch (err) {
@@ -283,26 +186,133 @@ export function Admin() {
     }
   };
 
-  const handleAccessWorkspace = (iapId: string) => {
-    router.push(`/iap/${iapId}`);
+  const handleChangeOrgRole = async (userId: string, orgId: string, role: string) => {
+    setProcessing(userId);
+    try {
+      const response = await fetch(`${SERVER_BASE}/admin/users/${userId}/org-role`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ orgId, role }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Failed to update role');
+      }
+      toast.success('Role updated');
+      await loadUsers();
+    } catch (err: any) {
+      console.error('Failed to update role:', err);
+      toast.error(err.message ?? 'Failed to update role');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleDeleteUser = async (targetUser: AdminUser) => {
+    if (targetUser.id === user?.id) {
+      toast.error('You cannot delete your own account');
+      return;
+    }
+    if (!confirm(`Permanently delete ${targetUser.email}? This cannot be undone.`)) return;
+
+    setProcessing(targetUser.id);
+    try {
+      const response = await fetch(`${SERVER_BASE}/admin/users/${targetUser.id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Failed to delete user');
+      }
+      toast.success('User deleted');
+      await loadUsers();
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      toast.error(err.message ?? 'Failed to delete user');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const resetCreateForm = () => {
+    setCreateForm({
+      name: '',
+      email: '',
+      password: '',
+      orgSelection: '',
+      newOrgName: '',
+      role: 'member',
+      grantAdmin: false,
+    });
+  };
+
+  const handleCreateUser = async () => {
+    const { name, email, password, orgSelection, newOrgName, role, grantAdmin } = createForm;
+
+    if (!name.trim() || !email.trim() || !password) {
+      toast.error('Name, email, and password are required');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    const isNewOrg = orgSelection === NEW_ORG_VALUE;
+    if (!orgSelection || (isNewOrg && !newOrgName.trim())) {
+      toast.error('Choose an organization or name a new one');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const response = await fetch(`${SERVER_BASE}/admin/users`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          role,
+          isAdmin: grantAdmin,
+          ...(isNewOrg ? { organizationName: newOrgName.trim() } : { orgId: orgSelection }),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Failed to create user');
+      }
+      if (data.warning) {
+        toast.warning(data.warning);
+      } else {
+        toast.success('User account created');
+      }
+      setCreateOpen(false);
+      resetCreateForm();
+      await Promise.all([loadUsers(), loadOrganizations()]);
+    } catch (err: any) {
+      console.error('Failed to create user:', err);
+      toast.error(err.message ?? 'Failed to create user');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200">
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Shield className="w-8 h-8 text-yellow-600" />
+              <Shield className="w-8 h-8 text-mustard-hover" />
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
-                <p className="text-sm text-slate-600">System Administration</p>
+                <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
+                <p className="text-sm text-muted-foreground">System Administration</p>
               </div>
             </div>
             <button
               onClick={() => router.push('/')}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 text-sm font-medium text-foreground hover:text-foreground border border-border rounded-lg hover:bg-background transition-colors"
             >
               Back to Workspace
             </button>
@@ -310,38 +320,15 @@ export function Admin() {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-card border-b border-border">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-1">
-            <button
-              onClick={() => setActiveTab('requests')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'requests'
-                  ? 'border-yellow-600 text-yellow-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Inbox className="w-4 h-4 inline mr-2" />
-              Account Requests
-            </button>
-            <button
-              onClick={() => setActiveTab('create')}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'create'
-                  ? 'border-yellow-600 text-yellow-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Plus className="w-4 h-4 inline mr-2" />
-              Create Account
-            </button>
             <button
               onClick={() => setActiveTab('users')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'users'
-                  ? 'border-yellow-600 text-yellow-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
+                  ? 'border-mustard-hover text-mustard-hover'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               <Users className="w-4 h-4 inline mr-2" />
@@ -351,8 +338,8 @@ export function Admin() {
               onClick={() => setActiveTab('workspaces')}
               className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'workspaces'
-                  ? 'border-yellow-600 text-yellow-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
+                  ? 'border-mustard-hover text-mustard-hover'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               <Database className="w-4 h-4 inline mr-2" />
@@ -362,258 +349,278 @@ export function Admin() {
         </div>
       </div>
 
-      {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-yellow-600 animate-spin" />
+            <Loader2 className="w-8 h-8 text-mustard-hover animate-spin" />
+          </div>
+        ) : activeTab === 'users' ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-foreground">All User Accounts</h2>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => loadUsers()}
+                  className="text-sm text-mustard-hover hover:text-mustard font-medium"
+                >
+                  Refresh
+                </button>
+                <Button size="sm" onClick={() => setCreateOpen(true)} className="gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Create User
+                </Button>
+              </div>
+            </div>
+
+            {users.length === 0 ? (
+              <div className="text-center py-12 bg-card rounded-lg border border-border">
+                <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No users found</p>
+              </div>
+            ) : (
+              <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-background border-b border-border">
+                    <tr>
+                      <th className="text-left px-6 py-3 text-sm font-semibold text-foreground">Name</th>
+                      <th className="text-left px-6 py-3 text-sm font-semibold text-foreground">Email</th>
+                      <th className="text-left px-6 py-3 text-sm font-semibold text-foreground">Organization</th>
+                      <th className="text-left px-6 py-3 text-sm font-semibold text-foreground">Created</th>
+                      <th className="text-left px-6 py-3 text-sm font-semibold text-foreground">Platform Admin</th>
+                      <th className="text-right px-6 py-3 text-sm font-semibold text-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-background">
+                        <td className="px-6 py-4 text-sm text-foreground">{u.user_metadata?.name || '-'}</td>
+                        <td className="px-6 py-4 text-sm text-foreground">{u.email}</td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">
+                          {u.organizations.length === 0 ? (
+                            <span className="text-muted-foreground">No organization</span>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {u.organizations.map((org) => (
+                                <div key={org.id} className="flex items-center gap-2">
+                                  <span className="text-foreground">{org.name}</span>
+                                  <select
+                                    value={org.role}
+                                    disabled={processing === u.id}
+                                    onChange={(e) => handleChangeOrgRole(u.id, org.id, e.target.value)}
+                                    className="text-xs border border-border rounded px-1.5 py-0.5 bg-card disabled:opacity-50"
+                                  >
+                                    <option value="owner">owner</option>
+                                    <option value="admin">admin</option>
+                                    <option value="member">member</option>
+                                  </select>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted-foreground">
+                          {new Date(u.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4">
+                          {u.app_metadata?.isAdmin ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blush text-coral">
+                              <Shield className="w-3 h-3 mr-1" />
+                              Admin
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                              User
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => handleToggleAdmin(u.id, !!u.app_metadata?.isAdmin)}
+                              disabled={processing === u.id}
+                              className="text-sm text-mustard-hover hover:text-mustard font-medium disabled:opacity-50"
+                            >
+                              {processing === u.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin inline" />
+                              ) : u.app_metadata?.isAdmin ? (
+                                'Remove Admin'
+                              ) : (
+                                'Make Admin'
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              disabled={processing === u.id || u.id === user?.id}
+                              title={u.id === user?.id ? "You can't delete your own account" : 'Delete user'}
+                              className="text-sm text-coral hover:text-coral-hover font-medium disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         ) : (
-          <>
-            {/* Account Requests Tab */}
-            {activeTab === 'requests' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-slate-900">Pending Account Requests</h2>
-                  <button
-                    onClick={() => loadAccountRequests()}
-                    className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
-                  >
-                    Refresh
-                  </button>
-                </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-foreground">All IAP Workspaces</h2>
+              <button
+                onClick={() => loadAllIAPs()}
+                className="text-sm text-mustard-hover hover:text-mustard font-medium"
+              >
+                Refresh
+              </button>
+            </div>
 
-                {accountRequests.filter(r => r.status === 'pending').length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-                    <Inbox className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                    <p className="text-slate-600">No pending account requests</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {accountRequests
-                      .filter(r => r.status === 'pending')
-                      .map((request) => (
-                        <div key={request.id} className="bg-white rounded-lg border border-slate-200 p-6">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-slate-900">{request.name}</h3>
-                              <p className="text-sm text-slate-600 mt-1">{request.email}</p>
-                              <p className="text-sm text-slate-600 mt-1">
-                                <strong>Organization:</strong> {request.organization}
-                              </p>
-                              <p className="text-xs text-slate-500 mt-2">
-                                Requested: {new Date(request.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              <button
-                                onClick={() => handleApproveRequest(request)}
-                                disabled={processing === request.id}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                              >
-                                {processing === request.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="w-4 h-4" />
-                                )}
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleRejectRequest(request.id)}
-                                disabled={processing === request.id}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
+            {iaps.length === 0 ? (
+              <div className="text-center py-12 bg-card rounded-lg border border-border">
+                <Database className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">No IAP workspaces found</p>
               </div>
-            )}
-
-            {/* Users Tab */}
-            {activeTab === 'users' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-slate-900">All User Accounts</h2>
-                  <button
-                    onClick={() => loadUsers()}
-                    className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
-                  >
-                    Refresh
-                  </button>
-                </div>
-
-                {users.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-                    <Users className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                    <p className="text-slate-600">No users found</p>
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Name</th>
-                          <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Email</th>
-                          <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Created</th>
-                          <th className="text-left px-6 py-3 text-sm font-semibold text-slate-900">Admin</th>
-                          <th className="text-right px-6 py-3 text-sm font-semibold text-slate-900">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200">
-                        {users.map((userItem) => (
-                          <tr key={userItem.id} className="hover:bg-slate-50">
-                            <td className="px-6 py-4 text-sm text-slate-900">
-                              {userItem.user_metadata?.name || '-'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-slate-900">
-                              {userItem.email}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-slate-600">
-                              {new Date(userItem.created_at).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4">
-                              {userItem.user_metadata?.isAdmin || userItem.email === 'sam@ferrenburg.com' ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                  <Shield className="w-3 h-3 mr-1" />
-                                  Admin
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                  User
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              {userItem.email !== 'sam@ferrenburg.com' && (
-                                <button
-                                  onClick={() => handleToggleAdmin(userItem.id, userItem.user_metadata?.isAdmin || false)}
-                                  disabled={processing === userItem.id}
-                                  className="text-sm text-yellow-600 hover:text-yellow-700 font-medium disabled:opacity-50"
-                                >
-                                  {processing === userItem.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin inline" />
-                                  ) : userItem.user_metadata?.isAdmin ? (
-                                    'Remove Admin'
-                                  ) : (
-                                    'Make Admin'
-                                  )}
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Create Account Tab */}
-            {activeTab === 'create' && (
-              <div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-6">Create New Account</h2>
-                <div className="max-w-md bg-white rounded-lg border border-slate-200 p-6">
-                  <form onSubmit={handleCreateAccount} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Full Name*
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={newAccountName}
-                        onChange={(e) => setNewAccountName(e.target.value)}
-                        placeholder="Enter name"
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Email Address*
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={newAccountEmail}
-                        onChange={(e) => setNewAccountEmail(e.target.value)}
-                        placeholder="email@example.com"
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                        Password*
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={newAccountPassword}
-                        onChange={(e) => setNewAccountPassword(e.target.value)}
-                        placeholder="Enter password"
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-                      />
-                    </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {iaps.map((iap) => (
+                  <div key={iap.id} className="bg-card rounded-lg border border-border p-6 hover:shadow-md transition-shadow">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">{iap.name || 'Untitled'}</h3>
+                    {iap.incidentNumber && (
+                      <p className="text-sm text-muted-foreground mb-1">#{iap.incidentNumber}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Created: {new Date(iap.createdAt).toLocaleDateString()}
+                    </p>
                     <button
-                      type="submit"
-                      disabled={processing === 'create'}
-                      className="w-full bg-yellow-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                      onClick={() => router.push(`/iap/${iap.id}`)}
+                      className="w-full px-4 py-2 bg-mustard text-white rounded-lg text-sm font-medium hover:bg-mustard-hover transition-colors"
                     >
-                      {processing === 'create' ? 'Creating...' : 'Create Account'}
+                      Access Workspace
                     </button>
-                  </form>
-                </div>
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* Workspaces Tab */}
-            {activeTab === 'workspaces' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-slate-900">All IAP Workspaces</h2>
-                  <button
-                    onClick={() => loadAllIAPs()}
-                    className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
-                  >
-                    Refresh
-                  </button>
-                </div>
-
-                {iaps.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-                    <Database className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                    <p className="text-slate-600">No IAP workspaces found</p>
-                  </div>
-                ) : (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {iaps.map((iap) => (
-                      <div key={iap.id} className="bg-white rounded-lg border border-slate-200 p-6 hover:shadow-md transition-shadow">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-2">{iap.incidentName}</h3>
-                        <p className="text-sm text-slate-600 mb-1">#{iap.incidentNumber}</p>
-                        <p className="text-xs text-slate-500 mb-4">
-                          Created: {new Date(iap.created_at).toLocaleDateString()}
-                        </p>
-                        <button
-                          onClick={() => handleAccessWorkspace(iap.id)}
-                          className="w-full px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors"
-                        >
-                          Access Workspace
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
+          </div>
         )}
       </div>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create User Account</DialogTitle>
+            <DialogDescription>
+              Creates a login for this person and adds them to an organization.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="create-name">Name</Label>
+              <Input
+                id="create-name"
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Jane Smith"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-email">Email</Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={createForm.email}
+                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="jane@agency.gov"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="create-password">Temporary Password</Label>
+              <Input
+                id="create-password"
+                type="text"
+                value={createForm.password}
+                onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="At least 6 characters"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Organization</Label>
+              <Select
+                value={createForm.orgSelection}
+                onValueChange={(value) => setCreateForm((f) => ({ ...f, orgSelection: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orgs.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NEW_ORG_VALUE}>+ New organization</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createForm.orgSelection === NEW_ORG_VALUE && (
+              <div className="space-y-1.5">
+                <Label htmlFor="create-new-org">New Organization Name</Label>
+                <Input
+                  id="create-new-org"
+                  value={createForm.newOrgName}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, newOrgName: e.target.value }))}
+                  placeholder="Riverside Fire Department"
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Role in Organization</Label>
+              <Select
+                value={createForm.role}
+                onValueChange={(value) =>
+                  setCreateForm((f) => ({ ...f, role: value as 'owner' | 'admin' | 'member' }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="member">Member</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={createForm.grantAdmin}
+                onChange={(e) => setCreateForm((f) => ({ ...f, grantAdmin: e.target.checked }))}
+              />
+              Grant platform admin access (this admin panel)
+            </label>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateUser} disabled={creating}>
+              {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create User'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

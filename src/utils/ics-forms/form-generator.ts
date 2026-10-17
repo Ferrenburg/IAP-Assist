@@ -22,6 +22,7 @@ import {
   drawPageNumber,
   addOpPeriodFooter,
   sanitizeText,
+  wrapText,
 } from './pdf-helpers';
 import { validateFormFields } from './field-validator';
 import { DEBUG_MODE, drawBlockBoundaries, drawCoordinateGrid } from './debug-mode';
@@ -38,13 +39,32 @@ export interface ICSFormData {
   commandEmphasis?: string;
   situationConditions?: string;
   operationsSectionChief?: string;
+  operationsSectionChiefContact?: string;
   branchDirector?: string;
+  branchDirectorContact?: string;
+  divisionSupervisorContact?: string;
+  iapPageNumber?: string | number;
   preparedBy?: string;
   preparedByPosition?: string;
   preparedDateTime?: string;
 }
 
 export class ICSFormGenerator {
+  // Splits an ISO timestamp ("2025-05-01T06:00:00") into date and time parts
+  // for use with formatDate / formatTime in pdf-helpers. Falls back to the
+  // legacy separate-field shape that the old KV data used.
+  private isoDate(iso: string | null | undefined, legacy?: string): string {
+    if (legacy) return legacy;
+    if (!iso) return '';
+    return iso.split('T')[0]; // "2025-05-01"
+  }
+
+  private isoTime(iso: string | null | undefined, legacy?: string): string {
+    if (legacy) return legacy;
+    if (!iso) return '';
+    return iso.split('T')[1]?.substring(0, 5) || ''; // "06:00"
+  }
+
   async generateICS202(data: ICSFormData): Promise<Uint8Array> {
     // Use IC name from iapData if available, otherwise extract from organization data
     const icName = data.iapData?.incidentCommanderName ||
@@ -54,13 +74,13 @@ export class ICSFormGenerator {
     const pscName = data.organizationData?.find((item: any) => item.position === '')?.name || '';
 
     const ics202Data: ICS202Data = {
-      incidentName: data.iapData?.name || '',
+      incidentName: data.iapData?.incidentName || data.iapData?.name || '',
       incidentNumber: data.iapData?.incidentNumber || '',
       operationalPeriod: {
-        dateFrom: data.periodData?.fromDate || '',
-        timeFrom: data.periodData?.fromTime || '',
-        dateTo: data.periodData?.toDate || '',
-        timeTo: data.periodData?.toTime || '',
+        dateFrom: this.isoDate(data.periodData?.startAt, data.periodData?.fromDate),
+        timeFrom: this.isoTime(data.periodData?.startAt, data.periodData?.fromTime),
+        dateTo: this.isoDate(data.periodData?.endAt, data.periodData?.toDate),
+        timeTo: this.isoTime(data.periodData?.endAt, data.periodData?.toTime),
       },
       objectives: data.formData || [],
       commandEmphasis: data.commandEmphasis || '',
@@ -122,7 +142,7 @@ export class ICSFormGenerator {
     // Block 1: Incident Name (bounded to header box)
     drawBoundedText(
       page,
-      data.iapData?.name || '',
+      data.iapData?.incidentName || data.iapData?.incidentName || data.iapData?.name || '',
       ICS_203_BLOCKS.incidentName.x,
       ICS_203_BLOCKS.incidentName.y,
       font,
@@ -130,29 +150,18 @@ export class ICSFormGenerator {
       ICS_203_BLOCKS.incidentName.maxWidth || 320
     );
 
-    // Block 2: Operational Period (bounded to header fields)
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    // Block 2: Operational Period — write date and time into separate rows so
+    // they align with the "Date From / Time From" and "Date To / Time To" printed
+    // labels on the form template (combined strings land between the two rows).
+    const fromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
+    const fromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
+    const toDate   = this.isoDate(data.periodData?.endAt, data.periodData?.toDate);
+    const toTime   = this.isoTime(data.periodData?.endAt, data.periodData?.toTime);
 
-    drawBoundedText(
-      page,
-      opFrom,
-      ICS_203_BLOCKS.opPeriodFrom.x,
-      ICS_203_BLOCKS.opPeriodFrom.y,
-      font,
-      ICS_203_BLOCKS.opPeriodFrom.fontSize || 9,
-      ICS_203_BLOCKS.opPeriodFrom.maxWidth || 180
-    );
-
-    drawBoundedText(
-      page,
-      opTo,
-      ICS_203_BLOCKS.opPeriodTo.x,
-      ICS_203_BLOCKS.opPeriodTo.y,
-      font,
-      ICS_203_BLOCKS.opPeriodTo.fontSize || 9,
-      ICS_203_BLOCKS.opPeriodTo.maxWidth || 180
-    );
+    drawBoundedText(page, formatDate(fromDate), ICS_203_BLOCKS.opPeriodDateFrom.x, ICS_203_BLOCKS.opPeriodDateFrom.y, font, ICS_203_BLOCKS.opPeriodDateFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodDateFrom.maxWidth || 80);
+    drawBoundedText(page, formatTime(fromTime), ICS_203_BLOCKS.opPeriodTimeFrom.x, ICS_203_BLOCKS.opPeriodTimeFrom.y, font, ICS_203_BLOCKS.opPeriodTimeFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodTimeFrom.maxWidth || 60);
+    drawBoundedText(page, formatDate(toDate),   ICS_203_BLOCKS.opPeriodDateTo.x,   ICS_203_BLOCKS.opPeriodDateTo.y,   font, ICS_203_BLOCKS.opPeriodDateTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodDateTo.maxWidth   || 70);
+    drawBoundedText(page, formatTime(toTime),   ICS_203_BLOCKS.opPeriodTimeTo.x,   ICS_203_BLOCKS.opPeriodTimeTo.y,   font, ICS_203_BLOCKS.opPeriodTimeTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodTimeTo.maxWidth   || 70);
 
     // Block 3-8: Organization positions
     const orgData = data.formData || [];
@@ -160,6 +169,25 @@ export class ICSFormGenerator {
     // Load branches and divisions for branch/division section
     const branchesData = data.branchesData || [];
     const divisionsData = data.divisionsData || [];
+
+    // Agency rep slot definitions in outer scope so both renderOrganizationPositions
+    // and the overflow continuation-page logic can reference the same array.
+    const agencyRepSlots = [
+      { agency: ICS_203_BLOCKS.agencyRep1Agency, name: ICS_203_BLOCKS.agencyRep1Name },
+      { agency: ICS_203_BLOCKS.agencyRep2Agency, name: ICS_203_BLOCKS.agencyRep2Name },
+      { agency: ICS_203_BLOCKS.agencyRep3Agency, name: ICS_203_BLOCKS.agencyRep3Name },
+      { agency: ICS_203_BLOCKS.agencyRep4Agency, name: ICS_203_BLOCKS.agencyRep4Name },
+      { agency: ICS_203_BLOCKS.agencyRep5Agency, name: ICS_203_BLOCKS.agencyRep5Name },
+      { agency: ICS_203_BLOCKS.agencyRep6Agency, name: ICS_203_BLOCKS.agencyRep6Name },
+    ];
+
+    // Technical Specialist slot definitions in outer scope for overflow handling
+    const techSpecPositions = [
+      ICS_203_BLOCKS.technicalSpecialist1Name,
+      ICS_203_BLOCKS.technicalSpecialist2Name,
+      ICS_203_BLOCKS.technicalSpecialist3Name,
+      ICS_203_BLOCKS.technicalSpecialist4Name,
+    ];
 
     // Helper function to render organization positions
     const renderOrganizationPositions = (targetPage: PDFPage) => {
@@ -246,55 +274,17 @@ export class ICSFormGenerator {
         }
       });
 
-      // Handle multiple Agency Representatives (fill top-down)
-      const agencyRepPositions = [
-        { agency: ICS_203_BLOCKS.agencyRep1Agency, name: ICS_203_BLOCKS.agencyRep1Name },
-        { agency: ICS_203_BLOCKS.agencyRep2Agency, name: ICS_203_BLOCKS.agencyRep2Name },
-        { agency: ICS_203_BLOCKS.agencyRep3Agency, name: ICS_203_BLOCKS.agencyRep3Name },
-        { agency: ICS_203_BLOCKS.agencyRep4Agency, name: ICS_203_BLOCKS.agencyRep4Name },
-        { agency: ICS_203_BLOCKS.agencyRep5Agency, name: ICS_203_BLOCKS.agencyRep5Name },
-        { agency: ICS_203_BLOCKS.agencyRep6Agency, name: ICS_203_BLOCKS.agencyRep6Name },
-      ];
+      // Handle Agency Representatives — 6 slots per page (agencyRepSlots defined in outer scope).
       const agencyReps = orgData.filter((item: any) => item.position === 'Agency Representative');
-      agencyReps.forEach((item: any, index: number) => {
-        if (index < agencyRepPositions.length) {
-          const positions = agencyRepPositions[index];
-
-          // Draw agency in left field
-          if (item.agency && positions.agency && positions.agency.x !== undefined) {
-            drawBoundedText(
-              targetPage,
-              item.agency,
-              positions.agency.x,
-              positions.agency.y,
-              font,
-              positions.agency.fontSize || 8,
-              positions.agency.maxWidth || 60
-            );
-          }
-
-          // Draw name in right field
-          if (item.name && positions.name && positions.name.x !== undefined) {
-            drawBoundedText(
-              targetPage,
-              item.name,
-              positions.name.x,
-              positions.name.y,
-              font,
-              positions.name.fontSize || 8,
-              positions.name.maxWidth || 180
-            );
-          }
-        }
+      // Render the first batch (up to 6) on the current page
+      agencyReps.slice(0, agencyRepSlots.length).forEach((item: any, index: number) => {
+        const slots = agencyRepSlots[index];
+        if (item.agency) drawBoundedText(targetPage, item.agency, slots.agency.x, slots.agency.y, font, slots.agency.fontSize || 8, slots.agency.maxWidth || 96);
+        if (item.name)   drawBoundedText(targetPage, item.name,   slots.name.x,   slots.name.y,   font, slots.name.fontSize   || 8, slots.name.maxWidth   || 135);
       });
+      // No white rectangles needed — template blank rows are already clean.
 
-      // Handle multiple Technical Specialists (fill top-down)
-      const techSpecPositions = [
-        ICS_203_BLOCKS.technicalSpecialist1Name,
-        ICS_203_BLOCKS.technicalSpecialist2Name,
-        ICS_203_BLOCKS.technicalSpecialist3Name,
-        ICS_203_BLOCKS.technicalSpecialist4Name,
-      ];
+      // Handle multiple Technical Specialists (fill top-down, up to 4 on first page)
       const techSpecs = orgData.filter((item: any) => item.position === 'Technical Specialist');
       techSpecs.forEach((item: any, index: number) => {
         if (index < techSpecPositions.length && item.name) {
@@ -342,6 +332,78 @@ export class ICSFormGenerator {
 
     // Render organization positions on first page
     renderOrganizationPositions(page);
+
+    // Helper: draw Block 1 + Block 2 header onto any continuation page.
+    const drawContPageHeader = (contPage: PDFPage) => {
+      drawBoundedText(contPage, data.iapData?.incidentName || data.iapData?.name || '', ICS_203_BLOCKS.incidentName.x, ICS_203_BLOCKS.incidentName.y, font, ICS_203_BLOCKS.incidentName.fontSize || 10, ICS_203_BLOCKS.incidentName.maxWidth || 320);
+      drawBoundedText(contPage, formatDate(fromDate), ICS_203_BLOCKS.opPeriodDateFrom.x, ICS_203_BLOCKS.opPeriodDateFrom.y, font, ICS_203_BLOCKS.opPeriodDateFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodDateFrom.maxWidth || 80);
+      drawBoundedText(contPage, formatTime(fromTime), ICS_203_BLOCKS.opPeriodTimeFrom.x, ICS_203_BLOCKS.opPeriodTimeFrom.y, font, ICS_203_BLOCKS.opPeriodTimeFrom.fontSize || 9, ICS_203_BLOCKS.opPeriodTimeFrom.maxWidth || 60);
+      drawBoundedText(contPage, formatDate(toDate),   ICS_203_BLOCKS.opPeriodDateTo.x,   ICS_203_BLOCKS.opPeriodDateTo.y,   font, ICS_203_BLOCKS.opPeriodDateTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodDateTo.maxWidth   || 70);
+      drawBoundedText(contPage, formatTime(toTime),   ICS_203_BLOCKS.opPeriodTimeTo.x,   ICS_203_BLOCKS.opPeriodTimeTo.y,   font, ICS_203_BLOCKS.opPeriodTimeTo.fontSize   || 9, ICS_203_BLOCKS.opPeriodTimeTo.maxWidth   || 70);
+    };
+
+    // Unified Command overflow — tracks the last page created so agency rep overflow
+    // can reuse it instead of adding a redundant new page.
+    const icSlots = [
+      ICS_203_BLOCKS.incidentCommanderName,
+      ICS_203_BLOCKS.incidentCommanderName2,
+      ICS_203_BLOCKS.incidentCommanderName3,
+    ];
+    let lastContPage: PDFPage | null = null;
+    const allCommanders = orgData.filter((item: any) => item.position === 'Incident Commander');
+    if (allCommanders.length > icSlots.length) {
+      const overflow = allCommanders.slice(icSlots.length);
+      for (let i = 0; i < overflow.length; i += icSlots.length) {
+        const batch = overflow.slice(i, i + icSlots.length);
+        lastContPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_203);
+        drawContPageHeader(lastContPage);
+        batch.forEach((cmd: any, idx: number) => {
+          if (cmd.name) {
+            const slot = icSlots[idx];
+            drawBoundedText(lastContPage!, cmd.name, slot.x, slot.y, font, slot.fontSize || 8, slot.maxWidth || 240);
+          }
+        });
+      }
+    }
+
+    // Agency Representative overflow — reuses the last UC continuation page for the first
+    // batch so we don't add a new page when one already exists from UC overflow.
+    const allAgencyReps = orgData.filter((item: any) => item.position === 'Agency Representative');
+    if (allAgencyReps.length > agencyRepSlots.length) {
+      const agencyOverflow = allAgencyReps.slice(agencyRepSlots.length);
+      for (let i = 0; i < agencyOverflow.length; i += agencyRepSlots.length) {
+        const batch = agencyOverflow.slice(i, i + agencyRepSlots.length);
+        if (!(i === 0 && lastContPage !== null)) {
+          lastContPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_203);
+          drawContPageHeader(lastContPage);
+        }
+        batch.forEach((item: any, idx: number) => {
+          const slots = agencyRepSlots[idx];
+          if (item.agency) drawBoundedText(lastContPage!, item.agency, slots.agency.x, slots.agency.y, font, slots.agency.fontSize || 8, slots.agency.maxWidth || 96);
+          if (item.name)   drawBoundedText(lastContPage!, item.name,   slots.name.x,   slots.name.y,   font, slots.name.fontSize   || 8, slots.name.maxWidth   || 135);
+        });
+      }
+    }
+
+    // Technical Specialist overflow — reuses the last continuation page if one exists,
+    // otherwise creates a new one. Slots 0-3 (techSpecPositions) repeat on each extra page.
+    const allTechSpecs = orgData.filter((item: any) => item.position === 'Technical Specialist');
+    if (allTechSpecs.length > techSpecPositions.length) {
+      const techSpecOverflow = allTechSpecs.slice(techSpecPositions.length);
+      for (let i = 0; i < techSpecOverflow.length; i += techSpecPositions.length) {
+        const batch = techSpecOverflow.slice(i, i + techSpecPositions.length);
+        if (!(i === 0 && lastContPage !== null)) {
+          lastContPage = await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_203);
+          drawContPageHeader(lastContPage);
+        }
+        batch.forEach((item: any, idx: number) => {
+          const slot = techSpecPositions[idx];
+          if (item.name && slot) {
+            drawBoundedText(lastContPage!, item.name, slot.x, slot.y, font, slot.fontSize || 8, slot.maxWidth || 240);
+          }
+        });
+      }
+    }
 
     // DYNAMIC Operations Section: Branches and Divisions/Groups
     const tableConfig = ICS_203_BLOCKS.branchTableStart;
@@ -453,7 +515,7 @@ export class ICSFormGenerator {
       // Block 1: Incident Name
       drawBoundedText(
         targetPage,
-        data.iapData?.name || '',
+        data.iapData?.incidentName || data.iapData?.name || '',
         ICS_203_BLOCKS.incidentName.x,
         ICS_203_BLOCKS.incidentName.y,
         font,
@@ -462,8 +524,8 @@ export class ICSFormGenerator {
       );
 
       // Block 2: Operational Period
-      const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-      const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+      const opFrom = formatDateTime(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate), this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+      const opTo = formatDateTime(this.isoDate(data.periodData?.endAt, data.periodData?.toDate), this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
       drawBoundedText(
         targetPage,
@@ -685,7 +747,7 @@ export class ICSFormGenerator {
     const page = pdfDoc.getPages()[0];
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
       x: ICS_204_BLOCKS.incidentName.x,
       y: ICS_204_BLOCKS.incidentName.y,
       size: ICS_204_BLOCKS.incidentName.fontSize,
@@ -693,11 +755,22 @@ export class ICSFormGenerator {
       color: rgb(0, 0, 0),
     });
 
+    // IAP Page number (top-right header)
+    if (data.iapPageNumber !== undefined && data.iapPageNumber !== '') {
+      page.drawText(String(data.iapPageNumber), {
+        x: ICS_204_BLOCKS.iapPageNumber.x,
+        y: ICS_204_BLOCKS.iapPageNumber.y,
+        size: ICS_204_BLOCKS.iapPageNumber.fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    }
+
     // Block 2: Operational Period
-    const opFromDate = formatDate(data.periodData?.fromDate);
-    const opFromTime = formatTime(data.periodData?.fromTime);
-    const opToDate = formatDate(data.periodData?.toDate);
-    const opToTime = formatTime(data.periodData?.toTime);
+    const opFromDate = formatDate(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate));
+    const opFromTime = formatTime(this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opToDate = formatDate(this.isoDate(data.periodData?.endAt, data.periodData?.toDate));
+    const opToTime = formatTime(this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     // Draw operational period dates
     page.drawText(opFromDate, {
@@ -741,16 +814,24 @@ export class ICSFormGenerator {
       // Use the correct field based on assignment type
       let fieldConfig;
       let personnelConfig;
+      let personnelContactConfig;
 
       if (assignmentType === 'branch') {
         fieldConfig = ICS_204_BLOCKS.branch;
         personnelConfig = ICS_204_BLOCKS.branchDirector;
+        personnelContactConfig = ICS_204_BLOCKS.branchDirectorContact;
       } else if (assignmentType === 'group') {
         fieldConfig = ICS_204_BLOCKS.group;
         personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+        personnelContactConfig = ICS_204_BLOCKS.divisionSupervisorContact;
+      } else if (assignmentType === 'staging') {
+        fieldConfig = ICS_204_BLOCKS.stagingArea;
+        personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+        personnelContactConfig = ICS_204_BLOCKS.divisionSupervisorContact;
       } else {
         fieldConfig = ICS_204_BLOCKS.division;
         personnelConfig = ICS_204_BLOCKS.divisionSupervisor;
+        personnelContactConfig = ICS_204_BLOCKS.divisionSupervisorContact;
       }
 
       // If this division/group belongs to a branch, draw the branch name
@@ -787,40 +868,24 @@ export class ICSFormGenerator {
         });
       }
 
-      // Block 4: Operations Personnel
-      // Operations Section Chief
-      if (data.operationsSectionChief) {
-        page.drawText(data.operationsSectionChief, {
-          x: ICS_204_BLOCKS.opsSectionChief.x,
-          y: ICS_204_BLOCKS.opsSectionChief.y,
-          size: ICS_204_BLOCKS.opsSectionChief.fontSize,
-          font,
-          color: rgb(0, 0, 0),
-          maxWidth: ICS_204_BLOCKS.opsSectionChief.maxWidth,
-        });
+      // Block 4: Operations Personnel — Name and Contact(s) columns
+      const drawOpsField = (text: string, cfg: { x: number; y: number; fontSize: number; maxWidth: number }) => {
+        if (text) page.drawText(text, { x: cfg.x, y: cfg.y, size: cfg.fontSize, font, color: rgb(0, 0, 0), maxWidth: cfg.maxWidth });
+      };
+
+      // Row 1: Operations Section Chief
+      drawOpsField(data.operationsSectionChief || '', ICS_204_BLOCKS.opsSectionChief);
+      drawOpsField(data.operationsSectionChiefContact || '', ICS_204_BLOCKS.opsSectionChiefContact);
+
+      // Row 2: Branch Director (only when a division/group is assigned to a branch)
+      if (assignmentType !== 'branch') {
+        drawOpsField(data.branchDirector || '', ICS_204_BLOCKS.branchDirector);
+        drawOpsField(data.branchDirectorContact || '', ICS_204_BLOCKS.branchDirectorContact);
       }
 
-      // Branch Director (only for divisions/groups assigned to a branch)
-      if (data.branchDirector && assignmentType !== 'branch') {
-        page.drawText(data.branchDirector, {
-          x: ICS_204_BLOCKS.branchDirector.x,
-          y: ICS_204_BLOCKS.branchDirector.y,
-          size: ICS_204_BLOCKS.branchDirector.fontSize,
-          font,
-          color: rgb(0, 0, 0),
-          maxWidth: ICS_204_BLOCKS.branchDirector.maxWidth,
-        });
-      }
-
-      // Branch Director / Division Supervisor (the supervisor for this specific assignment)
-      page.drawText(firstAssignment.supervisor || '', {
-        x: personnelConfig.x,
-        y: personnelConfig.y,
-        size: personnelConfig.fontSize,
-        font,
-        color: rgb(0, 0, 0),
-        maxWidth: personnelConfig.maxWidth,
-      });
+      // Row 3: Branch Director name OR Division/Group Supervisor name + contact
+      drawOpsField(firstAssignment.supervisor || '', personnelConfig);
+      drawOpsField(firstAssignment.supervisorContact || '', personnelContactConfig);
     }
 
     // Block 5: Resources Assigned table
@@ -869,21 +934,23 @@ export class ICSFormGenerator {
       );
     }
 
-    // Block 8: Communications/Contact Info
+    // Block 8: Communications/Contact Info — draw each field in its own column
     if (assignments.length > 0 && assignments[0].communications) {
       const contacts = Array.isArray(assignments[0].communications) ? assignments[0].communications : [];
+      const cols = ICS_204_BLOCKS.commColumns;
+      const fontSize = ICS_204_BLOCKS.communicationsStart.fontSize;
       let commYPos = ICS_204_BLOCKS.communicationsStart.y;
 
       contacts.forEach((contact: any) => {
-        const contactText = `${contact.function || ''}: ${contact.name || ''} - ${contact.contact || ''}`;
-        page.drawText(contactText, {
-          x: ICS_204_BLOCKS.communicationsStart.x,
-          y: commYPos,
-          size: ICS_204_BLOCKS.communicationsStart.fontSize,
-          font,
-          color: rgb(0, 0, 0),
-          maxWidth: ICS_204_BLOCKS.communicationsStart.maxWidth,
-        });
+        if (contact.function) {
+          drawTableCell(page, contact.function, cols.function.x, commYPos, font, fontSize, cols.function.maxWidth);
+        }
+        if (contact.name) {
+          drawTableCell(page, contact.name, cols.name.x, commYPos, font, fontSize, cols.name.maxWidth);
+        }
+        if (contact.contact) {
+          drawTableCell(page, contact.contact, cols.contact.x, commYPos, font, fontSize, cols.contact.maxWidth);
+        }
         commYPos -= ICS_204_BLOCKS.commLineHeight;
       });
     }
@@ -930,7 +997,7 @@ export class ICSFormGenerator {
     // Don't modify rotation - work with the template as-is
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(sanitizeText(data.iapData?.incidentName || data.iapData?.name || ''), {
       x: ICS_205_BLOCKS.incidentName.x,
       y: ICS_205_BLOCKS.incidentName.y,
       size: ICS_205_BLOCKS.incidentName.fontSize,
@@ -947,7 +1014,7 @@ export class ICSFormGenerator {
       ? data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
       : new Date().toTimeString().split(' ')[0].substring(0, 5);
 
-    page.drawText(preparedDate, {
+    page.drawText(formatDate(preparedDate), {
       x: ICS_205_BLOCKS.dateTimePrepared.date.x,
       y: ICS_205_BLOCKS.dateTimePrepared.date.y,
       size: ICS_205_BLOCKS.dateTimePrepared.date.fontSize,
@@ -956,7 +1023,7 @@ export class ICSFormGenerator {
       rotate: { type: 'degrees', angle: 90 },
     });
 
-    page.drawText(preparedTime, {
+    page.drawText(formatTime(preparedTime), {
       x: ICS_205_BLOCKS.dateTimePrepared.time.x,
       y: ICS_205_BLOCKS.dateTimePrepared.time.y,
       size: ICS_205_BLOCKS.dateTimePrepared.time.fontSize,
@@ -966,15 +1033,15 @@ export class ICSFormGenerator {
     });
 
     // Block 3: Operational Period (split into two lines each)
-    const opFromDate = data.periodData?.fromDate || '';
-    const opFromTime = data.periodData?.fromTime || '';
-    const opToDate = data.periodData?.toDate || '';
-    const opToTime = data.periodData?.toTime || '';
+    const opFromDate = formatDate(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate));
+    const opFromTime = formatTime(this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opToDate = formatDate(this.isoDate(data.periodData?.endAt, data.periodData?.toDate));
+    const opToTime = formatTime(this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     page.drawText(opFromDate, {
       x: ICS_205_BLOCKS.opPeriodFrom.date.x,
       y: ICS_205_BLOCKS.opPeriodFrom.date.y,
-      size: ICS_205_BLOCKS.opPeriodFrom.date.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -983,7 +1050,7 @@ export class ICSFormGenerator {
     page.drawText(opFromTime, {
       x: ICS_205_BLOCKS.opPeriodFrom.time.x,
       y: ICS_205_BLOCKS.opPeriodFrom.time.y,
-      size: ICS_205_BLOCKS.opPeriodFrom.time.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -992,7 +1059,7 @@ export class ICSFormGenerator {
     page.drawText(opToDate, {
       x: ICS_205_BLOCKS.opPeriodTo.date.x,
       y: ICS_205_BLOCKS.opPeriodTo.date.y,
-      size: ICS_205_BLOCKS.opPeriodTo.date.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -1001,7 +1068,7 @@ export class ICSFormGenerator {
     page.drawText(opToTime, {
       x: ICS_205_BLOCKS.opPeriodTo.time.x,
       y: ICS_205_BLOCKS.opPeriodTo.time.y,
-      size: ICS_205_BLOCKS.opPeriodTo.time.fontSize,
+      size: 7,
       font,
       color: rgb(0, 0, 0),
       rotate: { type: 'degrees', angle: 90 },
@@ -1066,7 +1133,7 @@ export class ICSFormGenerator {
         });
 
         // Block 1: Incident Name
-        continuationPage.drawText(data.iapData?.name || '', {
+        continuationPage.drawText(sanitizeText(data.iapData?.incidentName || data.iapData?.name || ''), {
           x: ICS_205_BLOCKS.incidentName.x,
           y: ICS_205_BLOCKS.incidentName.y,
           size: ICS_205_BLOCKS.incidentName.fontSize,
@@ -1076,7 +1143,7 @@ export class ICSFormGenerator {
         });
 
         // Block 2: Date/Time Prepared
-        continuationPage.drawText(preparedDate, {
+        continuationPage.drawText(formatDate(preparedDate), {
           x: ICS_205_BLOCKS.dateTimePrepared.date.x,
           y: ICS_205_BLOCKS.dateTimePrepared.date.y,
           size: ICS_205_BLOCKS.dateTimePrepared.date.fontSize,
@@ -1085,7 +1152,7 @@ export class ICSFormGenerator {
           rotate: { type: 'degrees', angle: 90 },
         });
 
-        continuationPage.drawText(preparedTime, {
+        continuationPage.drawText(formatTime(preparedTime), {
           x: ICS_205_BLOCKS.dateTimePrepared.time.x,
           y: ICS_205_BLOCKS.dateTimePrepared.time.y,
           size: ICS_205_BLOCKS.dateTimePrepared.time.fontSize,
@@ -1098,7 +1165,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opFromDate, {
           x: ICS_205_BLOCKS.opPeriodFrom.date.x,
           y: ICS_205_BLOCKS.opPeriodFrom.date.y,
-          size: ICS_205_BLOCKS.opPeriodFrom.date.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1107,7 +1174,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opFromTime, {
           x: ICS_205_BLOCKS.opPeriodFrom.time.x,
           y: ICS_205_BLOCKS.opPeriodFrom.time.y,
-          size: ICS_205_BLOCKS.opPeriodFrom.time.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1116,7 +1183,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opToDate, {
           x: ICS_205_BLOCKS.opPeriodTo.date.x,
           y: ICS_205_BLOCKS.opPeriodTo.date.y,
-          size: ICS_205_BLOCKS.opPeriodTo.date.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1125,7 +1192,7 @@ export class ICSFormGenerator {
         continuationPage.drawText(opToTime, {
           x: ICS_205_BLOCKS.opPeriodTo.time.x,
           y: ICS_205_BLOCKS.opPeriodTo.time.y,
-          size: ICS_205_BLOCKS.opPeriodTo.time.fontSize,
+          size: 7,
           font,
           color: rgb(0, 0, 0),
           rotate: { type: 'degrees', angle: 90 },
@@ -1222,33 +1289,28 @@ export class ICSFormGenerator {
     const page = pdfDoc.getPages()[0];
 
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
       x: ICS_205A_BLOCKS.incidentName.x,
       y: ICS_205A_BLOCKS.incidentName.y,
       size: ICS_205A_BLOCKS.incidentName.fontSize,
       font,
       color: rgb(0, 0, 0),
+      maxWidth: ICS_205A_BLOCKS.incidentName.maxWidth,
     });
 
-    // Block 2: Operational Period
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    // Block 2: Operational Period — separate date and time rows
+    const fromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
+    const fromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
+    const toDate   = this.isoDate(data.periodData?.endAt,   data.periodData?.toDate);
+    const toTime   = this.isoTime(data.periodData?.endAt,   data.periodData?.toTime);
 
-    page.drawText(opFrom, {
-      x: ICS_205A_BLOCKS.opPeriodFrom.x,
-      y: ICS_205A_BLOCKS.opPeriodFrom.y,
-      size: ICS_205A_BLOCKS.opPeriodFrom.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    page.drawText(opTo, {
-      x: ICS_205A_BLOCKS.opPeriodTo.x,
-      y: ICS_205A_BLOCKS.opPeriodTo.y,
-      size: ICS_205A_BLOCKS.opPeriodTo.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    const draw205A = (text: string, cfg: { x: number; y: number; fontSize: number; maxWidth?: number }) => {
+      if (text) page.drawText(text, { x: cfg.x, y: cfg.y, size: cfg.fontSize, font, color: rgb(0, 0, 0), maxWidth: cfg.maxWidth });
+    };
+    draw205A(formatDate(fromDate), ICS_205A_BLOCKS.opPeriodDateFrom);
+    draw205A(formatTime(fromTime), ICS_205A_BLOCKS.opPeriodTimeFrom);
+    draw205A(formatDate(toDate),   ICS_205A_BLOCKS.opPeriodDateTo);
+    draw205A(formatTime(toTime),   ICS_205A_BLOCKS.opPeriodTimeTo);
 
     // Block 3: Communications Table
     const comms = data.formData || [];
@@ -1275,7 +1337,7 @@ export class ICSFormGenerator {
       color: rgb(0, 0, 0),
     });
 
-    page.drawText('Communications Unit Leader', {
+    page.drawText(data.iapData?.preparedByPosition || '', {
       x: ICS_205A_BLOCKS.preparedByPosition.x,
       y: ICS_205A_BLOCKS.preparedByPosition.y,
       size: ICS_205A_BLOCKS.preparedByPosition.fontSize,
@@ -1283,16 +1345,18 @@ export class ICSFormGenerator {
       color: rgb(0, 0, 0),
     });
 
-    page.drawText(formatDateTime(
-      new Date().toISOString().split('T')[0],
-      new Date().toTimeString().split(' ')[0].substring(0, 5)
-    ), {
-      x: ICS_205A_BLOCKS.preparedByDateTime.x,
-      y: ICS_205A_BLOCKS.preparedByDateTime.y,
-      size: ICS_205A_BLOCKS.preparedByDateTime.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    const prepDT = data.iapData?.preparedDateTime
+      ? formatDateTime(data.iapData.preparedDateTime.split('T')[0], data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || '')
+      : '';
+    if (prepDT) {
+      page.drawText(prepDT, {
+        x: ICS_205A_BLOCKS.preparedByDateTime.x,
+        y: ICS_205A_BLOCKS.preparedByDateTime.y,
+        size: ICS_205A_BLOCKS.preparedByDateTime.fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    }
 
     // Add OpPeriod footer
     addOpPeriodFooter(page, font);
@@ -1303,176 +1367,143 @@ export class ICSFormGenerator {
   async generateICS206(data: ICSFormData): Promise<Uint8Array> {
     const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_206);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const page = pdfDoc.getPages()[0];
 
-    // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
-      x: ICS_206_BLOCKS.incidentName.x,
-      y: ICS_206_BLOCKS.incidentName.y,
-      size: ICS_206_BLOCKS.incidentName.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    const opFromDate = this.isoDate(data.periodData?.startAt, data.periodData?.fromDate);
+    const opFromTime = this.isoTime(data.periodData?.startAt, data.periodData?.fromTime);
+    const opToDate   = this.isoDate(data.periodData?.endAt,   data.periodData?.toDate);
+    const opToTime   = this.isoTime(data.periodData?.endAt,   data.periodData?.toTime);
 
-    // Block 2: Operational Period (split into two lines each)
-    const opFromDate = data.periodData?.fromDate || '';
-    const opFromTime = data.periodData?.fromTime || '';
-    const opToDate = data.periodData?.toDate || '';
-    const opToTime = data.periodData?.toTime || '';
+    const medical             = data.formData || [];
+    // Only render entries that have at least one meaningful field — blank saved rows are skipped
+    const medicalStations     = medical.filter((item: any) => item.itemType === 'medicalStation'  && (item.name     || item.location || item.contact));
+    const transportationItems = medical.filter((item: any) => item.itemType === 'transportation'  && (item.ambulanceService || item.service || item.location || item.contact));
+    const hospitalItems       = medical.filter((item: any) => item.itemType === 'hospital'        && (item.hospitalName || item.name || item.address || item.contact));
+    const proceduresItem      = medical.find((item: any)  => item.itemType === 'procedures');
 
-    page.drawText(opFromDate, {
-      x: ICS_206_BLOCKS.opPeriodFrom.date.x,
-      y: ICS_206_BLOCKS.opPeriodFrom.date.y,
-      size: ICS_206_BLOCKS.opPeriodFrom.date.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    // Pre-printed data rows per section on the ICS 206 template (adjust if template changes)
+    const MAX_STATIONS  = 6;
+    const MAX_TRANSPORT = 4;
+    const MAX_HOSPITALS = 5;
 
-    page.drawText(opFromTime, {
-      x: ICS_206_BLOCKS.opPeriodFrom.time.x,
-      y: ICS_206_BLOCKS.opPeriodFrom.time.y,
-      size: ICS_206_BLOCKS.opPeriodFrom.time.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    const totalPages = Math.max(
+      Math.ceil(medicalStations.length     / MAX_STATIONS)  || 1,
+      Math.ceil(transportationItems.length / MAX_TRANSPORT) || 1,
+      Math.ceil(hospitalItems.length       / MAX_HOSPITALS) || 1,
+      1,
+    );
 
-    page.drawText(opToDate, {
-      x: ICS_206_BLOCKS.opPeriodTo.date.x,
-      y: ICS_206_BLOCKS.opPeriodTo.date.y,
-      size: ICS_206_BLOCKS.opPeriodTo.date.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    // Draw Block 1 + Block 2 header onto any page
+    const drawHeader = (page: PDFPage) => {
+      page.drawText(data.iapData?.incidentName || data.iapData?.name || '', {
+        x: ICS_206_BLOCKS.incidentName.x, y: ICS_206_BLOCKS.incidentName.y,
+        size: ICS_206_BLOCKS.incidentName.fontSize, font, color: rgb(0, 0, 0),
+      });
+      page.drawText(opFromDate, { x: ICS_206_BLOCKS.opPeriodFrom.date.x, y: ICS_206_BLOCKS.opPeriodFrom.date.y, size: ICS_206_BLOCKS.opPeriodFrom.date.fontSize, font, color: rgb(0, 0, 0) });
+      page.drawText(opFromTime, { x: ICS_206_BLOCKS.opPeriodFrom.time.x, y: ICS_206_BLOCKS.opPeriodFrom.time.y, size: ICS_206_BLOCKS.opPeriodFrom.time.fontSize, font, color: rgb(0, 0, 0) });
+      page.drawText(opToDate,   { x: ICS_206_BLOCKS.opPeriodTo.date.x,   y: ICS_206_BLOCKS.opPeriodTo.date.y,   size: ICS_206_BLOCKS.opPeriodTo.date.fontSize,   font, color: rgb(0, 0, 0) });
+      page.drawText(opToTime,   { x: ICS_206_BLOCKS.opPeriodTo.time.x,   y: ICS_206_BLOCKS.opPeriodTo.time.y,   size: ICS_206_BLOCKS.opPeriodTo.time.fontSize,   font, color: rgb(0, 0, 0) });
+    };
 
-    page.drawText(opToTime, {
-      x: ICS_206_BLOCKS.opPeriodTo.time.x,
-      y: ICS_206_BLOCKS.opPeriodTo.time.y,
-      size: ICS_206_BLOCKS.opPeriodTo.time.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Block 3: Medical Aid Stations
-    const medical = data.formData || [];
-    const medicalStations = medical.filter((item: any) => item.itemType === 'medicalStation');
-    let yPos = ICS_206_BLOCKS.aidStationsStart.y;
-
-    medicalStations.slice(0, 10).forEach((item: any) => {
+    // Draw a slice of medical aid stations at the section's fixed y start
+    const drawAidStations = (page: PDFPage, slice: any[]) => {
       const cols = ICS_206_BLOCKS.aidStationColumns;
+      let yPos = ICS_206_BLOCKS.aidStationsStart.y;
+      slice.forEach((item: any) => {
+        drawTableCell(page, item.name     || '', cols.name.x,     yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.name.maxWidth     || 150);
+        drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.location.maxWidth || 200);
+        drawTableCell(page, item.contact  || '', cols.contact.x,  yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.contact.maxWidth  || 150);
+        if (cols.paramedicsYes && cols.paramedicsNo) {
+          const isYes = item.paramedic === 'Yes' || item.paramedic === true;
+          const isNo  = item.paramedic === 'No'  || item.paramedic === false;
+          drawCheckbox(page, cols.paramedicsYes.x, yPos + 3, 10, isYes, false);
+          drawCheckbox(page, cols.paramedicsNo.x,  yPos + 3, 10, isNo,  false);
+        }
+        yPos -= ICS_206_BLOCKS.aidStationRowHeight;
+      });
+    };
 
-      drawTableCell(page, item.name || '', cols.name.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.name.maxWidth || 150);
-      drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.location.maxWidth || 200);
-      drawTableCell(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.aidStationsStart.fontSize || 7, cols.contact.maxWidth || 150);
-
-      // Paramedics Yes/No checkboxes
-      if (cols.paramedicsYes && cols.paramedicsNo) {
-        const isYes = item.paramedic === 'Yes' || item.paramedic === true;
-        const isNo = item.paramedic === 'No' || item.paramedic === false;
-        drawCheckbox(page, cols.paramedicsYes.x, yPos + 2, 7, isYes);
-        drawCheckbox(page, cols.paramedicsNo.x, yPos + 2, 7, isNo);
-      }
-
-      yPos -= ICS_206_BLOCKS.aidStationRowHeight;
-    });
-
-    // Block 4: Transportation
-    const transportationItems = medical.filter((item: any) => item.itemType === 'transportation');
-    yPos = ICS_206_BLOCKS.transportationStart.y;
-
-    transportationItems.slice(0, 10).forEach((item: any) => {
+    // Draw a slice of transportation entries
+    const drawTransportation = (page: PDFPage, slice: any[]) => {
       const cols = ICS_206_BLOCKS.transportationColumns;
+      let yPos = ICS_206_BLOCKS.transportationStart.y;
+      slice.forEach((item: any) => {
+        drawTableCell(page, item.service  || '', cols.service.x,  yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.service.maxWidth  || 140);
+        drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.location.maxWidth || 140);
+        drawTableCell(page, item.contact  || '', cols.contact.x,  yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.contact.maxWidth  || 120);
+        if (cols.levelALS && cols.levelBLS) {
+          drawCheckbox(page, cols.levelALS.x, yPos + 3, 10, item.level === 'ALS', false);
+          drawCheckbox(page, cols.levelBLS.x, yPos + 3, 10, item.level === 'BLS', false);
+        }
+        yPos -= ICS_206_BLOCKS.transportationRowHeight;
+      });
+    };
 
-      drawTableCell(page, item.service || '', cols.service.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.service.maxWidth || 140);
-      drawTableCell(page, item.location || '', cols.location.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.location.maxWidth || 140);
-      drawTableCell(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.transportationStart.fontSize || 7, cols.contact.maxWidth || 120);
-
-      // ALS/BLS checkboxes
-      if (cols.levelALS && cols.levelBLS) {
-        const isALS = item.level === 'ALS';
-        const isBLS = item.level === 'BLS';
-        drawCheckbox(page, cols.levelALS.x, yPos + 2, 7, isALS);
-        drawCheckbox(page, cols.levelBLS.x, yPos + 2, 7, isBLS);
-      }
-
-      yPos -= ICS_206_BLOCKS.transportationRowHeight;
-    });
-
-    // Block 5: Hospitals
-    const hospitalItems = medical.filter((item: any) => item.itemType === 'hospital');
-    yPos = ICS_206_BLOCKS.hospitalsStart.y;
-
-    hospitalItems.slice(0, 10).forEach((item: any) => {
+    // Draw a slice of hospital entries
+    const drawHospitals = (page: PDFPage, slice: any[]) => {
       const cols = ICS_206_BLOCKS.hospitalColumns;
+      let yPos = ICS_206_BLOCKS.hospitalsStart.y;
+      slice.forEach((item: any) => {
+        drawWrappedText(page, item.name       || '', cols.name.x,       yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.name.maxWidth       || 110, 8);
+        drawWrappedText(page, item.address    || '', cols.address.x,    yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.address.maxWidth    || 130, 8);
+        drawWrappedText(page, item.contact    || '', cols.contact.x,    yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.contact.maxWidth    ||  95, 8);
+        drawTableCell(page, item.airTime      || '', cols.airTime.x,    yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.airTime.maxWidth    ||  32);
+        drawTableCell(page, item.groundTime   || '', cols.groundTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.groundTime.maxWidth ||  32);
+        if (cols.traumaCenterYes) {
+          drawCheckbox(page, cols.traumaCenterYes.x, yPos + (cols.traumaCenterYes.yOffset || 0), 8, item.traumaCenter === true, false);
+          if (item.traumaCenter && item.traumaCenterLevel && cols.traumaCenterLevel) {
+            drawTableCell(page, item.traumaCenterLevel, cols.traumaCenterLevel.x, yPos + (cols.traumaCenterLevel.yOffset || 0), font, 12, cols.traumaCenterLevel.maxWidth || 20);
+          }
+        }
+        if (cols.burnCenterYes && cols.burnCenterNo) {
+          drawCheckbox(page, cols.burnCenterYes.x, yPos + (cols.burnCenterYes.yOffset || 0), 8, item.burnCenter === true,  false);
+          drawCheckbox(page, cols.burnCenterNo.x,  yPos + (cols.burnCenterNo.yOffset  || 0), 8, item.burnCenter === false, false);
+        }
+        if (cols.helipadYes && cols.helipadNo) {
+          drawCheckbox(page, cols.helipadYes.x, yPos + (cols.helipadYes.yOffset || 0), 8, item.helipad === true,  false);
+          drawCheckbox(page, cols.helipadNo.x,  yPos + (cols.helipadNo.yOffset  || 0), 8, item.helipad === false, false);
+        }
+        yPos -= ICS_206_BLOCKS.hospitalRowHeight;
+      });
+    };
 
-      // Use wrapped text for fields that might be long
-      drawWrappedText(page, item.name || '', cols.name.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.name.maxWidth || 110, 8);
-      drawWrappedText(page, item.address || '', cols.address.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.address.maxWidth || 130, 8);
-      drawWrappedText(page, item.contact || '', cols.contact.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.contact.maxWidth || 95, 8);
-      drawTableCell(page, item.airTime || '', cols.airTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.airTime.maxWidth || 32);
-      drawTableCell(page, item.groundTime || '', cols.groundTime.x, yPos, font, ICS_206_BLOCKS.hospitalsStart.fontSize || 6, cols.groundTime.maxWidth || 32);
+    // Render all pages — each is a full ICS 206 template with its slice of each section
+    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      const page = pageIndex === 0
+        ? pdfDoc.getPages()[0]
+        : await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_206);
 
-      // Trauma center Yes checkbox and level
-      if (cols.traumaCenterYes) {
-        drawCheckbox(page, cols.traumaCenterYes.x, yPos + (cols.traumaCenterYes.yOffset || 0), 6, item.traumaCenter === true);
-        if (item.traumaCenter && item.traumaCenterLevel && cols.traumaCenterLevel) {
-          drawTableCell(page, item.traumaCenterLevel, cols.traumaCenterLevel.x, yPos + (cols.traumaCenterLevel.yOffset || 0), font, 12, cols.traumaCenterLevel.maxWidth || 20);
+      drawHeader(page);
+      drawAidStations(page,    medicalStations.slice(    pageIndex * MAX_STATIONS,  (pageIndex + 1) * MAX_STATIONS));
+      drawTransportation(page, transportationItems.slice(pageIndex * MAX_TRANSPORT, (pageIndex + 1) * MAX_TRANSPORT));
+      drawHospitals(page,      hospitalItems.slice(      pageIndex * MAX_HOSPITALS, (pageIndex + 1) * MAX_HOSPITALS));
+
+      // Special procedures and footer only on the last page
+      if (pageIndex === totalPages - 1) {
+        if (proceduresItem?.content) {
+          drawWrappedText(page, proceduresItem.content, ICS_206_BLOCKS.specialProceduresStart.x, ICS_206_BLOCKS.specialProceduresStart.y, font, ICS_206_BLOCKS.specialProceduresStart.fontSize || 8, ICS_206_BLOCKS.specialProceduresStart.maxWidth || 690, 12);
+        }
+        page.drawText(data.iapData?.preparedBy || '', {
+          x: ICS_206_BLOCKS.preparedByName.x, y: ICS_206_BLOCKS.preparedByName.y,
+          size: ICS_206_BLOCKS.preparedByName.fontSize, font, color: rgb(0, 0, 0),
+        });
+        const icName = data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
+        if (icName) {
+          page.drawText(icName, {
+            x: ICS_206_BLOCKS.approvedByName.x, y: ICS_206_BLOCKS.approvedByName.y,
+            size: ICS_206_BLOCKS.approvedByName.fontSize || 9, font, color: rgb(0, 0, 0),
+            maxWidth: ICS_206_BLOCKS.approvedByName.maxWidth,
+          });
         }
       }
 
-      // Burn center Yes/No checkboxes
-      if (cols.burnCenterYes && cols.burnCenterNo) {
-        drawCheckbox(page, cols.burnCenterYes.x, yPos + (cols.burnCenterYes.yOffset || 0), 6, item.burnCenter === true);
-        drawCheckbox(page, cols.burnCenterNo.x, yPos + (cols.burnCenterNo.yOffset || 0), 6, item.burnCenter === false);
-      }
-
-      // Helipad Yes/No checkboxes
-      if (cols.helipadYes && cols.helipadNo) {
-        drawCheckbox(page, cols.helipadYes.x, yPos + (cols.helipadYes.yOffset || 0), 6, item.helipad === true);
-        drawCheckbox(page, cols.helipadNo.x, yPos + (cols.helipadNo.yOffset || 0), 6, item.helipad === false);
-      }
-
-      yPos -= ICS_206_BLOCKS.hospitalRowHeight;
-    });
-
-    // Block 6: Special Procedures
-    const proceduresItem = medical.find((item: any) => item.itemType === 'procedures');
-    if (proceduresItem && proceduresItem.content) {
-      drawWrappedText(
-        page,
-        proceduresItem.content,
-        ICS_206_BLOCKS.specialProceduresStart.x,
-        ICS_206_BLOCKS.specialProceduresStart.y,
-        font,
-        ICS_206_BLOCKS.specialProceduresStart.fontSize || 8,
-        ICS_206_BLOCKS.specialProceduresStart.maxWidth || 690,
-        12
-      );
+      addOpPeriodFooter(page, font);
     }
 
-    // Block 7: Prepared by
-    page.drawText(data.iapData?.preparedBy || '', {
-      x: ICS_206_BLOCKS.preparedByName.x,
-      y: ICS_206_BLOCKS.preparedByName.y,
-      size: ICS_206_BLOCKS.preparedByName.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Block 8: Approved by (Incident Commander)
-    const icName = data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
-    if (icName) {
-      page.drawText(icName, {
-        x: ICS_206_BLOCKS.approvedByName.x,
-        y: ICS_206_BLOCKS.approvedByName.y,
-        size: ICS_206_BLOCKS.approvedByName.fontSize || 9,
-        font,
-        color: rgb(0, 0, 0),
-        maxWidth: ICS_206_BLOCKS.approvedByName.maxWidth,
-      });
+    // Page numbers when more than one page
+    const allPages = pdfDoc.getPages();
+    if (allPages.length > 1) {
+      allPages.forEach((p, i) => drawPageNumber(p, i + 1, allPages.length, 'ICS 206'));
     }
-
-    // Add OpPeriod footer
-    addOpPeriodFooter(page, font);
 
     return await pdfDoc.save();
   }
@@ -1482,87 +1513,85 @@ export class ICSFormGenerator {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const page = pdfDoc.getPages()[0];
 
+    // ICS 207 is stored as a portrait PDF but with landscape content rotated 90° CCW.
+    // All filled-in text must be drawn with rotate=90 (CCW) so it reads left-to-right
+    // when the form is viewed in landscape (user rotates page 90° CCW).
+    const ics207Rotate = { type: 'degrees' as const, angle: 90 };
+
     // Block 1: Incident Name
-    page.drawText(data.iapData?.name || '', {
+    page.drawText(sanitizeText(data.iapData?.incidentName || data.iapData?.name || ''), {
       x: ICS_207_BLOCKS.incidentName.x,
       y: ICS_207_BLOCKS.incidentName.y,
       size: ICS_207_BLOCKS.incidentName.fontSize,
       font,
       color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
     });
 
-    // Block 2: Operational Period
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    // Block 2: Operational Period — separate Date and Time rows
+    const opFromDate = formatDate(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate));
+    const opFromTime = formatTime(this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opToDate   = formatDate(this.isoDate(data.periodData?.endAt,   data.periodData?.toDate));
+    const opToTime   = formatTime(this.isoTime(data.periodData?.endAt,   data.periodData?.toTime));
 
-    page.drawText(opFrom, {
-      x: ICS_207_BLOCKS.opPeriodFrom.x,
-      y: ICS_207_BLOCKS.opPeriodFrom.y,
-      size: ICS_207_BLOCKS.opPeriodFrom.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    page.drawText(opFromDate, { x: ICS_207_BLOCKS.opPeriodFrom.date.x, y: ICS_207_BLOCKS.opPeriodFrom.date.y, size: ICS_207_BLOCKS.opPeriodFrom.date.fontSize, font, color: rgb(0, 0, 0), rotate: ics207Rotate });
+    page.drawText(opFromTime, { x: ICS_207_BLOCKS.opPeriodFrom.time.x, y: ICS_207_BLOCKS.opPeriodFrom.time.y, size: ICS_207_BLOCKS.opPeriodFrom.time.fontSize, font, color: rgb(0, 0, 0), rotate: ics207Rotate });
+    page.drawText(opToDate,   { x: ICS_207_BLOCKS.opPeriodTo.date.x,   y: ICS_207_BLOCKS.opPeriodTo.date.y,   size: ICS_207_BLOCKS.opPeriodTo.date.fontSize,   font, color: rgb(0, 0, 0), rotate: ics207Rotate });
+    page.drawText(opToTime,   { x: ICS_207_BLOCKS.opPeriodTo.time.x,   y: ICS_207_BLOCKS.opPeriodTo.time.y,   size: ICS_207_BLOCKS.opPeriodTo.time.fontSize,   font, color: rgb(0, 0, 0), rotate: ics207Rotate });
 
-    page.drawText(opTo, {
-      x: ICS_207_BLOCKS.opPeriodTo.x,
-      y: ICS_207_BLOCKS.opPeriodTo.y,
-      size: ICS_207_BLOCKS.opPeriodTo.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Block 3: Organization Chart
+    // Block 3: Organization Chart — names drawn in lower portion of each pre-printed box
     const orgData = data.formData || [];
     const chartPositions = ICS_207_BLOCKS.orgChart;
 
     const positionMap: { [key: string]: any } = {
-      'Incident Commander': chartPositions.incidentCommander,
-      'Safety Officer': chartPositions.safetyOfficer,
-      'Public Information Officer': chartPositions.publicInfoOfficer,
-      'Liaison Officer': chartPositions.liaisonOfficer,
-      'Operations Section Chief': chartPositions.operationsChief,
-      '': chartPositions.planningChief,
-      'Logistics Section Chief': chartPositions.logisticsChief,
+      'Incident Commander':          chartPositions.incidentCommander,
+      'Safety Officer':              chartPositions.safetyOfficer,
+      'Public Information Officer':  chartPositions.publicInfoOfficer,
+      'Liaison Officer':             chartPositions.liaisonOfficer,
+      'Operations Section Chief':    chartPositions.operationsChief,
+      'Planning Section Chief':      chartPositions.planningChief,
+      'Logistics Section Chief':     chartPositions.logisticsChief,
       'Finance/Admin Section Chief': chartPositions.financeChief,
     };
 
     orgData.forEach((item: any) => {
-      const position = positionMap[item.position];
-      if (position && item.name) {
-        // Use bounded text to keep names INSIDE chart boxes
-        drawBoundedText(
-          page,
-          item.name,
-          position.x,
-          position.y,
-          font,
-          position.fontSize || 8,
-          position.maxWidth || 110
-        );
+      const pos = positionMap[item.position];
+      if (pos && item.name) {
+        drawTableCell(page, sanitizeText(item.name), pos.x, pos.y, font, pos.fontSize || 8, pos.maxWidth || 110, 90);
       }
     });
 
-    // Block 4: Prepared by
-    page.drawText(data.iapData?.preparedBy || '', {
+    // Block 4: Prepared by (portrait right strip — same rotation as all other ICS 207 text)
+    page.drawText(sanitizeText(data.iapData?.preparedBy || ''), {
       x: ICS_207_BLOCKS.preparedByName.x,
       y: ICS_207_BLOCKS.preparedByName.y,
       size: ICS_207_BLOCKS.preparedByName.fontSize,
       font,
       color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
     });
 
-    page.drawText(formatDateTime(
-      new Date().toISOString().split('T')[0],
-      new Date().toTimeString().split(' ')[0].substring(0, 5)
-    ), {
+    page.drawText(sanitizeText(data.iapData?.preparedByPosition || ''), {
+      x: ICS_207_BLOCKS.preparedByPosition.x,
+      y: ICS_207_BLOCKS.preparedByPosition.y,
+      size: ICS_207_BLOCKS.preparedByPosition.fontSize,
+      font,
+      color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
+    });
+
+    const preparedDateTime = data.iapData?.preparedDateTime
+      ? formatDateTime(data.iapData.preparedDateTime.split('T')[0], data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || '')
+      : formatDateTime(new Date().toISOString().split('T')[0], new Date().toTimeString().split(' ')[0].substring(0, 5));
+    page.drawText(sanitizeText(preparedDateTime), {
       x: ICS_207_BLOCKS.preparedByDateTime.x,
       y: ICS_207_BLOCKS.preparedByDateTime.y,
       size: ICS_207_BLOCKS.preparedByDateTime.fontSize,
       font,
       color: rgb(0, 0, 0),
+      rotate: ics207Rotate,
     });
 
-    // Add OpPeriod footer
     addOpPeriodFooter(page, font);
 
     return await pdfDoc.save();
@@ -1571,167 +1600,144 @@ export class ICSFormGenerator {
   async generateICS208(data: ICSFormData): Promise<Uint8Array> {
     const pdfDoc = await loadTemplateFirstPage(TEMPLATE_URLS.ICS_208);
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const page = pdfDoc.getPages()[0];
 
-    // Block 1: Incident Name
-    page.drawText(sanitizeText(data.iapData?.name || ''), {
-      x: ICS_208_BLOCKS.incidentName.x,
-      y: ICS_208_BLOCKS.incidentName.y,
-      size: ICS_208_BLOCKS.incidentName.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+    // Pre-compute header values shared across all pages
+    const incidentName = sanitizeText(data.iapData?.incidentName || data.iapData?.name || '');
+    const opFromDate = sanitizeText(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate));
+    const opFromTime = sanitizeText(this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opToDate   = sanitizeText(this.isoDate(data.periodData?.endAt, data.periodData?.toDate));
+    const opToTime   = sanitizeText(this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
-    // Block 2: Operational Period (split into two lines each)
-    const opFromDate = sanitizeText(data.periodData?.fromDate || '');
-    const opFromTime = sanitizeText(data.periodData?.fromTime || '');
-    const opToDate = sanitizeText(data.periodData?.toDate || '');
-    const opToTime = sanitizeText(data.periodData?.toTime || '');
+    const drawHeader = (page: PDFPage) => {
+      page.drawText(incidentName, { x: ICS_208_BLOCKS.incidentName.x, y: ICS_208_BLOCKS.incidentName.y, size: ICS_208_BLOCKS.incidentName.fontSize, font, color: rgb(0, 0, 0) });
+      page.drawText(opFromDate,   { x: ICS_208_BLOCKS.opPeriodFrom.date.x, y: ICS_208_BLOCKS.opPeriodFrom.date.y, size: ICS_208_BLOCKS.opPeriodFrom.date.fontSize, font, color: rgb(0, 0, 0) });
+      page.drawText(opFromTime,   { x: ICS_208_BLOCKS.opPeriodFrom.time.x, y: ICS_208_BLOCKS.opPeriodFrom.time.y, size: ICS_208_BLOCKS.opPeriodFrom.time.fontSize, font, color: rgb(0, 0, 0) });
+      page.drawText(opToDate,     { x: ICS_208_BLOCKS.opPeriodTo.date.x,   y: ICS_208_BLOCKS.opPeriodTo.date.y,   size: ICS_208_BLOCKS.opPeriodTo.date.fontSize,   font, color: rgb(0, 0, 0) });
+      page.drawText(opToTime,     { x: ICS_208_BLOCKS.opPeriodTo.time.x,   y: ICS_208_BLOCKS.opPeriodTo.time.y,   size: ICS_208_BLOCKS.opPeriodTo.time.fontSize,   font, color: rgb(0, 0, 0) });
+    };
 
-    page.drawText(opFromDate, {
-      x: ICS_208_BLOCKS.opPeriodFrom.date.x,
-      y: ICS_208_BLOCKS.opPeriodFrom.date.y,
-      size: ICS_208_BLOCKS.opPeriodFrom.date.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    page.drawText(opFromTime, {
-      x: ICS_208_BLOCKS.opPeriodFrom.time.x,
-      y: ICS_208_BLOCKS.opPeriodFrom.time.y,
-      size: ICS_208_BLOCKS.opPeriodFrom.time.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    page.drawText(opToDate, {
-      x: ICS_208_BLOCKS.opPeriodTo.date.x,
-      y: ICS_208_BLOCKS.opPeriodTo.date.y,
-      size: ICS_208_BLOCKS.opPeriodTo.date.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    page.drawText(opToTime, {
-      x: ICS_208_BLOCKS.opPeriodTo.time.x,
-      y: ICS_208_BLOCKS.opPeriodTo.time.y,
-      size: ICS_208_BLOCKS.opPeriodTo.time.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Block 3: Safety Messages
     const safety = data.formData || [];
-    let yPos = ICS_208_BLOCKS.safetyMessageStart.y;
-
-    // Get safety message first
-    const safetyMessageItem = safety.find((item: any) => item.itemType === 'message');
-    if (safetyMessageItem && safetyMessageItem.content) {
-      yPos = drawWrappedText(
-        page,
-        safetyMessageItem.content,
-        ICS_208_BLOCKS.safetyMessageStart.x,
-        yPos,
-        font,
-        ICS_208_BLOCKS.safetyMessageStart.fontSize || 9,
-        ICS_208_BLOCKS.safetyMessageStart.maxWidth || 520,
-        ICS_208_BLOCKS.safetyLineHeight
-      );
-      yPos -= 15;
-    }
-
-    // Add hazards
-    const hazards = safety.filter((item: any) => item.itemType === 'hazard');
-    hazards.slice(0, 8).forEach((item: any, idx: number) => {
-      const hazardText = item.title ? `${idx + 1}. ${item.title}: ${item.description || ''}` : `${idx + 1}. ${item.description || ''}`;
-
-      yPos = drawWrappedText(
-        page,
-        hazardText,
-        ICS_208_BLOCKS.safetyMessageStart.x,
-        yPos,
-        font,
-        ICS_208_BLOCKS.safetyMessageStart.fontSize || 9,
-        ICS_208_BLOCKS.safetyMessageStart.maxWidth || 520,
-        ICS_208_BLOCKS.safetyLineHeight
-      );
-
-      yPos -= 10;
-    });
-
-    // Block 4: Site Safety Plan
+    const safetyMessageItem  = safety.find((item: any) => item.itemType === 'message');
     const siteSafetyPlanItem = safety.find((item: any) => item.itemType === 'siteSafetyPlan');
-    if (siteSafetyPlanItem) {
-      const yesX = ICS_208_BLOCKS.siteSafetyPlanRequired.x;
-      const noX = yesX + 30;
-      const checkY = ICS_208_BLOCKS.siteSafetyPlanRequired.y;
 
-      drawCheckbox(page, yesX, checkY, 8, siteSafetyPlanItem.required === true);
-      drawCheckbox(page, noX, checkY, 8, siteSafetyPlanItem.required === false);
+    // --- Safety message layout constants ---
+    const fontSize       = ICS_208_BLOCKS.safetyMessageStart.fontSize || 9;
+    const maxWidth       = ICS_208_BLOCKS.safetyMessageStart.maxWidth || 510;
+    const lineHeight     = ICS_208_BLOCKS.safetyLineHeight;
+    const startX         = ICS_208_BLOCKS.safetyMessageStart.x;
+    const contentStartY  = ICS_208_BLOCKS.safetyMessageStart.y;  // 670
+    const contentBottomY = 130;
+    const linesPerPage   = Math.floor((contentStartY - contentBottomY) / lineHeight);
+    const msgLines       = safetyMessageItem?.content
+      ? wrapText(safetyMessageItem.content, font, fontSize, maxWidth) : [];
 
-      if (siteSafetyPlanItem.required === true && siteSafetyPlanItem.location) {
-        drawTableCell(
-          page,
-          siteSafetyPlanItem.location,
-          ICS_208_BLOCKS.siteSafetyPlanLocation.x,
-          ICS_208_BLOCKS.siteSafetyPlanLocation.y,
-          font,
-          ICS_208_BLOCKS.siteSafetyPlanLocation.fontSize || 9,
-          ICS_208_BLOCKS.siteSafetyPlanLocation.maxWidth || 450
-        );
+    // --- Location field ---
+    const locFontSize = ICS_208_BLOCKS.siteSafetyPlanLocation.fontSize || 9;
+    const locMaxWidth = ICS_208_BLOCKS.siteSafetyPlanLocation.maxWidth || 450;
+    const locLineH    = 11;
+    const locStartY   = ICS_208_BLOCKS.siteSafetyPlanLocation.y;
+
+    const locationText = siteSafetyPlanItem?.required && siteSafetyPlanItem?.location
+      ? sanitizeText(siteSafetyPlanItem.location) : '';
+
+    // Split location text: first line goes in the footer on the safety-message page,
+    // any remaining lines go to a dedicated continuation page.
+    const locAllLines   = locationText ? wrapText(locationText, font, locFontSize, locMaxWidth) : [];
+    const locLine1      = locAllLines[0] || '';   // shown in footer at y=99 (1 line max)
+    const locRestLines  = locAllLines.slice(1);   // continuation page content
+
+    // --- Distribute safety message lines across pages ---
+    const msgPages: string[][] = [];
+    const remainingMsg = [...msgLines];
+    do { msgPages.push(remainingMsg.splice(0, linesPerPage)); } while (remainingMsg.length > 0);
+    if (msgPages.length === 0) msgPages.push([]);
+
+    const needsExtraPage = locRestLines.length > 0;
+    const totalPages     = msgPages.length + (needsExtraPage ? 1 : 0);
+
+    // Helper: draw footer (checkbox + first location line + prepared by)
+    const drawFooter = (page: PDFPage) => {
+      if (siteSafetyPlanItem) {
+        const yesX   = ICS_208_BLOCKS.siteSafetyPlanRequired.x;
+        const checkY = ICS_208_BLOCKS.siteSafetyPlanRequired.y;
+        drawCheckbox(page, yesX,      checkY, 8, siteSafetyPlanItem.required === true);
+        drawCheckbox(page, yesX + 30, checkY, 8, siteSafetyPlanItem.required === false);
+        if (locLine1) {
+          page.drawText(locLine1, {
+            x: ICS_208_BLOCKS.siteSafetyPlanLocation.x, y: locStartY,
+            size: locFontSize, font, color: rgb(0, 0, 0),
+            maxWidth: locMaxWidth,
+          });
+        }
       }
-    }
-
-    // Block 5: Prepared by
-    page.drawText(sanitizeText(data.iapData?.preparedBy || ''), {
-      x: ICS_208_BLOCKS.preparedByName.x,
-      y: ICS_208_BLOCKS.preparedByName.y,
-      size: ICS_208_BLOCKS.preparedByName.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    page.drawText(sanitizeText(data.iapData?.preparedByPosition || ''), {
-      x: ICS_208_BLOCKS.preparedByPosition.x,
-      y: ICS_208_BLOCKS.preparedByPosition.y,
-      size: ICS_208_BLOCKS.preparedByPosition.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    const preparedDateTime = data.iapData?.preparedDateTime
-      ? formatDateTime(
-          data.iapData.preparedDateTime.split('T')[0],
-          data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || ''
-        )
-      : formatDateTime(
-          new Date().toISOString().split('T')[0],
-          new Date().toTimeString().split(' ')[0].substring(0, 5)
-        );
-
-    page.drawText(sanitizeText(preparedDateTime), {
-      x: ICS_208_BLOCKS.preparedByDateTime.x,
-      y: ICS_208_BLOCKS.preparedByDateTime.y,
-      size: ICS_208_BLOCKS.preparedByDateTime.fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
-
-    // Block 6: Approved by (Incident Commander)
-    const icName = data.organizationData?.find((item: any) => item.position === 'Incident Commander')?.name || '';
-    if (icName) {
-      page.drawText(sanitizeText(icName), {
-        x: ICS_208_BLOCKS.approvedByName.x,
-        y: ICS_208_BLOCKS.approvedByName.y,
-        size: ICS_208_BLOCKS.approvedByName.fontSize || 9,
-        font,
-        color: rgb(0, 0, 0),
-        maxWidth: ICS_208_BLOCKS.approvedByName.maxWidth,
+      page.drawText(sanitizeText(data.iapData?.preparedBy || ''), {
+        x: ICS_208_BLOCKS.preparedByName.x, y: ICS_208_BLOCKS.preparedByName.y,
+        size: ICS_208_BLOCKS.preparedByName.fontSize, font, color: rgb(0, 0, 0),
       });
+      page.drawText(sanitizeText(data.iapData?.preparedByPosition || ''), {
+        x: ICS_208_BLOCKS.preparedByPosition.x, y: ICS_208_BLOCKS.preparedByPosition.y,
+        size: ICS_208_BLOCKS.preparedByPosition.fontSize, font, color: rgb(0, 0, 0),
+      });
+      const preparedDateTime = data.iapData?.preparedDateTime
+        ? formatDateTime(data.iapData.preparedDateTime.split('T')[0], data.iapData.preparedDateTime.split('T')[1]?.substring(0, 5) || '')
+        : formatDateTime(new Date().toISOString().split('T')[0], new Date().toTimeString().split(' ')[0].substring(0, 5));
+      page.drawText(sanitizeText(preparedDateTime), {
+        x: ICS_208_BLOCKS.preparedByDateTime.x, y: ICS_208_BLOCKS.preparedByDateTime.y,
+        size: ICS_208_BLOCKS.preparedByDateTime.fontSize, font, color: rgb(0, 0, 0),
+      });
+    };
+
+    // --- Render ---
+    for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+      const page = pageIdx === 0
+        ? pdfDoc.getPages()[0]
+        : await createContinuationPage(pdfDoc, TEMPLATE_URLS.ICS_208);
+
+      drawHeader(page);
+
+      const isLastMsgPage = pageIdx === msgPages.length - 1;
+      const isExtraLocPage = pageIdx === msgPages.length;
+
+      if (!isExtraLocPage) {
+        // Safety message content for this page
+        let y = contentStartY;
+        for (const line of msgPages[pageIdx]) {
+          page.drawText(line, { x: startX, y, size: fontSize, font, color: rgb(0, 0, 0) });
+          y -= lineHeight;
+        }
+      }
+
+      if (isLastMsgPage) {
+        // Footer with checkbox, first location line, and prepared by always on the last message page
+        drawFooter(page);
+      }
+
+      if (isExtraLocPage) {
+        // Draw continuation text in Section 4, starting at the "Located At:" row (y=99)
+        // and flowing downward. No Prepared by values are drawn on this page so the
+        // only thing below is the printed template label, which is acceptable.
+        let locY = locStartY;
+        for (const line of locRestLines) {
+          if (locY < 20) break;
+          page.drawText(line, {
+            x: ICS_208_BLOCKS.siteSafetyPlanLocation.x,
+            y: locY,
+            size: locFontSize,
+            font,
+            color: rgb(0, 0, 0),
+            maxWidth: locMaxWidth,
+          });
+          locY -= locLineH;
+        }
+      }
+
+      addOpPeriodFooter(page, font);
     }
 
-    // Add OpPeriod footer
-    addOpPeriodFooter(page, font);
+    const allPages = pdfDoc.getPages();
+    if (allPages.length > 1) {
+      allPages.forEach((p, i) => drawPageNumber(p, i + 1, allPages.length, 'ICS 208'));
+    }
 
     return await pdfDoc.save();
   }
@@ -1745,7 +1751,7 @@ export class ICSFormGenerator {
     // Header - Incident Name
     drawBoundedText(
       page,
-      data.iapData?.name || '',
+      data.iapData?.incidentName || data.iapData?.name || '',
       80,
       height - 65,
       font,
@@ -1754,8 +1760,8 @@ export class ICSFormGenerator {
     );
 
     // Operational Period
-    const opFrom = formatDateTime(data.periodData?.fromDate, data.periodData?.fromTime);
-    const opTo = formatDateTime(data.periodData?.toDate, data.periodData?.toTime);
+    const opFrom = formatDateTime(this.isoDate(data.periodData?.startAt, data.periodData?.fromDate), this.isoTime(data.periodData?.startAt, data.periodData?.fromTime));
+    const opTo = formatDateTime(this.isoDate(data.periodData?.endAt, data.periodData?.toDate), this.isoTime(data.periodData?.endAt, data.periodData?.toTime));
 
     drawBoundedText(
       page,

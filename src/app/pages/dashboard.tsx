@@ -121,7 +121,7 @@ export function Dashboard() {
           <p className="text-slate-400 text-sm">Incident planning overview and status</p>
         </div>
         <Link
-          to={`/iap/${iapId}/iap-builder`}
+          href={`/iap/${iapId}/iap-builder`}
           className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors"
         >
           Open IAP Builder
@@ -180,7 +180,7 @@ export function Dashboard() {
             {sections.map((section) => (
               <Link
                 key={section.name}
-                to={section.path}
+                href={section.path}
                 className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
               >
                 <div className="flex-1">

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { HelpCircle, History, FileText, BookOpen, CircleHelp, Plus, X, Loader2 } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
+import { useOpPeriod } from '../../contexts/op-period-context';
 import { toast } from 'sonner';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
 import { pdfCombiner } from '../../utils/pdf-combiner';
@@ -93,6 +94,7 @@ interface PersonnelData {
 
 export function PersonnelPage() {
   const { iapId, periodId } = useParams();
+  const { data: shared, update: updateShared } = useOpPeriod();
   const [personnelData, setPersonnelData] = useState<PersonnelData>({
     id: '',
     commandStructure: 'single',
@@ -100,6 +102,11 @@ export function PersonnelPage() {
   const [loading, setLoading] = useState(true);
   const [focusedFieldValue, setFocusedFieldValue] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
+
+  const [localPreparedByName, setLocalPreparedByName] = useState('');
+  const [localPreparedByTitle, setLocalPreparedByTitle] = useState('');
+  const sharedSynced = useRef(false);
+
 
   useEffect(() => {
     loadData();
@@ -112,6 +119,8 @@ export function PersonnelPage() {
       const data = await apiClient.getData(iapId, `period-${periodId}-personnel`);
       if (data?.data?.[0]) {
         setPersonnelData(data.data[0]);
+        setLocalPreparedByName(data.data[0].preparedByName || '');
+        setLocalPreparedByTitle(data.data[0].preparedByPosition || '');
       } else {
         setPersonnelData({ id: crypto.randomUUID(), commandStructure: 'single' });
       }
@@ -130,20 +139,18 @@ export function PersonnelPage() {
     try {
       const existing = await apiClient.getData(iapId, `period-${periodId}-personnel`);
       if (existing?.data?.[0]) {
-        // Update existing record using the existing ID
         const dataToSave = { ...dataToUse, id: existing.data[0].id };
         try {
           await apiClient.updateData(iapId, `period-${periodId}-personnel`, existing.data[0].id, dataToSave);
         } catch (updateErr: any) {
-          // If update fails because item doesn't exist, create it
           if (updateErr.message?.includes('not found') || updateErr.status === 404) {
             await apiClient.createData(iapId, `period-${periodId}-personnel`, dataToSave);
           } else {
             throw updateErr;
           }
         }
-        // Update local state with correct ID
-        setPersonnelData(dataToSave);
+        // Don't call setPersonnelData here — updateField already set the optimistic state.
+        // Calling it again with a stale closure snapshot causes the flicker.
       } else {
         // Create new record
         const createdData = await apiClient.createData(iapId, `period-${periodId}-personnel`, dataToUse);
@@ -178,24 +185,20 @@ export function PersonnelPage() {
   const handleGenerateICS203 = async () => {
     if (!iapId || !periodId) return;
 
+    if (!shared?.incidentName) {
+      toast.error('Incident name is required. Fill it in on the Incident Info page.');
+      return;
+    }
+
     try {
       setGenerating(true);
       toast.info('Generating ICS 203...');
 
-      // Fetch all required data including assignments
-      const [iapRes, periodsData, safetyRes, assignmentsData] = await Promise.all([
-        apiClient.getIAP(iapId),
-        apiClient.getData(iapId, 'periods'),
+      // Only fetch form-specific data; shared fields come from context.
+      const [safetyRes, assignmentsData] = await Promise.all([
         apiClient.getData(iapId, `period-${periodId}-safety`),
         apiClient.getData(iapId, `period-${periodId}-assignments`),
       ]);
-
-      const period = periodsData?.data?.find((p: any) => p.id === periodId);
-      if (!period) {
-        toast.error('Operational period not found');
-        setGenerating(false);
-        return;
-      }
 
       // Transform personnel data to organization format expected by ICS 203
       const organizationData = [];
@@ -280,24 +283,27 @@ export function PersonnelPage() {
 
       const baseData = {
         iapData: {
-          ...iapRes.iap,
-          preparedBy: personnelData.preparedByName || '',
-          preparedByPosition: personnelData.preparedByPosition || '',
-          preparedDateTime: personnelData.preparedDateTime || '',
+          incidentName: shared?.incidentName ?? '',
+          incidentNumber: shared?.incidentNumber ?? '',
+          preparedBy: localPreparedByName,
+          preparedByPosition: localPreparedByTitle,
+          preparedDateTime: personnelData.preparedDateTime ?? '',
+          agencyName: shared?.agencyName ?? '',
         },
-        periodData: period,
-        organizationData: organizationData,
-        branchesData: branchesData,
-        divisionsData: divisionsData,
+        periodData: {
+          periodNumber: shared?.periodNumber,
+          startAt: shared?.startAt,
+          endAt: shared?.endAt,
+        },
+        organizationData,
+        branchesData,
+        divisionsData,
         safetyData: safetyRes?.data || [],
         formData: organizationData,
       };
 
-      // Generate the PDF
       const pdfBytes = await icsFormGenerator.generateICS203(baseData);
-
-      // Download the PDF
-      const filename = `ICS_203_${iapRes.iap?.name || 'Incident'}_Period_${period.periodNumber}.pdf`;
+      const filename = `ICS_203_${shared?.incidentName || 'Incident'}_Period_${shared?.periodNumber}.pdf`;
       await pdfCombiner.downloadPDF(pdfBytes, filename);
 
       toast.success('ICS 203 downloaded successfully!');
@@ -309,40 +315,113 @@ export function PersonnelPage() {
     }
   };
 
+  const handleGenerateICS207 = async () => {
+    if (!iapId || !periodId) return;
+
+    if (!shared?.incidentName) {
+      toast.error('Incident name is required. Fill it in on the Incident Info page.');
+      return;
+    }
+
+    try {
+      setGenerating(true);
+      toast.info('Generating ICS 207...');
+
+      // Build the 8 top-level org chart positions from personnel data
+      const organizationData: { position: string; name: string }[] = [];
+
+      if (personnelData.commandStructure === 'single' && personnelData.incidentCommanderName) {
+        organizationData.push({ position: 'Incident Commander', name: personnelData.incidentCommanderName });
+      } else if (personnelData.commandStructure === 'unified' && personnelData.commanders) {
+        personnelData.commanders.forEach(cmd => {
+          if (cmd.name) organizationData.push({ position: 'Incident Commander', name: cmd.name });
+        });
+      }
+      if (personnelData.safetyOfficerName)    organizationData.push({ position: 'Safety Officer',               name: personnelData.safetyOfficerName });
+      if (personnelData.publicInfoOfficerName) organizationData.push({ position: 'Public Information Officer',  name: personnelData.publicInfoOfficerName });
+      if (personnelData.liaisonOfficerName)   organizationData.push({ position: 'Liaison Officer',             name: personnelData.liaisonOfficerName });
+      if (personnelData.operationsSectionChief) organizationData.push({ position: 'Operations Section Chief',  name: personnelData.operationsSectionChief });
+      if (personnelData.planningSectionChief)  organizationData.push({ position: 'Planning Section Chief',     name: personnelData.planningSectionChief });
+      if (personnelData.logisticsSectionChief) organizationData.push({ position: 'Logistics Section Chief',    name: personnelData.logisticsSectionChief });
+      if (personnelData.financeSectionChief)   organizationData.push({ position: 'Finance/Admin Section Chief', name: personnelData.financeSectionChief });
+
+      const pdfBytes = await icsFormGenerator.generateICS207({
+        iapData: {
+          incidentName: shared?.incidentName ?? '',
+          incidentNumber: shared?.incidentNumber ?? '',
+          preparedBy: localPreparedByName,
+          preparedByPosition: localPreparedByTitle,
+          preparedDateTime: personnelData.preparedDateTime ?? '',
+          agencyName: shared?.agencyName ?? '',
+        },
+        periodData: {
+          periodNumber: shared?.periodNumber,
+          startAt: shared?.startAt,
+          endAt: shared?.endAt,
+        },
+        formData: organizationData,
+      });
+
+      const filename = `ICS_207_${shared?.incidentName || 'Incident'}_Period_${shared?.periodNumber}.pdf`;
+      await pdfCombiner.downloadPDF(pdfBytes, filename);
+      toast.success('ICS 207 downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating ICS 207:', error);
+      toast.error('Failed to generate ICS 207');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* Incident info banner — read-only, populated from shared context */}
+      {shared && (
+        <div className="bg-muted border border-border rounded-lg px-4 py-2.5 flex items-center gap-4 text-sm text-foreground/80 flex-wrap">
+          <span><span className="text-muted-foreground">Incident:</span> <span className="text-foreground font-medium">{shared.incidentName || '—'}</span></span>
+          <span className="text-muted-foreground">|</span>
+          <span><span className="text-muted-foreground">Period:</span> <span className="text-foreground font-medium">{shared.periodNumber}</span></span>
+          {shared.startAt && (
+            <>
+              <span className="text-muted-foreground">|</span>
+              <span className="text-muted-foreground">{new Date(shared.startAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} – {shared.endAt ? new Date(shared.endAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}</span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">ICS 203 - Organization Assignment List</h1>
+        <h1 className="text-2xl font-bold text-foreground">ICS 203 - Organization Assignment List</h1>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <History className="w-4 h-4" />
             History
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Templates
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             Tutorial
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <CircleHelp className="w-4 h-4" />
             Help
           </button>
           <button
             onClick={handleGenerateICS203}
             disabled={generating}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generating ? (
               <>
@@ -356,41 +435,58 @@ export function PersonnelPage() {
               </>
             )}
           </button>
+          <button
+            onClick={handleGenerateICS207}
+            disabled={generating}
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4" />
+                ICS 207
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       {/* Command Structure */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-white">Command Structure</h2>
-            <HelpCircle className="w-4 h-4 text-slate-400" />
+            <h2 className="text-lg font-semibold text-foreground">Command Structure</h2>
+            <HelpCircle className="w-4 h-4 text-muted-foreground" />
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => {
+              onClick={async () => {
                 const newData = { ...personnelData, commandStructure: 'single' as const };
                 updateField('commandStructure', 'single');
-                saveData(newData);
+                await saveData(newData);
               }}
               className={`px-4 py-2 text-sm rounded-lg transition-colors ${
                 personnelData.commandStructure === 'single'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  ? 'bg-sage text-white'
+                  : 'bg-muted text-foreground/80 hover:bg-accent'
               }`}
             >
               Single Incident Commander
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const newData = { ...personnelData, commandStructure: 'unified' as const };
                 updateField('commandStructure', 'unified');
-                saveData(newData);
+                await saveData(newData);
               }}
               className={`px-4 py-2 text-sm rounded-lg transition-colors ${
                 personnelData.commandStructure === 'unified'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  ? 'bg-sage text-white'
+                  : 'bg-muted text-foreground/80 hover:bg-accent'
               }`}
             >
               Unified Command
@@ -401,33 +497,36 @@ export function PersonnelPage() {
         {personnelData.commandStructure === 'single' ? (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Incident Commander</label>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">Incident Commander</label>
               <input
                 type="text"
                 value={personnelData.incidentCommanderName || ''}
                 onFocus={(e) => handleInputFocus(e.target.value)}
-                onChange={(e) => updateField('incidentCommanderName', e.target.value)}
+                onChange={(e) => {
+                  updateField('incidentCommanderName', e.target.value);
+                  void updateShared({ incidentCommander: e.target.value });
+                }}
                 onBlur={(e) => handleInputBlur(e.target.value)}
                 placeholder="Select or type name"
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+              <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
               <input
                 type="text"
                 value={personnelData.incidentCommanderContact || ''}
                 onFocus={(e) => handleInputFocus(e.target.value)}
                 onChange={(e) => updateField('incidentCommanderContact', e.target.value)}
                 onBlur={(e) => handleInputBlur(e.target.value)}
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
             </div>
           </div>
         ) : (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-slate-400">Add one or more Unified Command representatives for this incident</p>
+              <p className="text-sm text-muted-foreground">Add one or more Unified Command representatives for this incident</p>
               <button
                 onClick={async () => {
                   const commanders = personnelData.commanders || [];
@@ -437,7 +536,7 @@ export function PersonnelPage() {
                   // Save immediately with the updated data
                   await saveData(newData);
                 }}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 bg-sage hover:bg-sage-hover text-white text-xs rounded-lg transition-colors flex items-center gap-1"
               >
                 <Plus className="w-3 h-3" />
                 Add Commander
@@ -455,7 +554,7 @@ export function PersonnelPage() {
                   }}
                   onBlur={() => saveData()}
                   placeholder="Commander Name"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
                 <div className="flex gap-2">
                   <input
@@ -468,15 +567,16 @@ export function PersonnelPage() {
                     }}
                     onBlur={() => saveData()}
                     placeholder="Contact"
-                    className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                   />
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const updated = (personnelData.commanders || []).filter((_, i) => i !== idx);
+                      const newData = { ...personnelData, commanders: updated };
                       updateField('commanders', updated);
-                      saveData();
+                      await saveData(newData);
                     }}
-                    className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                    className="p-2 text-coral hover:text-coral transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -488,14 +588,14 @@ export function PersonnelPage() {
       </div>
 
       {/* Command & General Staff */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Command Staff</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Command Staff</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Deputy Incident Commander</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Deputy Incident Commander</label>
             <input
               type="text"
               value={personnelData.deputyIncidentCommanderName || ''}
@@ -503,22 +603,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('deputyIncidentCommanderName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.deputyIncidentCommanderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('deputyIncidentCommanderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Safety Officer</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Safety Officer</label>
             <input
               type="text"
               value={personnelData.safetyOfficerName || ''}
@@ -526,22 +626,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('safetyOfficerName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.safetyOfficerContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('safetyOfficerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Public Information Officer</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Public Information Officer</label>
             <input
               type="text"
               value={personnelData.publicInfoOfficerName || ''}
@@ -549,22 +649,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('publicInfoOfficerName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.publicInfoOfficerContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('publicInfoOfficerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Liaison Officer</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Liaison Officer</label>
             <input
               type="text"
               value={personnelData.liaisonOfficerName || ''}
@@ -572,32 +672,32 @@ export function PersonnelPage() {
               onChange={(e) => updateField('liaisonOfficerName', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.liaisonOfficerContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('liaisonOfficerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
       </div>
 
       {/* Operations Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Operations Section</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Operations Section</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Operations Section Chief</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Operations Section Chief</label>
             <input
               type="text"
               value={personnelData.operationsSectionChief || ''}
@@ -605,22 +705,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('operationsSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.operationsSectionChiefContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('operationsSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Operations Deputy</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Operations Deputy</label>
             <input
               type="text"
               value={personnelData.operationsDeputyChief || ''}
@@ -628,22 +728,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('operationsDeputyChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.operationsDeputyChiefContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('operationsDeputyChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Staging Area Manager</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Staging Area Manager</label>
             <input
               type="text"
               value={personnelData.stagingAreaManager || ''}
@@ -651,32 +751,32 @@ export function PersonnelPage() {
               onChange={(e) => updateField('stagingAreaManager', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.stagingAreaManagerContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('stagingAreaManagerContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
       </div>
 
       {/* Planning Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Planning Section</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Planning Section</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Planning Section Chief</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Planning Section Chief</label>
             <input
               type="text"
               value={personnelData.planningSectionChief || ''}
@@ -684,22 +784,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('planningSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.planningSectionChiefContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('planningSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Planning Deputy</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Planning Deputy</label>
             <input
               type="text"
               value={personnelData.planningDeputy || ''}
@@ -707,22 +807,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('planningDeputy', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.planningDeputyContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('planningDeputyContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Resources Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Resources Unit Leader</label>
             <input
               type="text"
               value={personnelData.resourcesUnitLeader || ''}
@@ -730,22 +830,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('resourcesUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.resourcesUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('resourcesUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Situation Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Situation Unit Leader</label>
             <input
               type="text"
               value={personnelData.situationUnitLeader || ''}
@@ -753,22 +853,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('situationUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.situationUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('situationUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Documentation Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Documentation Unit Leader</label>
             <input
               type="text"
               value={personnelData.documentationUnitLeader || ''}
@@ -776,22 +876,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('documentationUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.documentationUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('documentationUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Demobilization Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Demobilization Unit Leader</label>
             <input
               type="text"
               value={personnelData.demobilizationUnitLeader || ''}
@@ -799,26 +899,26 @@ export function PersonnelPage() {
               onChange={(e) => updateField('demobilizationUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.demobilizationUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('demobilizationUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
 
         {/* Technical Specialists */}
-        <div className="border-t border-slate-700 pt-4">
+        <div className="border-t border-border pt-4">
           <div className="flex items-center justify-between mb-3">
-            <label className="text-sm font-medium text-slate-300">Technical Specialists</label>
+            <label className="text-sm font-medium text-foreground/80">Technical Specialists</label>
             <button
               onClick={async () => {
                 const specialists = personnelData.technicalSpecialists || [];
@@ -827,7 +927,7 @@ export function PersonnelPage() {
                 updateField('technicalSpecialists', updated);
                 await saveData(newData);
               }}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 bg-sage hover:bg-sage-hover text-white text-xs rounded-lg transition-colors flex items-center gap-1"
             >
               <Plus className="w-3 h-3" />
               Add Specialist
@@ -845,7 +945,7 @@ export function PersonnelPage() {
                 }}
                 onBlur={() => saveData()}
                 placeholder="Select or type name"
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
               <div className="flex gap-2">
                 <input
@@ -858,15 +958,16 @@ export function PersonnelPage() {
                   }}
                   onBlur={() => saveData()}
                   placeholder="e.g., Hazmat, Weather, GIS"
-                  className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const updated = (personnelData.technicalSpecialists || []).filter((_, i) => i !== idx);
+                    const newData = { ...personnelData, technicalSpecialists: updated };
                     updateField('technicalSpecialists', updated);
-                    saveData();
+                    await saveData(newData);
                   }}
-                  className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                  className="p-2 text-coral hover:text-coral transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -877,14 +978,14 @@ export function PersonnelPage() {
       </div>
 
       {/* Logistics Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Logistics Section</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Logistics Section</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Logistics Section Chief</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Logistics Section Chief</label>
             <input
               type="text"
               value={personnelData.logisticsSectionChief || ''}
@@ -892,22 +993,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('logisticsSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.logisticsSectionChiefContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('logisticsSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Logistics Deputy</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Logistics Deputy</label>
             <input
               type="text"
               value={personnelData.logisticsDeputy || ''}
@@ -915,22 +1016,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('logisticsDeputy', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.logisticsDeputyContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('logisticsDeputyContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Support Branch Director</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Support Branch Director</label>
             <input
               type="text"
               value={personnelData.supportBranchDirector || ''}
@@ -938,22 +1039,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('supportBranchDirector', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.supportBranchDirectorContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('supportBranchDirectorContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Supply Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Supply Unit Leader</label>
             <input
               type="text"
               value={personnelData.supplyUnitLeader || ''}
@@ -961,22 +1062,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('supplyUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.supplyUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('supplyUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Facilities Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Facilities Unit Leader</label>
             <input
               type="text"
               value={personnelData.facilitiesUnitLeader || ''}
@@ -984,22 +1085,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('facilitiesUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.facilitiesUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('facilitiesUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Ground Support Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Ground Support Unit Leader</label>
             <input
               type="text"
               value={personnelData.groundSupportUnitLeader || ''}
@@ -1007,22 +1108,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('groundSupportUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.groundSupportUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('groundSupportUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Service Branch Director</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Service Branch Director</label>
             <input
               type="text"
               value={personnelData.serviceBranchDirector || ''}
@@ -1030,22 +1131,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('serviceBranchDirector', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.serviceBranchDirectorContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('serviceBranchDirectorContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Communications Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Communications Unit Leader</label>
             <input
               type="text"
               value={personnelData.communicationsUnitLeader || ''}
@@ -1053,22 +1154,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('communicationsUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.communicationsUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('communicationsUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Medical Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Medical Unit Leader</label>
             <input
               type="text"
               value={personnelData.medicalUnitLeader || ''}
@@ -1076,22 +1177,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('medicalUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.medicalUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('medicalUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Food Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Food Unit Leader</label>
             <input
               type="text"
               value={personnelData.foodUnitLeader || ''}
@@ -1099,32 +1200,32 @@ export function PersonnelPage() {
               onChange={(e) => updateField('foodUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.foodUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('foodUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
       </div>
 
       {/* Finance/Administration Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Finance/Administration Section</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Finance/Administration Section</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Finance/Administration Section Chief</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Finance/Administration Section Chief</label>
             <input
               type="text"
               value={personnelData.financeSectionChief || ''}
@@ -1132,22 +1233,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('financeSectionChief', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.financeSectionChiefContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('financeSectionChiefContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Finance Deputy</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Finance Deputy</label>
             <input
               type="text"
               value={personnelData.financeDeputy || ''}
@@ -1155,22 +1256,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('financeDeputy', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.financeDeputyContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('financeDeputyContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Time Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Time Unit Leader</label>
             <input
               type="text"
               value={personnelData.timeUnitLeader || ''}
@@ -1178,22 +1279,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('timeUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.timeUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('timeUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Procurement Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Procurement Unit Leader</label>
             <input
               type="text"
               value={personnelData.procurementUnitLeader || ''}
@@ -1201,22 +1302,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('procurementUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.procurementUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('procurementUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Compensation/Claims Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Compensation/Claims Unit Leader</label>
             <input
               type="text"
               value={personnelData.compensationClaimsUnitLeader || ''}
@@ -1224,22 +1325,22 @@ export function PersonnelPage() {
               onChange={(e) => updateField('compensationClaimsUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.compensationClaimsUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('compensationClaimsUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Cost Unit Leader</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Cost Unit Leader</label>
             <input
               type="text"
               value={personnelData.costUnitLeader || ''}
@@ -1247,29 +1348,29 @@ export function PersonnelPage() {
               onChange={(e) => updateField('costUnitLeader', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
               placeholder="Select or type name"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Contact</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Contact</label>
             <input
               type="text"
               value={personnelData.costUnitLeaderContact || ''}
               onFocus={(e) => handleInputFocus(e.target.value)}
               onChange={(e) => updateField('costUnitLeaderContact', e.target.value)}
               onBlur={(e) => handleInputBlur(e.target.value)}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
       </div>
 
       {/* Agency/Organization Representatives */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-white">Agency/Organization Representatives</h2>
-            <HelpCircle className="w-4 h-4 text-slate-400" />
+            <h2 className="text-lg font-semibold text-foreground">Agency/Organization Representatives</h2>
+            <HelpCircle className="w-4 h-4 text-muted-foreground" />
           </div>
           <button
             onClick={async () => {
@@ -1279,7 +1380,7 @@ export function PersonnelPage() {
               updateField('agencyReps', updated);
               await saveData(newData);
             }}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors flex items-center gap-1"
+            className="px-3 py-1.5 bg-sage hover:bg-sage-hover text-white text-xs rounded-lg transition-colors flex items-center gap-1"
           >
             <Plus className="w-3 h-3" />
             Add Representative
@@ -1297,7 +1398,7 @@ export function PersonnelPage() {
               }}
               onBlur={() => saveData()}
               placeholder="Agency/Organization"
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
             <div className="flex gap-2">
               <input
@@ -1310,15 +1411,16 @@ export function PersonnelPage() {
                 }}
                 onBlur={() => saveData()}
                 placeholder="Representative Name"
-                className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
               />
               <button
-                onClick={() => {
+                onClick={async () => {
                   const updated = (personnelData.agencyReps || []).filter((_, i) => i !== idx);
+                  const newData = { ...personnelData, agencyReps: updated };
                   updateField('agencyReps', updated);
-                  saveData();
+                  await saveData(newData);
                 }}
-                className="p-2 text-red-400 hover:text-red-300 transition-colors"
+                className="p-2 text-coral hover:text-coral transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1328,40 +1430,46 @@ export function PersonnelPage() {
       </div>
 
       {/* Prepared By */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Prepared By</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Prepared By</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Name</label>
             <input
               type="text"
-              value={personnelData.preparedByName || ''}
-              onChange={(e) => updateField('preparedByName', e.target.value)}
+              value={localPreparedByName}
+              onChange={(e) => {
+                setLocalPreparedByName(e.target.value);
+                updateField('preparedByName', e.target.value);
+              }}
               onBlur={() => saveData()}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Position/Title</label>
             <input
               type="text"
-              value={personnelData.preparedByPosition || ''}
-              onChange={(e) => updateField('preparedByPosition', e.target.value)}
+              value={localPreparedByTitle}
+              onChange={(e) => {
+                setLocalPreparedByTitle(e.target.value);
+                updateField('preparedByPosition', e.target.value);
+              }}
               onBlur={() => saveData()}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Date/Time Prepared</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Date/Time Prepared</label>
             <input
               type="datetime-local"
               value={personnelData.preparedDateTime || ''}
               onChange={(e) => updateField('preparedDateTime', e.target.value)}
               onBlur={() => saveData()}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>

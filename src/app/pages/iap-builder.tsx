@@ -148,7 +148,7 @@ export function IAPBuilder() {
         description="Assemble and review your Incident Action Plan packet"
         action={
           <Link
-            to={`/iap/${iapId}/export`}
+            href={`/iap/${iapId}/export`}
             className="bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-yellow-700 transition-colors flex items-center gap-2"
           >
             <Eye className="w-4 h-4" />

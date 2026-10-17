@@ -15,20 +15,14 @@ Read this in full at the start of every session. It is the single source of proj
 
 ---
 
-## ⚠️ Stack reality vs. planning docs
-
-The planning docs in [claude/](claude/) (especially [claude/CLAUDE.md](claude/CLAUDE.md)) describe the app as **Next.js with API routes**. The actual codebase is **Vite + React 18 + React Router v7** with Supabase Edge Functions for the backend. There are no Next.js pages, no `pages/api`, no Next.js conventions in `src/`. When the planning docs and the code disagree, **trust the code**. The planning docs are useful for product context (purpose, scope, shared-data rules, sprint protocol) — not architecture.
-
----
-
-## Tech stack (verified from `package.json` and `vite.config.ts`)
+## Tech stack
 
 | Layer            | Tech                                                           |
 | ---------------- | -------------------------------------------------------------- |
-| Frontend         | React 18.3.1 + TypeScript                                      |
-| Bundler          | Vite 6.3.5 (`@vitejs/plugin-react`)                            |
-| Routing          | React Router v7 (client-side)                                  |
-| Styling          | Tailwind CSS v4 via `@tailwindcss/vite`                        |
+| Framework        | Next.js 15 (App Router)                                        |
+| React            | 18.3.1                                                         |
+| Language         | TypeScript                                                     |
+| Styling          | Tailwind CSS v4 via `@tailwindcss/postcss`                     |
 | UI primitives    | Radix UI + shadcn/ui (~50 wrappers in `src/app/components/ui/`) |
 | Forms            | React Hook Form                                                |
 | Backend          | Supabase (Postgres, Auth, Storage) + Edge Functions            |
@@ -36,7 +30,7 @@ The planning docs in [claude/](claude/) (especially [claude/CLAUDE.md](claude/CL
 | Misc             | `motion`, `recharts`, `react-dnd`, `sonner` (toasts), `lucide-react` |
 | Package manager  | pnpm                                                           |
 
-There is currently **no** ESLint, Prettier, test runner, or `tsconfig.json` in the repo. Type-checking comes from Vite's React plugin at build time. Verification is manual smoke testing.
+The repo was migrated from Vite + React Router to Next.js App Router. There is **no** ESLint, Prettier, or test runner. [next.config.mjs](next.config.mjs) currently sets `typescript.ignoreBuildErrors: true` and `eslint.ignoreDuringBuilds: true` because the codebase has never been type-checked — turn these off as types get fixed.
 
 ---
 
@@ -44,30 +38,60 @@ There is currently **no** ESLint, Prettier, test runner, or `tsconfig.json` in t
 
 ```bash
 pnpm install        # install deps
-pnpm dev            # Vite dev server (HMR)
-pnpm build          # production build to dist/
+pnpm dev            # next dev — http://localhost:3000
+pnpm build          # next build — production build to .next/
+pnpm start          # next start — serve the production build
 ```
 
 ---
 
 ## Directory map
 
+Two top-level code roots — `app/` (Next routes) and `src/` (everything else, aliased as `@/`).
+
 ```
-src/
-  main.tsx                          # Vite entry → mounts <App/>
+app/                                # Next App Router — routing only, thin re-export pages
+  layout.tsx                        # root <html>/<body> + Providers
+  providers.tsx                     # 'use client' — wraps ThemeProvider + AuthProvider + <Toaster/>
+  globals.css                       # imports src/styles/{fonts,tailwind,theme}.css
+  page.tsx                          # / — auth-aware (Homepage if !user, MainWorkspace if user)
+  not-found.tsx                     # 404 fallback
+  pricing/page.tsx                  # public, redirects to / if logged in
+  login/page.tsx                    # public, redirects to / if logged in
+  admin/page.tsx                    # auth-only via <AuthGate>
+  account-settings/page.tsx         # auth-only
+  (fullheight)/                     # route group — shares full-height workspace layout
+    layout.tsx                      # AuthGate + IAPWorkspaceLayout fullHeight
+    team/page.tsx
+    defaults/page.tsx
+    templates/page.tsx
+    utilities/page.tsx
+  iap/[iapId]/period/[periodId]/    # the working-IAP segment
+    layout.tsx                      # AuthGate + IAPWorkspaceLayout
+    page.tsx                        # default = ObjectivesPage
+    objectives/page.tsx
+    personnel/page.tsx
+    assignments/page.tsx
+    communications/page.tsx
+    safety-medical/page.tsx
+    weather/page.tsx
+    action-tracker/page.tsx
+    iap-assembly/page.tsx
+
+src/                                # @/ alias — all real component + utility code
   app/
-    App.tsx                         # router root
+    _components/auth-gate.tsx       # client-side auth redirect helper
     layouts/iap-workspace-layout.tsx
-    pages/                          # iap-assembly-page, assignments-page,
-                                    # communications-page, action-tracker-page,
-                                    # objectives-page, weather-page, admin, auth-page, …
+    pages/                          # actual page components (Homepage, MainWorkspace,
+                                    # ObjectivesPage, AssignmentsPage, …)
     components/
       ui/                           # shadcn primitives (do not edit casually)
-      sidebar.tsx, workspace-header.tsx, …
+      sidebar.tsx, workspace-header.tsx
       figma/                        # Figma-generated components
   utils/
     api-client.ts                   # HTTP client for Supabase
     supabase-client.ts              # Supabase JS client init
+    supabase-info.ts                # projectId + publishableKey from env vars
     pdf-generator.ts                # ⚠ legacy — do not extend
     pdf-generator-v2.ts             # current PDF engine
     pdf-combiner.ts                 # merges per-form PDFs into the combined IAP
@@ -79,32 +103,54 @@ src/
       load-pdf-template.ts
       pdf-helpers.ts
       generators/                   # per-form generators (202, 203, …)
+      pdf-asset-urls.ts             # imports template PDFs as ES modules
       debug-pdf-coords.ts           # dev-only coordinate debugging
   contexts/
-    auth-context.tsx                # auth state
-    theme-context.tsx               # light/dark mode (also see next-themes)
+    auth-context.tsx                # 'use client' — auth state, localStorage token
+    theme-context.tsx               # 'use client' — light/dark/system, SSR-safe
+    op-period-context.tsx           # 'use client' — shared op-period data (incident
+                                    # name/number, period dates, IC, prepared by,
+                                    # approved by, agency). Mounted in
+                                    # app/iap/[iapId]/period/[periodId]/layout.tsx.
+                                    # Use useOpPeriod() inside that segment;
+                                    # useOpPeriodOptional() for the workspace
+                                    # header which renders outside it too.
   hooks/use-autosave.ts
   constants/ics-positions.ts        # PDF coordinate constants
   styles/                           # tailwind.css, theme.css, fonts.css, index.css
-  assets/                           # images, embedded PDFs
-  imports/                          # Figma-generated assets
+  types/assets.d.ts                 # *.pdf, *.csv, *.svg module declarations
+  assets/pdfs/                      # ICS template PDFs (one set, ICS202.pdf etc.)
+  imports/                          # PDF templates used by pdf-generator-v2 +
+                                    # Figma-generated PNGs (logos)
 
 supabase/
   functions/server/
-    index.tsx                       # edge function handler
-    kv_store.tsx                    # KV storage helpers
+    index.ts                        # edge function handler (Hono)
+    kv_store.ts                     # KV storage helpers
+  migrations/
+    0001_sprint1_schema.sql         # relational tables for incidents, periods, shared data
 
 public/
-  ics-templates/                    # canonical ICS form PDFs (forms 202–208)
-                                    # served at runtime URL /ics-templates/...
+  ics-templates/                    # PDF templates served at /ics-templates/...
+                                    # (used at runtime by debug-pdf-coords.ts)
   OP_Logo.png, …
 ```
 
 ---
 
+## Routing rules (App Router)
+
+- Client-rendered SPA, just powered by Next. Every page in [app/](app/) opens with `'use client'`. The route file body is a thin component that imports the real page from `@/app/pages/...` and renders it.
+- **Auth-gated routes** wrap themselves in `<AuthGate>` from [src/app/_components/auth-gate.tsx](src/app/_components/auth-gate.tsx). It redirects unauthenticated users to `/`. Used by `admin`, `account-settings`, the `(fullheight)` group, and the `iap/[iapId]/period/[periodId]` segment.
+- **Public pages** (`/login`, `/pricing`) inline a `useEffect` redirect to `/` if `user` is set.
+- **Path alias `@/`** maps to `src/`. Configured in [tsconfig.json](tsconfig.json) AND in [next.config.mjs](next.config.mjs) as an explicit `webpack.resolve.alias` — the explicit alias is required because the tsconfig path mysteriously fails to resolve from inside the `(fullheight)` route group. Don't remove it.
+- **Hooks**: use `useRouter`, `usePathname`, `useParams` from `next/navigation`; use `Link` from `next/link` (`href=`, not `to=`).
+
+---
+
 ## The shared-data model (non-negotiable)
 
-This is the most important invariant in the codebase.
+This is the most important invariant in the codebase. **The implementation lives in [src/contexts/op-period-context.tsx](src/contexts/op-period-context.tsx).** The Incident Info workspace tab is the canonical editor; every other page consumes the context for shared fields and writes back via `update(patch)`.
 
 **Shared op-period fields** (entered once, read by every form):
 - Incident name, incident number, operational period number
@@ -153,7 +199,8 @@ This is the most-edited workflow in the project.
 - To nudge a field: open that file, find the form (e.g. `ICS_202_BLOCKS`), edit `x`/`y` (PDF origin is bottom-left, so larger `y` = higher on the page), regenerate the PDF, repeat.
 - Step-by-step guides: [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) and [HOW_TO_ADJUST_PDF_POSITIONS.md](HOW_TO_ADJUST_PDF_POSITIONS.md).
 - Do not modify the per-form generators in [src/utils/ics-forms/generators/](src/utils/ics-forms/generators/) for visual tweaks — only `field-mappings.ts`.
-- PDF templates are served at runtime from [public/ics-templates/](public/ics-templates/) via the URL path `/ics-templates/...`. Do not hardcode template paths into `src/`.
+- [src/utils/pdf-generator-v2.ts](src/utils/pdf-generator-v2.ts) loads templates via ES module imports of files in `src/imports/`. Webpack/Turbopack treat `.pdf` files as `asset/resource` (configured in [next.config.mjs](next.config.mjs)) and resolve them to bundled URLs at build time.
+- For runtime-fetched templates (e.g. [src/utils/ics-forms/debug-pdf-coords.ts](src/utils/ics-forms/debug-pdf-coords.ts)), the URL `/ics-templates/...` is served by Next from [public/ics-templates/](public/ics-templates/).
 
 ---
 
@@ -162,7 +209,9 @@ This is the most-edited workflow in the project.
 - **Language:** TypeScript only. No `.js` files in `src/`.
 - **Components:** Functional React with hooks, one component per file.
 - **File names:** `kebab-case.ts(x)`. Component exports: `PascalCase`.
-- **Supabase access:** route through `src/utils/api-client.ts` and `src/utils/supabase-client.ts`. Don't call the Supabase client directly from components.
+- **'use client' directive**: every interactive component (anything using state, effects, browser APIs, or user input) needs `'use client'` at the top. The root layout, providers, all `app/` route files, and most `src/app/pages/` components already have it.
+- **Server components**: not currently used — there are no API routes or data-fetching server components. The whole app is client-rendered. If you start writing server components, watch out for hooks/`localStorage`/`window` references that would break SSR.
+- **Supabase access:** route through [src/utils/api-client.ts](src/utils/api-client.ts) and [src/utils/supabase-client.ts](src/utils/supabase-client.ts). Don't call the Supabase client directly from components.
 - **Forms:** React Hook Form. Validate inputs (zod is the recommended schema lib if added).
 - **Styling:** Tailwind only. No inline styles. No styled-components or Emotion-as-a-styling-engine for new code.
 - **PDF:** Use `pdf-generator-v2.ts`. The older `pdf-generator.ts` is legacy and should not be extended.
@@ -174,21 +223,22 @@ This is the most-edited workflow in the project.
 ## Branching
 
 - `main` — production (auto-deploys to Vercel)
-- `develop` — integration branch
+- `dev` — integration branch
 - `sprint-N/feature-name` — feature branches per sprint
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`
-- PR into `develop`. Merge to `main` only at sprint completion after client approval.
+- PR into `dev`. Merge to `main` only at sprint completion after client approval.
 
 ---
 
-## Common gotchas
+## ⚠️ Things to know before you touch anything
 
-1. **Two PDF generators exist.** Use `pdf-generator-v2.ts`. `pdf-generator.ts` is legacy.
-2. **PDF templates served from `public/`.** Code that loads templates fetches `/ics-templates/...`, which Vite serves from [public/ics-templates/](public/ics-templates/). Don't put templates in `src/` and don't reference root-level paths.
-3. **Shared data must not be cached per-form.** Forms refetch the live op-period record on navigation, so a change on one page is visible on the next.
-4. **Weather (NWS API) is US-only and rate-limited.** The IAP export must degrade gracefully when weather is unavailable — never block export on a weather failure.
-5. **No test suite.** Verification is manual: `pnpm dev`, click through the page being changed, export a PDF, eyeball the result.
-6. **Type errors only surface at build time.** Run `pnpm build` periodically to catch them.
+1. **Supabase keys come from env vars.** [src/utils/supabase-info.ts](src/utils/supabase-info.ts) reads `NEXT_PUBLIC_SUPABASE_PROJECT_ID` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (the new `sb_publishable_...` key, NOT the legacy anon JWT). It throws at module load if either is missing — so a missing `.env.local` will surface as a clear error rather than a silent 401. Set them locally per [.env.example](.env.example) and in Vercel project settings for both Preview and Production. The publishable key goes in the `apikey` HTTP header (not `Authorization`); see [src/utils/api-client.ts](src/utils/api-client.ts) for the pattern. Edge Function deploys use `supabase functions deploy server --no-verify-jwt` because the new keys can't ride in `Authorization: Bearer`.
+2. **Build errors are silenced.** [next.config.mjs](next.config.mjs) sets `typescript.ignoreBuildErrors: true` and `eslint.ignoreDuringBuilds: true`. Disable these as you fix types — they exist to unblock the migration, not as a permanent config.
+3. **Two PDF generators.** Use `pdf-generator-v2.ts`. `pdf-generator.ts` is legacy.
+4. **Shared data must not be cached per-form.** Forms refetch the live op-period record on navigation, so a change on one page is visible on the next.
+5. **Weather (NWS API) is US-only and rate-limited.** The IAP export must degrade gracefully when weather is unavailable — never block export on a weather failure.
+6. **No test suite.** Verification is manual: `pnpm dev`, click through the page being changed, export a PDF, eyeball the result.
+7. **`(fullheight)` route group + `@/` alias quirk.** The `@/*` tsconfig path resolves correctly from every route folder *except* the `(fullheight)` route group, for unknown reasons. The explicit `webpack.resolve.alias` in [next.config.mjs](next.config.mjs) is the workaround. Don't remove it.
 
 ---
 
@@ -223,6 +273,8 @@ Sprint plans, deliverables, and per-session progress logs live in [claude/](clau
 2. Tick deliverables and update Progress Log + Open Items in the sprint file.
 3. Update this CLAUDE.md only when a project-wide decision changed (new convention, new dependency, architectural shift) — not for routine work.
 
+Note: the planning docs in [claude/](claude/) were originally written for a Next.js architecture, then drifted while the project temporarily ran on Vite. The repo is now Next.js again so the planning docs are largely accurate, but they pre-date the App Router migration so any references to `pages/api` or React Router patterns should be read as historical, not current.
+
 ---
 
 ## Key file references
@@ -233,5 +285,7 @@ Sprint plans, deliverables, and per-session progress logs live in [claude/](clau
 - [src/utils/ics-forms/field-mappings.ts](src/utils/ics-forms/field-mappings.ts) — PDF field coordinates (most-edited file)
 - [src/utils/pdf-generator-v2.ts](src/utils/pdf-generator-v2.ts) — current PDF engine
 - [src/utils/pdf-combiner.ts](src/utils/pdf-combiner.ts) — combined IAP merger
+- [src/utils/supabase-info.ts](src/utils/supabase-info.ts) — Supabase project credentials (anon key currently placeholder)
+- [next.config.mjs](next.config.mjs) — Next config: webpack alias, asset rules, build-error suppression
 - [QUICK_START_GUIDE.md](QUICK_START_GUIDE.md) — fast PDF-position adjustment guide
 - [HOW_TO_ADJUST_PDF_POSITIONS.md](HOW_TO_ADJUST_PDF_POSITIONS.md) — full PDF coordinate guide

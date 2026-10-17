@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { FileText, Upload, QrCode, CheckCircle2, AlertCircle } from 'lucide-react';
 import { apiClient } from '../../utils/api-client';
+import { useOpPeriod } from '../../contexts/op-period-context';
 import { icsFormGenerator } from '../../utils/ics-forms/form-generator';
-import { PDFDocument } from 'pdf-lib';
+import { generateWeatherPDF } from '../../utils/ics-forms/generators/weather-pdf';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { toast } from 'sonner';
 
 interface FormSelection {
@@ -18,13 +20,14 @@ interface FormSelection {
 
 export function IAPAssemblyPage() {
   const { iapId, periodId } = useParams();
+  const { data: shared } = useOpPeriod();
   const [iapData, setIAPData] = useState<any>(null);
   const [periodData, setPeriodData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState('');
 
-  // Form metadata
+  // Form metadata — seeded from shared context, user-editable before export
   const [preparedByName, setPreparedByName] = useState('');
   const [preparedByPosition, setPreparedByPosition] = useState('');
   const [preparedDate, setPreparedDate] = useState('');
@@ -38,6 +41,9 @@ export function IAPAssemblyPage() {
   // QR Code
   const [includeQRCode, setIncludeQRCode] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
+
+  // Weather data availability
+  const [weatherAvailable, setWeatherAvailable] = useState<boolean | null>(null);
 
   // Form selection
   const [forms, setForms] = useState<FormSelection[]>([
@@ -107,28 +113,36 @@ export function IAPAssemblyPage() {
     {
       id: 'weather',
       title: 'Weather Forecast',
-      description: 'Weather forecast for the operational period',
-      checked: true,
+      description: 'NWS weather forecast — fetch data on the Weather page first to enable',
+      checked: false,
       requiresData: false,
     },
   ]);
 
   useEffect(() => {
     loadData();
+    checkWeatherAvailability();
     // Auto-populate date/time
     const now = new Date();
     setPreparedDate(now.toISOString().split('T')[0]);
     setPreparedTime(now.toTimeString().slice(0, 5));
-
-    // Load saved preferences from localStorage
-    const savedPrepName = localStorage.getItem('iap_prepared_by_name');
-    const savedPrepPosition = localStorage.getItem('iap_prepared_by_position');
-    const savedApprovedBy = localStorage.getItem('iap_approved_by_name');
-
-    if (savedPrepName) setPreparedByName(savedPrepName);
-    if (savedPrepPosition) setPreparedByPosition(savedPrepPosition);
-    if (savedApprovedBy) setApprovedByName(savedApprovedBy);
   }, [iapId, periodId]);
+
+  // Seed shared fields from context when context data arrives.
+  // These stay editable so the user can override before generating.
+  useEffect(() => {
+    if (!shared) return;
+    if (shared.preparedByName) setPreparedByName(shared.preparedByName);
+    if (shared.preparedByTitle) setPreparedByPosition(shared.preparedByTitle);
+    // approvedByName is the IC's signature block on the cover. Use the explicit
+    // approvedByName if set, otherwise fall back to the IC name entered on the forms.
+    const icName = shared.approvedByName || shared.incidentCommander;
+    if (icName) setApprovedByName(icName);
+    // Auto-load the org logo saved in Account Settings — user can still override.
+    if (shared.agencyLogoUrl && !logoPreview) {
+      setLogoPreview(shared.agencyLogoUrl);
+    }
+  }, [shared]);
 
   // Transform personnel data to organization format expected by ICS forms
   const transformPersonnelToOrganization = (personnelData: any) => {
@@ -199,6 +213,20 @@ export function IAPAssemblyPage() {
     return organizationData;
   };
 
+  const checkWeatherAvailability = async () => {
+    if (!iapId || !periodId) return;
+    try {
+      const weatherRes = await apiClient.getData(iapId, `period-${periodId}-weather`);
+      const hasData = !!(weatherRes?.data?.[0]?.forecast?.length);
+      setWeatherAvailable(hasData);
+      if (hasData) {
+        setForms(prev => prev.map(f => f.id === 'weather' ? { ...f, checked: true } : f));
+      }
+    } catch {
+      setWeatherAvailable(false);
+    }
+  };
+
   const loadData = async () => {
     if (!iapId || !periodId) return;
 
@@ -248,117 +276,129 @@ export function IAPAssemblyPage() {
 
   const generateCoverPage = async (): Promise<Uint8Array> => {
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([612, 792]); // Letter size
+    const page = pdfDoc.addPage([612, 792]);
+    const PW = 612;
+    const PH = 792;
 
-    const { width, height } = page.getSize();
-    const helvetica = await pdfDoc.embedFont('Helvetica');
-    const helveticaBold = await pdfDoc.embedFont('Helvetica-Bold');
+    const font    = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // Add logo if provided
-    let yPosition = height - 100;
+    const NAVY    = rgb(0.08, 0.18, 0.38);
+    const GOLD    = rgb(0.80, 0.60, 0.10);
+    const WHITE   = rgb(1, 1, 1);
+    const DARK    = rgb(0.12, 0.12, 0.12);
+    const MID     = rgb(0.35, 0.35, 0.35);
+    const LIGHT   = rgb(0.94, 0.95, 0.97);
+
+    // ── Top header bar ──────────────────────────────────────────────────────
+    page.drawRectangle({ x: 0, y: PH - 110, width: PW, height: 110, color: NAVY });
+    // Gold accent strip
+    page.drawRectangle({ x: 0, y: PH - 113, width: PW, height: 3, color: GOLD });
+
+    // Agency logo (top-left inside header)
+    // Cap logo width at 160pt so the heading text always has room on the right.
+    const MAX_LOGO_W = 160;
+    let logoEndX = 56;
     if (logoPreview) {
       try {
         const logoBytes = await fetch(logoPreview).then(r => r.arrayBuffer());
         const logoImage = logoPreview.toLowerCase().includes('png')
           ? await pdfDoc.embedPng(logoBytes)
           : await pdfDoc.embedJpg(logoBytes);
-
-        const logoScale = 100 / logoImage.width;
-        page.drawImage(logoImage, {
-          x: (width - logoImage.width * logoScale) / 2,
-          y: yPosition,
-          width: logoImage.width * logoScale,
-          height: logoImage.height * logoScale,
-        });
-        yPosition -= (logoImage.height * logoScale) + 50;
+        const logoH = 78;
+        const naturalW = (logoImage.width / logoImage.height) * logoH;
+        const logoW = Math.min(naturalW, MAX_LOGO_W);
+        page.drawImage(logoImage, { x: 24, y: PH - 100, width: logoW, height: logoH });
+        logoEndX = 24 + logoW + 14;
       } catch (err) {
         console.error('Failed to embed logo:', err);
       }
-    } else {
-      yPosition -= 30;
     }
 
-    // Title
+    // "INCIDENT ACTION PLAN" header text — maxWidth guards against any remaining overflow.
     page.drawText('INCIDENT ACTION PLAN', {
-      x: (width - helveticaBold.widthOfTextAtSize('INCIDENT ACTION PLAN', 28)) / 2,
-      y: yPosition,
-      size: 28,
-      font: helveticaBold,
+      x: logoEndX, y: PH - 52, size: 22, font: boldFont, color: WHITE,
+      maxWidth: PW - logoEndX - 20,
     });
-    yPosition -= 60;
+    page.drawText('OPERATIONAL PERIOD DOCUMENT', {
+      x: logoEndX, y: PH - 72, size: 10, font, color: rgb(0.72, 0.80, 0.94),
+      maxWidth: PW - logoEndX - 20,
+    });
 
-    // Incident Name
+    // ── Incident Name band ───────────────────────────────────────────────────
     const incidentName = iapData?.name || 'Unnamed Incident';
-    page.drawText(incidentName, {
-      x: (width - helveticaBold.widthOfTextAtSize(incidentName, 20)) / 2,
-      y: yPosition,
-      size: 20,
-      font: helveticaBold,
-    });
-    yPosition -= 50;
+    page.drawRectangle({ x: 0, y: PH - 165, width: PW, height: 52, color: LIGHT });
+    page.drawRectangle({ x: 0, y: PH - 165, width: 6, height: 52, color: GOLD });
 
-    // Operational Period
-    const formatDateTime = (date: string, time: string) => {
-      const d = new Date(`${date}T${time}`);
-      return d.toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+    const nameSize = incidentName.length > 40 ? 16 : 20;
+    page.drawText(incidentName, {
+      x: 24, y: PH - 142, size: nameSize, font: boldFont, color: NAVY,
+      maxWidth: PW - 48,
+    });
+
+    // ── Op Period block ──────────────────────────────────────────────────────
+    const fmtDate = (iso: string | null | undefined) => {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: false,
       });
     };
 
-    const opPeriodText = `Operational Period: ${formatDateTime(periodData.fromDate, periodData.fromTime)} - ${formatDateTime(periodData.toDate, periodData.toTime)}`;
-    page.drawText(opPeriodText, {
-      x: (width - helvetica.widthOfTextAtSize(opPeriodText, 12)) / 2,
-      y: yPosition,
-      size: 12,
-      font: helvetica,
-    });
-    yPosition -= 80;
+    let y = PH - 210;
+    page.drawText('OPERATIONAL PERIOD', { x: 40, y, size: 8, font: boldFont, color: GOLD });
+    y -= 14;
+    page.drawText(`From:  ${fmtDate(periodData?.startAt)}`, { x: 40, y, size: 11, font, color: DARK });
+    y -= 16;
+    page.drawText(`To:      ${fmtDate(periodData?.endAt)}`, { x: 40, y, size: 11, font, color: DARK });
 
-    // Prepared by section
-    page.drawText('Prepared by:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(preparedByName || '________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Position/Title:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(preparedByPosition || '________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Date/Time:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(`${preparedDate} ${preparedTime}`, { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 50;
-
-    // Approved by section
-    page.drawText('Approved by Incident Commander:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText(approvedByName || '________________________', { x: 350, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Signature:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText('________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-    yPosition -= 25;
-
-    page.drawText('Date/Time:', { x: 100, y: yPosition, size: 12, font: helveticaBold });
-    page.drawText('________________________', { x: 200, y: yPosition, size: 12, font: helvetica });
-
-    // QR Code placeholder (bottom right)
-    if (includeQRCode && publicUrl) {
-      page.drawText('Scan for digital access:', { x: width - 200, y: 80, size: 10, font: helvetica });
-      page.drawText(publicUrl, { x: width - 200, y: 65, size: 8, font: helvetica });
+    // Incident number (right column)
+    if (iapData?.incidentNumber) {
+      page.drawText('INCIDENT NUMBER', { x: 360, y: PH - 210, size: 8, font: boldFont, color: GOLD });
+      page.drawText(iapData.incidentNumber, { x: 360, y: PH - 224, size: 11, font, color: DARK });
     }
 
-    // Footer
-    const footerText = `Generated by OpPeriod - ${new Date().toLocaleString()}`;
-    page.drawText(footerText, {
-      x: (width - helvetica.widthOfTextAtSize(footerText, 8)) / 2,
-      y: 30,
-      size: 8,
-      font: helvetica,
-      color: { type: 'RGB', red: 0.5, green: 0.5, blue: 0.5 },
+    y -= 30;
+    // Thin rule
+    page.drawLine({ start: { x: 40, y }, end: { x: PW - 40, y }, thickness: 0.5, color: rgb(0.78, 0.78, 0.78) });
+    y -= 24;
+
+    // ── IAP Contents summary ─────────────────────────────────────────────────
+    page.drawText('CONTENTS OF THIS IAP', { x: 40, y, size: 8, font: boldFont, color: GOLD });
+    y -= 14;
+
+    const includedForms = forms.filter(f => f.checked).map(f => f.title);
+    const cols = 2;
+    const colW = (PW - 80) / cols;
+    includedForms.forEach((title, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      page.drawText(`•  ${title}`, {
+        x: 40 + col * colW,
+        y: y - row * 14,
+        size: 9,
+        font,
+        color: DARK,
+        maxWidth: colW - 10,
+      });
     });
+    y -= (Math.ceil(includedForms.length / cols)) * 14 + 16;
+
+    // ── Footer bar ───────────────────────────────────────────────────────────
+    page.drawRectangle({ x: 0, y: 0, width: PW, height: 36, color: NAVY });
+    page.drawText('CONFIDENTIAL — FOR AUTHORIZED PERSONNEL ONLY', {
+      x: 40, y: 14, size: 8, font: boldFont, color: rgb(0.72, 0.80, 0.94),
+    });
+    page.drawText(`Generated by IAPAssist  |  ${new Date().toLocaleString()}`, {
+      x: PW - 40 - font.widthOfTextAtSize(`Generated by IAPAssist  |  ${new Date().toLocaleString()}`, 7),
+      y: 14, size: 7, font, color: rgb(0.55, 0.62, 0.75),
+    });
+
+    // QR Code note (if enabled)
+    if (includeQRCode && publicUrl) {
+      page.drawText('Digital access:', { x: 40, y: 52, size: 8, font: boldFont, color: MID });
+      page.drawText(publicUrl, { x: 110, y: 52, size: 8, font, color: rgb(0.15, 0.35, 0.75), maxWidth: PW - 150 });
+    }
 
     return await pdfDoc.save();
   };
@@ -372,16 +412,19 @@ export function IAPAssemblyPage() {
       return;
     }
 
-    // Save preferences
-    localStorage.setItem('iap_prepared_by_name', preparedByName);
-    localStorage.setItem('iap_prepared_by_position', preparedByPosition);
-    localStorage.setItem('iap_approved_by_name', approvedByName);
-
     setGenerating(true);
     setProgress('Gathering form data...');
 
     try {
       const pdfDocs: Uint8Array[] = [];
+      let runningPageCount = 0;
+
+      // Helper: push a generated PDF and update the running page count
+      const pushPdf = async (pdfBytes: Uint8Array) => {
+        pdfDocs.push(pdfBytes);
+        const tempDoc = await PDFDocument.load(pdfBytes);
+        runningPageCount += tempDoc.getPageCount();
+      };
 
       // Generate each selected form
       for (const form of selectedForms) {
@@ -390,7 +433,7 @@ export function IAPAssemblyPage() {
         try {
           if (form.id === 'cover') {
             const coverPdf = await generateCoverPage();
-            pdfDocs.push(coverPdf);
+            await pushPdf(coverPdf);
           } else if (form.id === 'ics202') {
             const objectivesData = await apiClient.getData(iapId, `period-${periodId}-objectives`);
             const commandData = await apiClient.getData(iapId, `period-${periodId}-command-emphasis`);
@@ -417,7 +460,7 @@ export function IAPAssemblyPage() {
               situationConditions: situationData?.data?.[0]?.content || '',
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics203') {
             const personnelDataRaw = await apiClient.getData(iapId, `period-${periodId}-personnel`);
             const assignmentsDataRaw = await apiClient.getData(iapId, `period-${periodId}-assignments`);
@@ -459,23 +502,60 @@ export function IAPAssemblyPage() {
               divisionsData: divisionsData,
               branchesData: branchesData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics204') {
-            const assignmentsData = await apiClient.getData(iapId, `period-${periodId}-assignments`);
-            const prepData = await apiClient.getData(iapId, `period-${periodId}-assignments-prep`);
+            const [assignmentsData, prepData, personnelData] = await Promise.all([
+              apiClient.getData(iapId, `period-${periodId}-assignments`),
+              apiClient.getData(iapId, `period-${periodId}-assignments-prep`),
+              apiClient.getData(iapId, `period-${periodId}-personnel`),
+            ]);
+            const assignments: any[] = assignmentsData?.data || [];
+            const personnel = personnelData?.data?.[0];
+            const prep = prepData?.data?.[0] || {};
 
-            console.log('[ICS 204 Data Debug]', {
-              assignments: assignmentsData?.data,
-              prep: prepData?.data,
-            });
+            const ics204IapData = {
+              ...iapData,
+              preparedBy: preparedByName || iapData?.preparedByName,
+              preparedByPosition: preparedByPosition || iapData?.preparedByTitle,
+              preparedDateTime: `${preparedDate}T${preparedTime}`,
+            };
 
-            const pdf = await icsFormGenerator.generateICS204({
-              iapData,
-              periodData,
-              assignmentsData: assignmentsData?.data || [],
-              prepData: prepData?.data?.[0] || {},
-            });
-            pdfDocs.push(pdf);
+            // One PDF page per assignment, each stamped with its IAP page number
+            for (let i = 0; i < assignments.length; i++) {
+              const assignment = assignments[i];
+              let branchDirector = '';
+              let branchDirectorContact = '';
+              if (assignment.branch && assignment.divisionGroupType !== 'branch') {
+                const linked = assignments.find((a: any) => a.divisionGroupType === 'branch' && a.name === assignment.branch);
+                branchDirector = linked?.supervisorName || '';
+                branchDirectorContact = linked?.supervisorContact || '';
+              }
+              const assignmentPdf = await icsFormGenerator.generateICS204({
+                iapData: ics204IapData,
+                periodData,
+                formData: [{
+                  division: assignment.name,
+                  divisionGroupType: assignment.divisionGroupType,
+                  branch: assignment.branch || '',
+                  reportingLocation: assignment.reportingLocation || '',
+                  supervisor: assignment.supervisorName || '',
+                  supervisorContact: assignment.supervisorContact || '',
+                  resources: assignment.resources || [],
+                  workAssignment: assignment.workAssignments || '',
+                  specialInstructions: assignment.specialInstructions || '',
+                  communications: assignment.contacts || [],
+                }],
+                operationsSectionChief: personnel?.operationsSectionChief || '',
+                operationsSectionChiefContact: personnel?.operationsSectionChiefContact || '',
+                branchDirector,
+                branchDirectorContact,
+                iapPageNumber: runningPageCount + 1,
+                preparedBy: preparedByName,
+                preparedByPosition,
+                preparedDateTime: prep.dateTimePrepared || `${preparedDate}T${preparedTime}`,
+              });
+              await pushPdf(assignmentPdf);
+            }
           } else if (form.id === 'ics205') {
             const channelsData = await apiClient.getData(iapId, `period-${periodId}-radio-channels`);
 
@@ -484,16 +564,16 @@ export function IAPAssemblyPage() {
               periodData,
               formData: channelsData?.data || [],
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics205a') {
-            const contactsData = await apiClient.getData(iapId, `period-${periodId}-communications-data`);
+            const contactsData = await apiClient.getData(iapId, `period-${periodId}-comms-contacts`);
 
             const pdf = await icsFormGenerator.generateICS205A({
               iapData,
               periodData,
               formData: contactsData?.data || [],
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics206') {
             const medicalData = await apiClient.getData(iapId, `period-${periodId}-medical-data`);
             const stationsData = await apiClient.getData(iapId, `period-${periodId}-medical-stations`);
@@ -514,7 +594,7 @@ export function IAPAssemblyPage() {
               hospitals: hospitalsData?.data || [],
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics207') {
             const personnelDataRaw = await apiClient.getData(iapId, `period-${periodId}-personnel`);
 
@@ -527,7 +607,7 @@ export function IAPAssemblyPage() {
               periodData,
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
           } else if (form.id === 'ics208') {
             const safetyData = await apiClient.getData(iapId, `period-${periodId}-safety-data`);
             const personnelDataRaw = await apiClient.getData(iapId, `period-${periodId}-personnel`);
@@ -542,7 +622,24 @@ export function IAPAssemblyPage() {
               formData: safetyData?.data || [],
               organizationData: organizationData,
             });
-            pdfDocs.push(pdf);
+            await pushPdf(pdf);
+          } else if (form.id === 'weather') {
+            const weatherRes = await apiClient.getData(iapId, `period-${periodId}-weather`);
+            const weatherData = weatherRes?.data?.[0];
+            if (!weatherData || !weatherData.forecast?.length) {
+              toast.warning('No weather data found — visit the Weather page to fetch forecast data first. Skipping weather attachment.');
+            } else {
+              const weatherPdf = await generateWeatherPDF({
+                locationName: weatherData.locationName || '',
+                latitude: weatherData.latitude || '',
+                longitude: weatherData.longitude || '',
+                weatherPoint: weatherData.weatherPoint || null,
+                forecast: weatherData.forecast || [],
+                alerts: weatherData.alerts || [],
+                generatedAt: weatherData.lastUpdated || new Date().toLocaleString(),
+              });
+              await pushPdf(weatherPdf);
+            }
           }
         } catch (err) {
           console.error(`Failed to generate ${form.title}:`, err);
@@ -606,126 +703,126 @@ export function IAPAssemblyPage() {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block w-8 h-8 border-4 border-yellow-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-slate-600">Loading IAP data...</p>
+          <p className="text-muted-foreground">Loading IAP data...</p>
         </div>
       </div>
     );
   }
 
-  const formatDateTime = (date: string, time: string) => {
-    const d = new Date(`${date}T${time}`);
-    return d.toLocaleString('en-US', {
+  const formatISODate = (iso: string | null | undefined) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false,
     });
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">IAP Assembly</h1>
-        <p className="text-slate-600">Generate a complete Incident Action Plan with all selected forms</p>
+        <h1 className="text-2xl font-bold text-foreground mb-2">IAP Assembly</h1>
+        <p className="text-muted-foreground">Generate a complete Incident Action Plan with all selected forms</p>
       </div>
 
       {/* IAP Metadata */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">IAP Metadata</h2>
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">IAP Metadata</h2>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Incident Name</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Incident Name</label>
               <input
                 type="text"
                 value={iapData?.name || ''}
                 disabled
-                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-900"
+                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Operational Period</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Operational Period</label>
               <input
                 type="text"
-                value={periodData ? `${formatDateTime(periodData.fromDate, periodData.fromTime)} - ${formatDateTime(periodData.toDate, periodData.toTime)}` : ''}
+                value={periodData ? `${formatISODate(periodData.startAt)} - ${formatISODate(periodData.endAt)}` : ''}
                 disabled
-                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-900"
+                className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Prepared by: Name</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Prepared by: Name</label>
               <input
                 type="text"
                 value={preparedByName}
                 onChange={(e) => setPreparedByName(e.target.value)}
                 placeholder="Enter your name"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Position/Title</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Position/Title</label>
               <input
                 type="text"
                 value={preparedByPosition}
                 onChange={(e) => setPreparedByPosition(e.target.value)}
                 placeholder="e.g., Planning Section Chief"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date Prepared</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Date Prepared</label>
               <input
                 type="date"
                 value={preparedDate}
                 onChange={(e) => setPreparedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Time Prepared</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Time Prepared</label>
               <input
                 type="time"
                 value={preparedTime}
                 onChange={(e) => setPreparedTime(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Approved by Incident Commander: Name</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Approved by Incident Commander: Name</label>
             <input
               type="text"
               value={approvedByName}
               onChange={(e) => setApprovedByName(e.target.value)}
               placeholder="Enter IC name"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
             />
           </div>
         </div>
       </div>
 
       {/* IAP Cover Section */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">IAP Cover</h2>
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">IAP Cover</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Agency Logo</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Agency Logo</label>
             <div className="flex items-center gap-4">
               <label className="cursor-pointer">
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors">
-                  <Upload className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-700">Upload Logo</span>
+                <div className="flex items-center gap-2 px-4 py-2 bg-muted border border-border rounded-lg hover:bg-accent transition-colors">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-foreground">Upload Logo</span>
                 </div>
                 <input
                   type="file"
@@ -735,14 +832,14 @@ export function IAPAssemblyPage() {
                 />
               </label>
               {logoFile && (
-                <span className="text-sm text-slate-600">{logoFile.name}</span>
+                <span className="text-sm text-muted-foreground">{logoFile.name}</span>
               )}
             </div>
           </div>
 
           {logoPreview && (
-            <div className="border border-slate-300 rounded-lg p-4 bg-slate-50">
-              <p className="text-sm font-medium text-slate-700 mb-2">Preview:</p>
+            <div className="border border-border rounded-lg p-4 bg-muted">
+              <p className="text-sm font-medium text-foreground mb-2">Preview:</p>
               <img src={logoPreview} alt="Logo preview" className="max-h-24 object-contain" />
             </div>
           )}
@@ -750,27 +847,32 @@ export function IAPAssemblyPage() {
       </div>
 
       {/* Form Selection */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Select Forms to Include</h2>
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Select Forms to Include</h2>
 
         <div className="space-y-3">
           {forms.map((form) => (
             <label
               key={form.id}
-              className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+              className="flex items-start gap-3 p-3 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
             >
               <input
                 type="checkbox"
                 checked={form.checked}
                 onChange={() => toggleForm(form.id)}
-                className="mt-1 w-4 h-4 rounded border-slate-300 text-yellow-600 focus:ring-yellow-500"
+                className="mt-1 w-4 h-4 rounded border-border text-mustard-hover focus:ring-sage"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-500" />
-                  <span className="font-medium text-slate-900">{form.title}</span>
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium text-foreground">{form.title}</span>
+                  {form.id === 'weather' && weatherAvailable !== null && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${weatherAvailable ? 'bg-sage/20 text-sage-hover' : 'bg-blush text-mustard-hover'}`}>
+                      {weatherAvailable ? 'Data ready' : 'No data — visit Weather page first'}
+                    </span>
+                  )}
                 </div>
-                <p className="text-sm text-slate-600 mt-1">{form.description}</p>
+                <p className="text-sm text-muted-foreground mt-1">{form.description}</p>
               </div>
               {form.checked && form.requiresData && (
                 <CheckCircle2 className="w-5 h-5 text-green-600 mt-1" />
@@ -781,20 +883,20 @@ export function IAPAssemblyPage() {
       </div>
 
       {/* QR Code Option */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-sm p-6">
+      <div className="bg-card rounded-lg border border-border shadow-sm p-6">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
             checked={includeQRCode}
             onChange={(e) => setIncludeQRCode(e.target.checked)}
-            className="mt-1 w-4 h-4 rounded border-slate-300 text-yellow-600 focus:ring-yellow-500"
+            className="mt-1 w-4 h-4 rounded border-border text-mustard-hover focus:ring-sage"
           />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <QrCode className="w-4 h-4 text-slate-600" />
-              <span className="font-medium text-slate-900">Include QR Code for Public Access</span>
+              <QrCode className="w-4 h-4 text-muted-foreground" />
+              <span className="font-medium text-foreground">Include QR Code for Public Access</span>
             </div>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               When enabled, the IAP will be uploaded to public storage and a QR code will be added to the cover page for mobile access.
             </p>
           </div>
@@ -802,13 +904,13 @@ export function IAPAssemblyPage() {
 
         {includeQRCode && (
           <div className="mt-4">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Public URL (optional)</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Public URL (optional)</label>
             <input
               type="url"
               value={publicUrl}
               onChange={(e) => setPublicUrl(e.target.value)}
               placeholder="https://example.com/iap/..."
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm text-foreground focus:ring-2 focus:ring-sage focus:border-transparent"
             />
           </div>
         )}
@@ -819,7 +921,7 @@ export function IAPAssemblyPage() {
         <button
           onClick={generateIAP}
           disabled={generating || forms.every(f => !f.checked)}
-          className="bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="bg-mustard text-white px-6 py-3 rounded-lg font-medium hover:bg-mustard-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {generating ? (
             <>
@@ -835,7 +937,7 @@ export function IAPAssemblyPage() {
         </button>
 
         {forms.every(f => !f.checked) && (
-          <div className="flex items-center gap-2 text-amber-600">
+          <div className="flex items-center gap-2 text-mustard-hover">
             <AlertCircle className="w-5 h-5" />
             <span className="text-sm">Select at least one form to generate</span>
           </div>
@@ -844,8 +946,8 @@ export function IAPAssemblyPage() {
 
       {/* Progress indicator */}
       {progress && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-blue-900">{progress}</p>
+        <div className="bg-sage/10 border border-sage/30 rounded-lg p-4">
+          <p className="text-sm font-medium text-sage-hover">{progress}</p>
         </div>
       )}
     </div>
