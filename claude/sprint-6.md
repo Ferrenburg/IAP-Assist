@@ -118,6 +118,21 @@ By end of this sprint, the MVP must demonstrate:
 - [ ] ICS 207 coordinate visual calibration (export test PDF, compare positions, adjust ICS_207_BLOCKS in field-mappings.ts)
 - [ ] End-to-end smoke test: sign-up → incident → period → all 8 forms → combined IAP export
 - [ ] Cross-browser testing (Firefox, Safari, Edge) — manual QA
+- [ ] Manual QA of the new admin user-management flows (create user into new/existing org, change org role, delete a user, confirm deletion is blocked for a user who owns incidents)
+
+---
+
+## Change Order — Admin: User Account Management (2026-08-01, client-requested, not in original scope)
+
+Client (Sam) asked directly for employees to be able to see all user accounts, see who administers each account/organization, and create/delete accounts. This wasn't part of the original Sprint 6 plan, but was implemented as a direct client request rather than deferred, since the admin panel and admin-only routes already existed from Sprint 1.
+
+- [x] `GET /admin/users` returns org membership (org name + role) per user
+- [x] `GET /admin/organizations` — org picker list
+- [x] `POST /admin/users` — create account (existing or new org, chosen org role, optional platform-admin grant)
+- [x] `DELETE /admin/users/:userId` — delete account (blocks self-delete and deleting a user who owns incidents)
+- [x] `PUT /admin/users/:userId/org-role` — change a member's org role
+- [x] Admin panel UI: Organization column with inline role selector, Create User dialog, Delete action
+- [ ] Client QA / sign-off
 
 ---
 

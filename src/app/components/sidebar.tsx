@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../utils/api-client';
 import { toast } from 'sonner';
-import { useTheme } from '../../contexts/theme-context';
 
 interface IAP {
   id: string;
@@ -30,7 +29,6 @@ interface OperationalPeriod {
 export function Sidebar() {
   const { iapId, periodId } = useParams();
   const router = useRouter();
-  const { resolvedTheme } = useTheme();
   const [currentIAP, setCurrentIAP] = useState<IAP | null>(null);
   const [operationalPeriods, setOperationalPeriods] = useState<OperationalPeriod[]>([]);
   const [showCreatePeriodModal, setShowCreatePeriodModal] = useState(false);
@@ -90,47 +88,34 @@ export function Sidebar() {
     setDeletingPeriodId(null);
   };
 
-  const lightMode = resolvedTheme === 'light';
-
   return (
     <>
-      <aside className={`w-72 flex flex-col border-r ${
-        lightMode
-          ? 'bg-white text-slate-900 border-slate-200'
-          : 'bg-slate-900 text-white border-slate-800'
-      }`}>
-        <div className={`px-5 pt-5 pb-4 border-b ${lightMode ? 'border-slate-100' : 'border-slate-800'}`}>
+      {/* Persistent dark rail — Apple's global-nav is always black regardless
+          of light/dark mode; this carries the same idea into a left rail so
+          the light parchment workspace has a tile to alternate against. */}
+      <aside className="w-72 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+        <div className="px-5 pt-5 pb-4 border-b border-sidebar-border">
           <button
             onClick={() => router.push('/')}
-            className={`flex items-center gap-1.5 text-xs font-medium mb-3 transition-colors ${
-              lightMode ? 'text-slate-400 hover:text-slate-700' : 'text-slate-500 hover:text-slate-300'
-            }`}
+            className="flex items-center gap-1.5 text-xs font-medium mb-3 text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             All Workspaces
           </button>
-          <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${
-            lightMode ? 'text-slate-400' : 'text-slate-500'
-          }`}>Incident</p>
-          <h1 className={`text-base font-bold leading-tight ${lightMode ? 'text-slate-900' : 'text-white'}`}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1 text-sidebar-foreground/60">Incident</p>
+          <h1 className="text-base font-semibold leading-tight text-sidebar-foreground">
             {currentIAP?.name || 'Loading...'}
           </h1>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="flex items-center justify-between mb-3">
-            <p className={`text-xs font-semibold uppercase tracking-wider ${
-              lightMode ? 'text-slate-400' : 'text-slate-500'
-            }`}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60">
               Operational Periods
             </p>
             <button
               onClick={() => setShowCreatePeriodModal(true)}
-              className={`p-1 rounded transition-colors ${
-                lightMode
-                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
-                  : 'text-emerald-500 hover:text-emerald-400 hover:bg-emerald-900/20'
-              }`}
+              className="p-1 rounded-full text-sidebar-primary hover:brightness-125 hover:bg-sidebar-accent transition-colors active:scale-95"
               title="Add period"
             >
               <Plus className="w-4 h-4" />
@@ -154,24 +139,20 @@ export function Sidebar() {
                 <div
                   key={period.id}
                   className={`px-3 py-2.5 rounded-lg cursor-pointer transition-colors relative group ${
-                    isActive
-                      ? 'bg-emerald-600 shadow-sm'
-                      : lightMode
-                      ? 'hover:bg-slate-100'
-                      : 'hover:bg-slate-800'
+                    isActive ? 'bg-sidebar-primary' : 'hover:bg-sidebar-accent'
                   }`}
                   onMouseEnter={() => setHoveredPeriodId(period.id)}
                   onMouseLeave={() => setHoveredPeriodId(null)}
                   onClick={() => router.push(`/iap/${iapId}/period/${period.id}/objectives`)}
                 >
                   <div className={`flex items-center gap-2 mb-0.5 ${
-                    isActive ? 'text-white' : lightMode ? 'text-slate-800' : 'text-slate-200'
+                    isActive ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground'
                   }`}>
                     <Clock className="w-3.5 h-3.5 shrink-0" />
                     <span className="text-sm font-medium">Period {period.periodNumber}</span>
                   </div>
                   <div className={`text-xs pl-5 ${
-                    isActive ? 'text-emerald-100' : lightMode ? 'text-slate-500' : 'text-slate-500'
+                    isActive ? 'text-sidebar-primary-foreground/80' : 'text-sidebar-foreground/60'
                   }`}>
                     {fmt(period.fromDate, period.fromTime)} – {fmt(period.toDate, period.toTime)}
                   </div>
@@ -180,12 +161,10 @@ export function Sidebar() {
                     <div className="absolute top-2 right-2 flex gap-1">
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingPeriod(period); }}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`p-1.5 rounded-full transition-colors active:scale-95 ${
                           isActive
-                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                            : lightMode
-                            ? 'bg-slate-200 hover:bg-slate-300 text-slate-600'
-                            : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                            ? 'bg-white/15 hover:bg-white/25 text-sidebar-primary-foreground'
+                            : 'bg-sidebar-accent hover:brightness-125 text-sidebar-foreground'
                         }`}
                         title="Edit period"
                       >
@@ -193,12 +172,10 @@ export function Sidebar() {
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeletingPeriodId(period.id); }}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`p-1.5 rounded-full transition-colors active:scale-95 ${
                           isActive
-                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
-                            : lightMode
-                            ? 'bg-slate-200 hover:bg-slate-300 text-red-500'
-                            : 'bg-slate-700 hover:bg-slate-600 text-red-400'
+                            ? 'bg-white/15 hover:bg-white/25 text-sidebar-primary-foreground'
+                            : 'bg-sidebar-accent hover:brightness-125 text-coral'
                         }`}
                         title="Delete period"
                       >
@@ -211,7 +188,7 @@ export function Sidebar() {
             })}
 
             {operationalPeriods.length === 0 && (
-              <p className={`text-xs px-2 py-2 ${lightMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <p className="text-xs px-2 py-2 text-sidebar-foreground/60">
                 No periods yet
               </p>
             )}
@@ -353,7 +330,7 @@ function CreatePeriodModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full mx-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-slate-800 rounded-2xl shadow-xl max-w-md w-full mx-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Create New Operational Period</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
@@ -362,38 +339,38 @@ function CreatePeriodModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Period Number</label>
-              <input type="text" required value={formData.periodNumber} onChange={(e) => setFormData({ ...formData, periodNumber: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="text" required value={formData.periodNumber} onChange={(e) => setFormData({ ...formData, periodNumber: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Period Name</label>
-              <input type="text" value={formData.periodName} onChange={(e) => setFormData({ ...formData, periodName: e.target.value })} placeholder="e.g., Extended Attack" className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="text" value={formData.periodName} onChange={(e) => setFormData({ ...formData, periodName: e.target.value })} placeholder="e.g., Extended Attack" className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">From Date</label>
-              <input type="date" required value={formData.fromDate} onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="date" required value={formData.fromDate} onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">From Time</label>
-              <input type="time" required value={formData.fromTime} onChange={(e) => setFormData({ ...formData, fromTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="time" required value={formData.fromTime} onChange={(e) => setFormData({ ...formData, fromTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">To Date</label>
-              <input type="date" required value={formData.toDate} onChange={(e) => setFormData({ ...formData, toDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="date" required value={formData.toDate} onChange={(e) => setFormData({ ...formData, toDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">To Time</label>
-              <input type="time" required value={formData.toTime} onChange={(e) => setFormData({ ...formData, toTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="time" required value={formData.toTime} onChange={(e) => setFormData({ ...formData, toTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
           </div>
           {existingPeriods.length > 0 && (
             <>
               <div className="pt-4 border-t border-slate-700">
                 <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                  <input type="checkbox" checked={copyFromPrevious} onChange={(e) => { setCopyFromPrevious(e.target.checked); if (!e.target.checked) setSelectedPages([]); }} className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-emerald-600 focus:ring-emerald-500" />
+                  <input type="checkbox" checked={copyFromPrevious} onChange={(e) => { setCopyFromPrevious(e.target.checked); if (!e.target.checked) setSelectedPages([]); }} className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-sage focus:ring-sage" />
                   Copy data from Period {existingPeriods[existingPeriods.length - 1].periodNumber}
                 </label>
               </div>
@@ -403,7 +380,7 @@ function CreatePeriodModal({
                   <div className="grid grid-cols-2 gap-2">
                     {pages.map((page) => (
                       <label key={page} className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                        <input type="checkbox" checked={selectedPages.includes(page)} onChange={() => togglePage(page)} className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-emerald-600 focus:ring-emerald-500" />
+                        <input type="checkbox" checked={selectedPages.includes(page)} onChange={() => togglePage(page)} className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-sage focus:ring-sage" />
                         {page.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                       </label>
                     ))}
@@ -412,10 +389,10 @@ function CreatePeriodModal({
               )}
             </>
           )}
-          {error && <div className="bg-red-900/30 border border-red-700 rounded-lg p-3"><p className="text-sm text-red-300">{error}</p></div>}
+          {error && <div className="bg-coral/10 border border-coral/40 rounded-2xl p-3"><p className="text-sm text-coral">{error}</p></div>}
           <div className="pt-4 flex items-center justify-end gap-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={loading} className="bg-sage text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-sage-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? 'Creating...' : 'Create Period'}
             </button>
           </div>
@@ -477,7 +454,7 @@ function EditPeriodModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full mx-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-slate-800 rounded-2xl shadow-xl max-w-md w-full mx-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Edit Operational Period</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
@@ -486,37 +463,37 @@ function EditPeriodModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Period Number</label>
-              <input type="text" required value={formData.periodNumber} onChange={(e) => setFormData({ ...formData, periodNumber: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="text" required value={formData.periodNumber} onChange={(e) => setFormData({ ...formData, periodNumber: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">Period Name</label>
-              <input type="text" value={formData.periodName} onChange={(e) => setFormData({ ...formData, periodName: e.target.value })} placeholder="e.g., Extended Attack" className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="text" value={formData.periodName} onChange={(e) => setFormData({ ...formData, periodName: e.target.value })} placeholder="e.g., Extended Attack" className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">From Date</label>
-              <input type="date" required value={formData.fromDate} onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="date" required value={formData.fromDate} onChange={(e) => setFormData({ ...formData, fromDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">From Time</label>
-              <input type="time" required value={formData.fromTime} onChange={(e) => setFormData({ ...formData, fromTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="time" required value={formData.fromTime} onChange={(e) => setFormData({ ...formData, fromTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">To Date</label>
-              <input type="date" required value={formData.toDate} onChange={(e) => setFormData({ ...formData, toDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="date" required value={formData.toDate} onChange={(e) => setFormData({ ...formData, toDate: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">To Time</label>
-              <input type="time" required value={formData.toTime} onChange={(e) => setFormData({ ...formData, toTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              <input type="time" required value={formData.toTime} onChange={(e) => setFormData({ ...formData, toTime: e.target.value })} className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-2xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent" />
             </div>
           </div>
-          {error && <div className="bg-red-900/30 border border-red-700 rounded-lg p-3"><p className="text-sm text-red-300">{error}</p></div>}
+          {error && <div className="bg-coral/10 border border-coral/40 rounded-2xl p-3"><p className="text-sm text-coral">{error}</p></div>}
           <div className="pt-4 flex items-center justify-end gap-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button type="submit" disabled={loading} className="bg-sage text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-sage-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? 'Updating...' : 'Update Period'}
             </button>
           </div>
@@ -537,7 +514,7 @@ function DeleteConfirmationModal({
 }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onCancel}>
-      <div className="bg-slate-800 rounded-lg shadow-xl max-w-md w-full mx-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-slate-800 rounded-2xl shadow-xl max-w-md w-full mx-4 border border-slate-700" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-slate-700">
           <h2 className="text-lg font-semibold text-white">Delete Operational Period</h2>
         </div>
@@ -547,7 +524,7 @@ function DeleteConfirmationModal({
         </div>
         <div className="px-6 py-4 border-t border-slate-700 flex items-center justify-end gap-3">
           <button onClick={onCancel} className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors">Cancel</button>
-          <button onClick={onConfirm} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Delete Period</button>
+          <button onClick={onConfirm} className="bg-coral text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-coral-hover transition-colors">Delete Period</button>
         </div>
       </div>
     </div>

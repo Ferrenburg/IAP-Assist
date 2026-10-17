@@ -355,7 +355,7 @@ export function CommunicationsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -364,8 +364,8 @@ export function CommunicationsPage() {
     <div className="space-y-6">
       {/* Incident info banner */}
       {shared?.incidentName && (
-        <div className="text-sm text-slate-400 flex items-center gap-3">
-          <span className="text-slate-200 font-medium">{shared.incidentName}</span>
+        <div className="text-sm text-muted-foreground flex items-center gap-3">
+          <span className="text-foreground font-medium">{shared.incidentName}</span>
           {shared.periodNumber && <><span>·</span><span>Period {shared.periodNumber}</span></>}
           {(shared.startAt || shared.endAt) && (
             <><span>·</span><span>{formatBannerDate(shared.startAt)} – {formatBannerDate(shared.endAt)}</span></>
@@ -375,24 +375,24 @@ export function CommunicationsPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">ICS 205 / 205A - Communications</h1>
+        <h1 className="text-2xl font-bold text-foreground">ICS 205 / 205A - Communications</h1>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <History className="w-4 h-4" />History
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <FileText className="w-4 h-4" />Templates
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <BookOpen className="w-4 h-4" />Tutorial
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <CircleHelp className="w-4 h-4" />Help
           </button>
           <button
             onClick={handleGenerateICS205}
             disabled={generating}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             ICS 205
@@ -400,7 +400,7 @@ export function CommunicationsPage() {
           <button
             onClick={handleGenerateICS205A}
             disabled={generating}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
             ICS 205A
@@ -413,7 +413,7 @@ export function CommunicationsPage() {
         <button
           onClick={() => setActiveTab('ics205')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'ics205' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            activeTab === 'ics205' ? 'bg-sage text-white' : 'bg-muted text-foreground/80 hover:bg-accent'
           }`}
         >
           ICS 205 — Radio Communications Plan
@@ -421,7 +421,7 @@ export function CommunicationsPage() {
         <button
           onClick={() => setActiveTab('ics205a')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'ics205a' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            activeTab === 'ics205a' ? 'bg-sage text-white' : 'bg-muted text-foreground/80 hover:bg-accent'
           }`}
         >
           ICS 205A — Communications List
@@ -432,46 +432,46 @@ export function CommunicationsPage() {
       {activeTab === 'ics205' && (
         <div className="space-y-6">
           {/* Radio Channel Assignments */}
-          <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-white">Radio Channel Assignments</h2>
-                <HelpCircle className="w-4 h-4 text-slate-400" />
+                <h2 className="text-lg font-semibold text-foreground">Radio Channel Assignments</h2>
+                <HelpCircle className="w-4 h-4 text-muted-foreground" />
               </div>
               <button
                 onClick={addChannel}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-sage hover:bg-sage-hover text-white text-sm rounded-lg transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />Add Channel
               </button>
             </div>
 
             {channels.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
+              <div className="text-center py-12 text-muted-foreground">
                 No radio channels added yet. Click "Add Channel" to begin.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">Zone/Group</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">Ch #</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">Function</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">Channel Name/Talkgroup</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">Assignment</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">RX Freq</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">RX Tone</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">TX Freq</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">TX Tone</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">Mode</th>
-                      <th className="text-left py-2 px-2 text-slate-400 font-medium">Remarks</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">Zone/Group</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">Ch #</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">Function</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">Channel Name/Talkgroup</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">Assignment</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">RX Freq</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">RX Tone</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">TX Freq</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">TX Tone</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">Mode</th>
+                      <th className="text-left py-2 px-2 text-muted-foreground font-medium">Remarks</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {channels.map((channel) => (
-                      <tr key={channel.id} className="border-b border-slate-700 hover:bg-slate-800">
+                      <tr key={channel.id} className="border-b border-border hover:bg-muted">
                         {(['zoneGroup', 'channelNumber', 'function', 'channelName', 'assignment', 'rxFreq', 'rxTone', 'txFreq', 'txTone', 'mode', 'remarks'] as (keyof RadioChannel)[]).map(field => (
                           <td key={field} className="py-2 px-2">
                             <input
@@ -479,12 +479,12 @@ export function CommunicationsPage() {
                               value={channel[field] as string}
                               onChange={(e) => updateChannel(channel.id, field, e.target.value)}
                               onBlur={() => saveChannel(channel.id)}
-                              className="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-sage"
                             />
                           </td>
                         ))}
                         <td className="py-2 px-2">
-                          <button onClick={() => deleteChannel(channel.id)} className="text-red-400 hover:text-red-300 transition-colors">
+                          <button onClick={() => deleteChannel(channel.id)} className="text-coral hover:text-coral transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
@@ -497,51 +497,51 @@ export function CommunicationsPage() {
           </div>
 
           {/* Special Instructions */}
-          <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
-            <label className="block text-sm font-medium text-slate-300 mb-2">Special Instructions</label>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Special Instructions</label>
             <textarea
               value={commData.specialInstructions}
               onChange={(e) => { commDataRef.current = { ...commDataRef.current, specialInstructions: e.target.value }; setCommData(commDataRef.current); }}
               onBlur={() => saveCommData(false)}
               placeholder="Any special instructions..."
-              className="w-full h-32 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full h-32 px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage resize-none"
             />
           </div>
 
           {/* Prepared By */}
-          <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Prepared by</h2>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Prepared by</h2>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">Name</label>
                 <input
                   type="text"
                   value={ics205PreparedByName}
                   onChange={(e) => { setIcs205PreparedByName(e.target.value); commDataRef.current = { ...commDataRef.current, preparedByName: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Preparer name"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">Position/Title</label>
                 <input
                   type="text"
                   value={ics205PreparedByTitle}
                   onChange={(e) => { setIcs205PreparedByTitle(e.target.value); commDataRef.current = { ...commDataRef.current, preparedByTitle: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Position or title"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Date/Time Prepared</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">Date/Time Prepared</label>
                 <input
                   type="datetime-local"
                   value={commData.dateTimePrepared}
                   onChange={(e) => { commDataRef.current = { ...commDataRef.current, dateTimePrepared: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             </div>
@@ -552,39 +552,39 @@ export function CommunicationsPage() {
       {/* ── ICS 205A Tab ──────────────────────────────────────────────────────── */}
       {activeTab === 'ics205a' && (
         <div className="space-y-6">
-          <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+          <div className="bg-card rounded-lg border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-white">Communications List</h2>
-                <HelpCircle className="w-4 h-4 text-slate-400" />
+                <h2 className="text-lg font-semibold text-foreground">Communications List</h2>
+                <HelpCircle className="w-4 h-4 text-muted-foreground" />
               </div>
               <button
                 onClick={addContact}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-sage hover:bg-sage-hover text-white text-sm rounded-lg transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />Add Contact
               </button>
             </div>
 
             {contacts.length === 0 ? (
-              <div className="text-center py-12 text-slate-500">
+              <div className="text-center py-12 text-muted-foreground">
                 No contacts added yet. Click "Add Contact" to begin.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left py-2 px-3 text-slate-400 font-medium">Role / Function</th>
-                      <th className="text-left py-2 px-3 text-slate-400 font-medium">Name</th>
-                      <th className="text-left py-2 px-3 text-slate-400 font-medium">Phone / Cell</th>
-                      <th className="text-left py-2 px-3 text-slate-400 font-medium">Radio Channel</th>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Role / Function</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Name</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Phone / Cell</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Radio Channel</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {contacts.map((contact) => (
-                      <tr key={contact.id} className="border-b border-slate-700 hover:bg-slate-800">
+                      <tr key={contact.id} className="border-b border-border hover:bg-muted">
                         <td className="py-2 px-3">
                           <input
                             type="text"
@@ -592,7 +592,7 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'role', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="e.g. Operations Chief"
-                            className="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
@@ -602,7 +602,7 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'name', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="Full name"
-                            className="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
@@ -612,7 +612,7 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'phone', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="555-0100"
-                            className="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
@@ -622,11 +622,11 @@ export function CommunicationsPage() {
                             onChange={(e) => updateContact(contact.id, 'radio', e.target.value)}
                             onBlur={() => saveContact(contact.id)}
                             placeholder="Channel / freq"
-                            className="w-full px-2 py-1 bg-slate-800 border border-slate-600 rounded text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-full px-2 py-1 bg-muted border border-border rounded text-foreground text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-sage"
                           />
                         </td>
                         <td className="py-2 px-3">
-                          <button onClick={() => deleteContact(contact.id)} className="text-red-400 hover:text-red-300 transition-colors">
+                          <button onClick={() => deleteContact(contact.id)} className="text-coral hover:text-coral transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
@@ -639,29 +639,29 @@ export function CommunicationsPage() {
           </div>
 
           {/* Prepared By */}
-          <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Prepared by</h2>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Prepared by</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">Name</label>
                 <input
                   type="text"
                   value={ics205aPreparedByName}
                   onChange={(e) => { setIcs205aPreparedByName(e.target.value); commDataRef.current = { ...commDataRef.current, ics205aPreparedByName: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Preparer name"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
+                <label className="block text-sm font-medium text-foreground/80 mb-2">Position/Title</label>
                 <input
                   type="text"
                   value={ics205aPreparedByTitle}
                   onChange={(e) => { setIcs205aPreparedByTitle(e.target.value); commDataRef.current = { ...commDataRef.current, ics205aPreparedByTitle: e.target.value }; setCommData(commDataRef.current); }}
                   onBlur={() => saveCommData(false)}
                   placeholder="Position or title"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
                 />
               </div>
             </div>

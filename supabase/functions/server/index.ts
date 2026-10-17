@@ -113,11 +113,14 @@ const getAuthenticatedUser = async (req: Request) => {
   return null;
 };
 
-// Helper to check if user is admin. Admin status lives entirely in
-// auth.users.user_metadata.isAdmin — flip it via Supabase Studio
-// (Authentication → Users → row → "User Metadata") to grant access.
+// Helper to check if user is admin. Admin status lives in
+// auth.users.app_metadata.isAdmin — NOT user_metadata. app_metadata can only
+// be written with the service-role key (via this server or Supabase Studio's
+// "Raw App Meta Data" field); user_metadata can be rewritten by the user
+// themselves via the client SDK, so an admin flag stored there would let any
+// signed-in user grant themselves admin access.
 const isAdmin = (user: any): boolean => {
-  return !!user && user.user_metadata?.isAdmin === true;
+  return !!user && user.app_metadata?.isAdmin === true;
 };
 
 // Resolve the user's primary organization, creating one on first use.
@@ -1267,7 +1270,7 @@ app.get("/admin/users", async (c) => {
     }
 
     if (!isAdmin(user)) {
-      console.log('User is not admin:', user.email, 'metadata:', user.user_metadata);
+      console.log('User is not admin:', user.email, 'app_metadata:', user.app_metadata);
       return c.json({ error: "Unauthorized - Admin access required" }, 403);
     }
 
@@ -1281,11 +1284,204 @@ app.get("/admin/users", async (c) => {
       return c.json({ error: `Failed to fetch users: ${error.message}` }, 500);
     }
 
+    // Attach org memberships (org name + role) so the panel can show which
+    // account each user belongs to and who owns/administers it, in one call.
+    const { data: memberRows, error: memberErr } = await supabase
+      .from('org_members')
+      .select('user_id, role, organizations(id, name)');
+    if (memberErr) {
+      console.log(`Error fetching org memberships: ${memberErr.message}`);
+    }
+
+    const membershipsByUser = new Map<string, { id: string; name: string; role: string }[]>();
+    for (const row of memberRows ?? []) {
+      const org = row.organizations as unknown as { id: string; name: string } | null;
+      if (!org) continue;
+      const list = membershipsByUser.get(row.user_id) ?? [];
+      list.push({ id: org.id, name: org.name, role: row.role });
+      membershipsByUser.set(row.user_id, list);
+    }
+
+    const usersWithOrgs = users.map((u) => ({
+      ...u,
+      organizations: membershipsByUser.get(u.id) ?? [],
+    }));
+
     console.log(`Fetched ${users.length} users`);
-    return c.json(users);
+    return c.json(usersWithOrgs);
   } catch (error) {
     console.log(`Error fetching users: ${error}`);
     return c.json({ error: "Failed to fetch users" }, 500);
+  }
+});
+
+// List organizations (id + name) for the admin "create user" org picker.
+app.get("/admin/organizations", async (c) => {
+  try {
+    const user = await getAuthenticatedUser(c.req.raw);
+    if (!user || !isAdmin(user)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const supabase = getSupabaseClient(undefined, true);
+    const { data: rows, error } = await supabase
+      .from('organizations')
+      .select('id, name')
+      .order('name', { ascending: true });
+    if (error) {
+      console.log(`Error fetching organizations: ${error.message}`);
+      return c.json({ error: "Failed to fetch organizations" }, 500);
+    }
+
+    return c.json(rows ?? []);
+  } catch (error) {
+    console.log(`Error fetching organizations: ${error}`);
+    return c.json({ error: "Failed to fetch organizations" }, 500);
+  }
+});
+
+// Create a user account. Adds the new user to an existing org (orgId) or a
+// brand-new one (organizationName), with the given role in that org.
+app.post("/admin/users", async (c) => {
+  try {
+    const requester = await getAuthenticatedUser(c.req.raw);
+    if (!requester || !isAdmin(requester)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const body = await c.req.json();
+    const { email, password, name, isAdmin: grantAdmin, orgId, organizationName, role } = body;
+
+    if (!email || !password || !name) {
+      return c.json({ error: "Email, password, and name are required" }, 400);
+    }
+    if (!orgId && !organizationName) {
+      return c.json({ error: "Either orgId or organizationName is required" }, 400);
+    }
+    const memberRole = ['owner', 'admin', 'member'].includes(role) ? role : 'member';
+
+    const supabase = getSupabaseClient(undefined, true);
+
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      user_metadata: { name, ...(organizationName ? { organization: organizationName } : {}) },
+      app_metadata: { isAdmin: grantAdmin === true },
+      email_confirm: true, // Auto-confirm; transactional email isn't configured.
+    });
+    if (error || !data?.user) {
+      console.log(`Admin user-create error for ${email}: ${error?.message ?? 'unknown'}`);
+      return c.json({ error: error?.message ?? 'Failed to create user' }, 400);
+    }
+
+    let resolvedOrgId: string | undefined = orgId;
+    if (!resolvedOrgId) {
+      const { data: org, error: orgErr } = await supabase
+        .from('organizations')
+        .insert({ name: organizationName })
+        .select('id')
+        .single();
+      if (orgErr || !org) {
+        console.log(`Org create failed while creating user ${data.user.id}: ${orgErr?.message}`);
+        return c.json({ user: data.user, warning: 'User created but organization creation failed' }, 201);
+      }
+      resolvedOrgId = org.id as string;
+    }
+
+    const { error: memberErr } = await supabase
+      .from('org_members')
+      .insert({ user_id: data.user.id, org_id: resolvedOrgId, role: memberRole });
+    if (memberErr) {
+      console.log(`org_members insert failed for new user ${data.user.id}: ${memberErr.message}`);
+      return c.json({ user: data.user, warning: 'User created but could not be added to the organization' }, 201);
+    }
+
+    console.log(`Admin ${requester.id} created user ${data.user.id} in org ${resolvedOrgId} as ${memberRole}`);
+    return c.json({ user: data.user });
+  } catch (error) {
+    console.log(`Error creating user: ${error}`);
+    return c.json({ error: "Failed to create user" }, 500);
+  }
+});
+
+// Delete a user account. Refuses to delete the caller, and refuses to delete
+// a user who still owns incidents (their org_members rows cascade-delete
+// automatically, but incidents.created_by has no cascade — deleting first
+// would either fail at the DB or silently orphan data).
+app.delete("/admin/users/:userId", async (c) => {
+  try {
+    const requester = await getAuthenticatedUser(c.req.raw);
+    if (!requester || !isAdmin(requester)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const userId = c.req.param("userId");
+    if (userId === requester.id) {
+      return c.json({ error: "You cannot delete your own account" }, 400);
+    }
+
+    const supabase = getSupabaseClient(undefined, true);
+
+    const { count, error: incErr } = await supabase
+      .from('incidents')
+      .select('id', { count: 'exact', head: true })
+      .eq('created_by', userId);
+    if (incErr) {
+      console.log(`Error checking incidents for user ${userId}: ${incErr.message}`);
+      return c.json({ error: "Failed to check user's incidents" }, 500);
+    }
+    if (count && count > 0) {
+      return c.json(
+        { error: `Cannot delete this user — they created ${count} incident(s). Reassign or delete those incidents first.` },
+        409,
+      );
+    }
+
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    if (error) {
+      console.log(`Error deleting user ${userId}: ${error.message}`);
+      return c.json({ error: error.message }, 500);
+    }
+
+    console.log(`Admin ${requester.id} deleted user ${userId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error deleting user: ${error}`);
+    return c.json({ error: "Failed to delete user" }, 500);
+  }
+});
+
+// Change a user's role (owner / admin / member) within one of their organizations.
+app.put("/admin/users/:userId/org-role", async (c) => {
+  try {
+    const requester = await getAuthenticatedUser(c.req.raw);
+    if (!requester || !isAdmin(requester)) {
+      return c.json({ error: "Unauthorized - Admin access required" }, 403);
+    }
+
+    const userId = c.req.param("userId");
+    const body = await c.req.json();
+    const { orgId, role } = body;
+    if (!orgId || !['owner', 'admin', 'member'].includes(role)) {
+      return c.json({ error: "orgId and a valid role (owner, admin, member) are required" }, 400);
+    }
+
+    const supabase = getSupabaseClient(undefined, true);
+    const { error } = await supabase
+      .from('org_members')
+      .update({ role })
+      .eq('user_id', userId)
+      .eq('org_id', orgId);
+    if (error) {
+      console.log(`Error updating org role for user ${userId}: ${error.message}`);
+      return c.json({ error: "Failed to update role" }, 500);
+    }
+
+    console.log(`Admin ${requester.id} set user ${userId} role to ${role} in org ${orgId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error updating org role: ${error}`);
+    return c.json({ error: "Failed to update role" }, 500);
   }
 });
 
@@ -1305,9 +1501,17 @@ app.post("/admin/toggle-admin", async (c) => {
 
     const supabase = getSupabaseClient(undefined, true);
 
-    // Update user metadata
+    const { data: existing, error: fetchErr } = await supabase.auth.admin.getUserById(userId);
+    if (fetchErr || !existing?.user) {
+      console.log(`Error fetching user ${userId} for admin toggle: ${fetchErr?.message}`);
+      return c.json({ error: "User not found" }, 404);
+    }
+
+    // app_metadata, not user_metadata — see the isAdmin() helper comment above
+    // for why. updateUserById replaces app_metadata wholesale, so merge in the
+    // existing values rather than clobbering them.
     const { data, error } = await supabase.auth.admin.updateUserById(userId, {
-      user_metadata: { isAdmin: isAdminStatus },
+      app_metadata: { ...existing.user.app_metadata, isAdmin: isAdminStatus },
     });
 
     if (error) {
@@ -1510,6 +1714,123 @@ app.post("/org/logo", async (c) => {
   } catch (error) {
     console.log(`Error uploading logo: ${error}`);
     return c.json({ error: "Failed to upload logo" }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Org-scoped generic data store (defaults libraries, reusable content).
+//
+// Deliberately distinct from the IAP-scoped `/iaps/:iapId/:dataType` routes
+// below in TWO ways:
+//   1. Keyed by orgId, not iapId — these records are reusable across every
+//      incident, which is the whole point of a "defaults" library.
+//   2. Keyed by orgId, not user.id — the IAP-scoped routes namespace by
+//      `user.id`, so teammates in one org cannot see each other's records.
+//      Defaults are an org asset, so they key on the org instead.
+//
+// Registered after `POST /org/logo` so that exact route still wins the match;
+// RESERVED_ORG_SEGMENTS is defense-in-depth if these are ever reordered.
+// ---------------------------------------------------------------------------
+const RESERVED_ORG_SEGMENTS = new Set(["logo"]);
+
+const orgDataKeyPrefix = (orgId: string, dataType: string) =>
+  `orgdata:${orgId}:${dataType}:`;
+
+// Resolves the caller's org, or returns an error response to send back.
+const resolveOrgScope = async (c: any, dataType: string) => {
+  const user = await getAuthenticatedUser(c.req.raw);
+  if (!user) return { error: c.json({ error: "Unauthorized" }, 401) };
+
+  if (RESERVED_ORG_SEGMENTS.has(dataType)) {
+    return { error: c.json({ error: `Reserved dataType: ${dataType}` }, 400) };
+  }
+
+  const supabase = getSupabaseClient(undefined, true);
+  const orgId = await getOrCreateUserOrg(supabase, user);
+  return { orgId };
+};
+
+app.get("/org/:dataType", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    const data = await kv.getByPrefix(orgDataKeyPrefix(orgId!, dataType));
+    return c.json({ data: data || [] });
+  } catch (error) {
+    console.log(`Error fetching org data: ${error}`);
+    return c.json({ error: "Failed to fetch org data" }, 500);
+  }
+});
+
+app.post("/org/:dataType", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    const body = await c.req.json();
+    const itemId = body.id || crypto.randomUUID();
+
+    const item = {
+      ...body,
+      id: itemId,
+      orgId,
+      createdAt: new Date().toISOString(),
+    };
+
+    await kv.set(`${orgDataKeyPrefix(orgId!, dataType)}${itemId}`, item);
+    return c.json({ item });
+  } catch (error) {
+    console.log(`Error creating org data: ${error}`);
+    return c.json({ error: "Failed to create org data" }, 500);
+  }
+});
+
+app.put("/org/:dataType/:itemId", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const itemId = c.req.param("itemId");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    const key = `${orgDataKeyPrefix(orgId!, dataType)}${itemId}`;
+    const existing = await kv.get(key);
+    if (!existing) {
+      return c.json({ error: "Item not found" }, 404);
+    }
+
+    // `id`/`orgId` are re-applied after the body spread so a client payload
+    // cannot reassign a record to another org or item.
+    const item = {
+      ...existing,
+      ...(await c.req.json()),
+      id: itemId,
+      orgId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(key, item);
+    return c.json({ item });
+  } catch (error) {
+    console.log(`Error updating org data: ${error}`);
+    return c.json({ error: "Failed to update org data" }, 500);
+  }
+});
+
+app.delete("/org/:dataType/:itemId", async (c) => {
+  try {
+    const dataType = c.req.param("dataType");
+    const itemId = c.req.param("itemId");
+    const { orgId, error } = await resolveOrgScope(c, dataType);
+    if (error) return error;
+
+    await kv.del(`${orgDataKeyPrefix(orgId!, dataType)}${itemId}`);
+    return c.json({ success: true });
+  } catch (error) {
+    console.log(`Error deleting org data: ${error}`);
+    return c.json({ error: "Failed to delete org data" }, 500);
   }
 });
 

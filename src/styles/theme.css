@@ -2,80 +2,138 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
+
+  /* ---------------------------------------------------------------------
+     IAPAssist brand system.
+
+     Taken directly from the logo pack: deep navy #13233F, safety orange
+     #E8590C, white. Navy carries structure (ink, dark rail, headings);
+     orange is the single action colour. Everything else is a cool neutral
+     derived from the navy so the greys sit in the same family rather than
+     reading as a separate palette.
+     --------------------------------------------------------------------- */
+
+  /* Brand core — straight from the logo artwork. */
+  --color-brand-navy: #13233f;
+  --color-brand-navy-hover: #0d1a30;
+  --color-brand-navy-soft: #1e3052;
+  --color-brand-orange: #e8590c;
+  --color-brand-orange-hover: #cc4c08;
+  --color-brand-white: #ffffff;
+
+  /* Navy-tinted neutrals. */
+  --color-brand-canvas: #ffffff;
+  --color-brand-surface: #f5f7fa;
+  --color-brand-surface-alt: #eef1f6;
+  --color-brand-hairline: #dde3ec;
+  --color-brand-ink-muted: #5b6880;
+  --color-brand-ink-subtle: #8a94a6;
+  --color-brand-on-dark-muted: #b8c2d4;
+
+  /* Destructive deliberately sits red, not orange — orange is the action
+     colour here, so a warning that reuses it would be unreadable as danger. */
+  --color-brand-danger: #c62828;
+  --color-brand-danger-hover: #a81e1e;
+
+  /* The retired palette names stay defined because several hundred call
+     sites across the app still reference bg-mustard / text-sage / etc.
+     Re-pointing them here re-skins all of those at once:
+       mustard -> orange  (primary actions)
+       sage    -> navy    (confirm/secondary actions, active states, focus)
+       coral   -> red     (destructive)
+       blush / cream -> cool neutrals */
+  --color-mustard: var(--color-brand-orange);
+  --color-mustard-hover: var(--color-brand-orange-hover);
+  --color-cream: var(--color-brand-surface);
+  --color-blush: var(--color-brand-surface-alt);
+  --color-blush-hover: var(--color-brand-hairline);
+  --color-sage: var(--color-brand-navy);
+  --color-sage-hover: var(--color-brand-navy-hover);
+  --color-coral: var(--color-brand-danger);
+  --color-coral-hover: var(--color-brand-danger-hover);
+
+  --background: var(--color-brand-surface);
+  --foreground: var(--color-brand-navy);
+  --card: var(--color-brand-canvas);
+  --card-foreground: var(--color-brand-navy);
+  --popover: var(--color-brand-canvas);
+  --popover-foreground: var(--color-brand-navy);
+  --primary: var(--color-brand-orange);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-brand-surface-alt);
+  --secondary-foreground: var(--color-brand-navy);
+  --muted: var(--color-brand-surface-alt);
+  --muted-foreground: var(--color-brand-ink-muted);
+  --accent: var(--color-brand-surface-alt);
+  --accent-foreground: var(--color-brand-navy);
+  --destructive: var(--color-brand-danger);
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: var(--color-brand-hairline);
   --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  --input-background: var(--color-brand-canvas);
+  --switch-background: var(--color-brand-hairline);
+  --font-weight-light: 300;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --ring: var(--color-brand-orange);
+  --chart-1: var(--color-brand-orange);
+  --chart-2: var(--color-brand-navy);
+  --chart-3: var(--color-brand-ink-muted);
+  --chart-4: #f08a4b;
+  --chart-5: #7c8aa3;
+  --radius: 0.75rem;
+
+  /* The workspace rail runs navy, matching the reversed logo lockup. */
+  --sidebar: var(--color-brand-navy);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--color-brand-orange);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e3052;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #24375c;
+  --sidebar-ring: var(--color-brand-orange);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  /* Dark mode inverts onto the navy rather than a neutral black, so the
+     brand reads the same in both. Note nothing in this codebase currently
+     applies the `.dark` class to <html>/<body> (theme-context.tsx tracks
+     resolvedTheme in React state but never toggles it), so this block is
+     presently inert — kept in sync for when that gets wired up. */
+  --background: #0b1322;
+  --foreground: #ffffff;
+  --card: var(--color-brand-navy);
+  --card-foreground: #ffffff;
+  --popover: var(--color-brand-navy);
+  --popover-foreground: #ffffff;
+  --primary: var(--color-brand-orange);
+  --primary-foreground: #ffffff;
+  --secondary: #1e3052;
+  --secondary-foreground: #ffffff;
+  --muted: #1e3052;
+  --muted-foreground: var(--color-brand-on-dark-muted);
+  --accent: #24375c;
+  --accent-foreground: #ffffff;
+  --destructive: #ef5350;
+  --destructive-foreground: #ffffff;
+  --border: #24375c;
+  --input: #1e3052;
+  --input-background: #1e3052;
+  --switch-background: #24375c;
+  --ring: var(--color-brand-orange);
+  --chart-1: var(--color-brand-orange);
+  --chart-2: #ffffff;
+  --chart-3: var(--color-brand-on-dark-muted);
+  --chart-4: #f08a4b;
+  --chart-5: #7c8aa3;
+  --sidebar: #0b1322;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--color-brand-orange);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e3052;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #24375c;
+  --sidebar-ring: var(--color-brand-orange);
 }
 
 @theme inline {
@@ -117,6 +175,33 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Legacy palette aliases — still referenced widely, now brand-coloured. */
+  --color-mustard: var(--color-mustard);
+  --color-mustard-hover: var(--color-mustard-hover);
+  --color-cream: var(--color-cream);
+  --color-blush: var(--color-blush);
+  --color-blush-hover: var(--color-blush-hover);
+  --color-sage: var(--color-sage);
+  --color-sage-hover: var(--color-sage-hover);
+  --color-coral: var(--color-coral);
+  --color-coral-hover: var(--color-coral-hover);
+
+  /* Brand tokens, for surfaces that want the real names. */
+  --color-brand-navy: var(--color-brand-navy);
+  --color-brand-navy-hover: var(--color-brand-navy-hover);
+  --color-brand-orange: var(--color-brand-orange);
+  --color-brand-orange-hover: var(--color-brand-orange-hover);
+  --color-brand-canvas: var(--color-brand-canvas);
+  --color-brand-surface: var(--color-brand-surface);
+  --color-brand-surface-alt: var(--color-brand-surface-alt);
+  --color-brand-hairline: var(--color-brand-hairline);
+  --color-brand-ink-muted: var(--color-brand-ink-muted);
+  --color-brand-ink-subtle: var(--color-brand-ink-subtle);
+  --color-brand-on-dark-muted: var(--color-brand-on-dark-muted);
+  --color-brand-danger: var(--color-brand-danger);
+  --color-brand-danger-hover: var(--color-brand-danger-hover);
+  --font-weight-light: var(--font-weight-light);
 }
 
 @layer base {
@@ -126,11 +211,14 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  * Default typography for bare HTML elements. These live in @layer base so
+  * Tailwind utilities (text-sm, text-lg, …) still override them.
+  * The logo wordmark is tightly tracked, so headings carry a slight negative
+  * letter-spacing to sit in the same voice.
   */
 
   html {
@@ -139,26 +227,29 @@
 
   h1 {
     font-size: var(--text-2xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
   }
 
   h2 {
     font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
   }
 
   h3 {
     font-size: var(--text-lg);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
   }
 
   h4 {
     font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-weight: 600;
+    line-height: 1.35;
   }
 
   label {

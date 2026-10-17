@@ -276,6 +276,36 @@ class APIClient {
     });
   }
 
+  // Org-scoped data (defaults libraries).
+  //
+  // Distinct from the getData/createData/... family above: those namespace by
+  // incident AND by user, so their records are invisible both outside that
+  // incident and to teammates. Org data is keyed on the org, so a saved default
+  // is reusable across every incident and shared across the organization.
+  async getOrgData(dataType: string) {
+    return this.request<{ data: any[] }>(`/org/${dataType}`);
+  }
+
+  async createOrgData(dataType: string, data: any) {
+    return this.request<{ item: any }>(`/org/${dataType}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateOrgData(dataType: string, itemId: string, data: any) {
+    return this.request<{ item: any }>(`/org/${dataType}/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteOrgData(dataType: string, itemId: string) {
+    return this.request<{ success: boolean }>(`/org/${dataType}/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Profile
   async getProfile() {
     return this.request<{ profile: { name: string; title: string; email: string } }>('/profile');

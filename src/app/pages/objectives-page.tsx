@@ -334,7 +334,7 @@ export function ObjectivesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -344,42 +344,42 @@ export function ObjectivesPage() {
       {/* Header */}
       {/* Incident info banner — read-only, populated from shared context */}
       {shared && (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 flex items-center gap-4 text-sm text-slate-300 flex-wrap">
-          <span><span className="text-slate-500">Incident:</span> <span className="text-white font-medium">{shared.incidentName || '—'}</span></span>
-          <span className="text-slate-600">|</span>
-          <span><span className="text-slate-500">Period:</span> <span className="text-white font-medium">{shared.periodNumber}</span></span>
+        <div className="bg-muted border border-border rounded-lg px-4 py-2.5 flex items-center gap-4 text-sm text-foreground/80 flex-wrap">
+          <span><span className="text-muted-foreground">Incident:</span> <span className="text-foreground font-medium">{shared.incidentName || '—'}</span></span>
+          <span className="text-muted-foreground">|</span>
+          <span><span className="text-muted-foreground">Period:</span> <span className="text-foreground font-medium">{shared.periodNumber}</span></span>
           {shared.startAt && (
             <>
-              <span className="text-slate-600">|</span>
-              <span className="text-slate-400">{new Date(shared.startAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} – {shared.endAt ? new Date(shared.endAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}</span>
+              <span className="text-muted-foreground">|</span>
+              <span className="text-muted-foreground">{new Date(shared.startAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })} – {shared.endAt ? new Date(shared.endAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}</span>
             </>
           )}
         </div>
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">ICS 202 - Incident Objectives</h1>
+        <h1 className="text-2xl font-bold text-foreground">ICS 202 - Incident Objectives</h1>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <History className="w-4 h-4" />
             History
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Templates
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             Tutorial
           </button>
-          <button className="px-3 py-2 text-sm text-slate-300 hover:text-white transition-colors flex items-center gap-2">
+          <button className="px-3 py-2 text-sm text-foreground/80 hover:text-foreground transition-colors flex items-center gap-2">
             <CircleHelp className="w-4 h-4" />
             Help
           </button>
           <button
             onClick={handleGenerateICS202}
             disabled={generating}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-mustard hover:bg-mustard-hover text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {generating ? (
               <>
@@ -397,25 +397,25 @@ export function ObjectivesPage() {
       </div>
 
       {/* Incident Objectives Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Incident Objectives</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Incident Objectives</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
 
         {objectives.length === 0 ? (
           <div
-            className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:border-slate-500 transition-colors"
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-sage transition-colors"
             onClick={addObjective}
           >
-            <Plus className="w-6 h-6 text-slate-500 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Click to add your first objective</p>
+            <Plus className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Click to add your first objective</p>
           </div>
         ) : (
           <div className="space-y-3">
             {objectives.map((objective) => (
-              <div key={objective.id} className="flex items-start gap-3 bg-slate-800 rounded-lg p-4 border border-slate-700">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-semibold">
+              <div key={objective.id} className="flex items-start gap-3 bg-muted rounded-lg p-4 border border-border">
+                <div className="flex-shrink-0 w-8 h-8 bg-sage rounded flex items-center justify-center text-white text-sm font-semibold">
                   {objective.number}
                 </div>
                 <textarea
@@ -428,11 +428,11 @@ export function ObjectivesPage() {
                     target.style.height = 'auto';
                     target.style.height = target.scrollHeight + 'px';
                   }}
-                  className="flex-1 bg-transparent text-white placeholder-slate-500 focus:outline-none resize-none overflow-hidden min-h-[24px]"
+                  className="flex-1 bg-transparent text-foreground placeholder-muted-foreground focus:outline-none resize-none overflow-hidden min-h-[24px]"
                 />
                 <button
                   onClick={() => deleteObjective(objective.id)}
-                  className="flex-shrink-0 text-slate-400 hover:text-red-400 transition-colors"
+                  className="flex-shrink-0 text-muted-foreground hover:text-coral transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -444,7 +444,7 @@ export function ObjectivesPage() {
         {objectives.length > 0 && (
           <button
             onClick={addObjective}
-            className="mt-4 flex items-center gap-2 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
+            className="mt-4 flex items-center gap-2 text-sm text-mustard-hover hover:text-mustard transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Objective
@@ -453,70 +453,70 @@ export function ObjectivesPage() {
       </div>
 
       {/* Command Emphasis Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Command Emphasis</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Command Emphasis</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <textarea
           value={commandEmphasis}
           onChange={(e) => setCommandEmphasis(e.target.value)}
           onBlur={saveCommandEmphasis}
           placeholder="Enter command emphasis, which may include tactical priorities, general weather forecast, and Incident Command priorities..."
-          className="w-full h-32 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          className="w-full h-32 bg-muted border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent resize-none"
         />
       </div>
 
       {/* Situation/Incident Conditions Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Situation/Incident Conditions</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Situation/Incident Conditions</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <textarea
           value={situationConditions}
           onChange={(e) => setSituationConditions(e.target.value)}
           onBlur={saveSituationConditions}
           placeholder="This can include weather, incident conditions, or safety message..."
-          className="w-full h-32 bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          className="w-full h-32 bg-muted border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage focus:border-transparent resize-none"
         />
       </div>
 
       {/* Prepared By Section */}
-      <div className="bg-slate-900 rounded-lg border border-slate-700 p-6">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold text-white">Prepared By</h2>
-          <HelpCircle className="w-4 h-4 text-slate-400" />
+          <h2 className="text-lg font-semibold text-foreground">Prepared By</h2>
+          <HelpCircle className="w-4 h-4 text-muted-foreground" />
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Name</label>
             <input
               type="text"
               value={preparedByName}
               onChange={(e) => setPreparedByName(e.target.value)}
               onBlur={() => savePreparedByData()}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Position/Title</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Position/Title</label>
             <input
               type="text"
               value={preparedByPosition}
               onChange={(e) => setPreparedByPosition(e.target.value)}
               onBlur={() => savePreparedByData()}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Date/Time Prepared</label>
+            <label className="block text-sm font-medium text-foreground/80 mb-2">Date/Time Prepared</label>
             <input
               type="datetime-local"
               value={preparedDateTime}
               onChange={(e) => setPreparedDateTime(e.target.value)}
               onBlur={() => savePreparedByData()}
-              className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-muted border border-border rounded-lg text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-sage"
             />
           </div>
         </div>
